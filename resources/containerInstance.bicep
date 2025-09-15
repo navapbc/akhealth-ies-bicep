@@ -1,11 +1,17 @@
-var containerGroupsName string = 'aci-project-dev-web-001'
-var region string = 'eastus'
-var sku = 'Standard'
-var containerImageName = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
-var containerImageMemoryInGB = 2
-var containerImageCPU = 1
-var restartPolicy = 'OnFailutre'
-var osType = 'Linux'
+param environment string
+param instanceNumber string
+param workloadDescriptor string
+param region string
+param regionAbbreviation string
+param sku string
+param containerImageName string
+param containerImageMemoryInGB int
+param containerImageCPU int
+param restartPolicy  string
+param osType string
+param systemName string
+
+var containerGroupsName = 'aci-${systemName}-${environment}-${workloadDescriptor}-${regionAbbreviation}-${instanceNumber}'
 
 
 resource containerGroupsResource 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
