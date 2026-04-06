@@ -3,6 +3,8 @@ targetScope = 'subscription'
 metadata name = 'App Service Landing Zone Accelerator'
 metadata description = 'This Azure App Service pattern module represents an Azure App Service deployment aligned with the cloud adoption framework'
 
+import { regionAbbreviations } from 'modules/shared/region-abbreviations.bicep'
+
 // ================ //
 // Parameters       //
 // ================ //
@@ -13,10 +15,11 @@ import {
   appServiceConfigType
   keyVaultConfigType
   appInsightsConfigType
+  logAnalyticsConfigType
   appGatewayConfigType
   frontDoorConfigType
   aseConfigType
-} from './modules/shared.types.bicep'
+} from 'modules/shared/shared.types.bicep'
 
 @maxLength(10)
 @description('Optional. suffix (max 10 characters long) that will be used to name the resources in a pattern like <resourceAbbreviation>-<workloadName>.')
@@ -29,45 +32,64 @@ param location string = deployment().location
 @maxLength(8)
 param environmentName string = 'test'
 
+@description('Optional. Abbreviation for the owning system. This is the shared naming input passed to modules that derive resource names locally.')
+param systemAbbreviation string = workloadName
+
+@description('Optional. Abbreviation for the lifecycle environment. This is the shared naming input passed to modules that derive resource names locally.')
+param environmentAbbreviation string = environmentName
+
+@description('Optional. Instance number used for deterministic naming. Example: "001".')
+param instanceNumber string = '001'
+
+@description('Optional. Additional workload descriptor to include in names when it adds value. When empty, the segment is omitted.')
+param workloadDescription string = ''
+
 @description('Optional. Default is false. Set to true if you want to deploy ASE v3 instead of Multitenant App Service Plan.')
 param deployAseV3 bool = false
 
 @description('Optional. Tags to apply to all resources.')
 param tags object = {}
 
-@description('Optional. Enable/Disable usage telemetry for module.')
-param enableTelemetry bool = true
 
-@description('Required. The resource ID of the Log Analytics workspace managed by the Platform Landing Zone. All diagnostic settings will be configured to send logs and metrics to this workspace.')
-param logAnalyticsWorkspaceResourceId string
+@description('Optional. The resource ID of an existing Log Analytics workspace. If empty, this template creates one in the spoke resource group.')
+param logAnalyticsWorkspaceResourceId string = ''
+
+@description('Required. Configuration for the Log Analytics workspace when this template creates one.')
+param logAnalyticsConfig logAnalyticsConfigType
 
 // ======================== //
 // Domain Configuration     //
 // ======================== //
 
-@description('Optional. Configuration for the spoke virtual network and ingress networking.')
-param spokeNetworkConfig spokeNetworkConfigType?
+@description('Required. Configuration for the spoke virtual network and ingress networking.')
+param spokeNetworkConfig spokeNetworkConfigType
 
-@description('Optional. Configuration for the App Service Plan.')
-param servicePlanConfig servicePlanConfigType?
+@description('Required. Configuration for the App Service Plan.')
+param servicePlanConfig servicePlanConfigType
 
-@description('Optional. Configuration for the Web App.')
-param appServiceConfig appServiceConfigType?
+@description('Required. Configuration for the Web App.')
+param appServiceConfig appServiceConfigType
 
-@description('Optional. Configuration for the Key Vault.')
-param keyVaultConfig keyVaultConfigType?
+@description('Required. Configuration for the Key Vault.')
+param keyVaultConfig keyVaultConfigType
 
-@description('Optional. Configuration for Application Insights.')
-param appInsightsConfig appInsightsConfigType?
+@description('Required. Configuration for Application Insights.')
+param appInsightsConfig appInsightsConfigType
 
-@description('Optional. Configuration for the Application Gateway. Only used when spokeNetworkConfig.ingressOption is "applicationGateway".')
-param appGatewayConfig appGatewayConfigType?
+@description('Required. Configuration for the Application Gateway. Declare the intended state explicitly even when this ingress path is not selected.')
+param appGatewayConfig appGatewayConfigType
 
-@description('Optional. Configuration for Azure Front Door. Only used when spokeNetworkConfig.ingressOption is "frontDoor".')
-param frontDoorConfig frontDoorConfigType?
+@description('Required. Configuration for Azure Front Door. Declare the intended state explicitly even when this ingress path is not selected.')
+param frontDoorConfig frontDoorConfigType
 
-@description('Optional. Configuration for the App Service Environment v3. Only used when deployAseV3 is true.')
-param aseConfig aseConfigType?
+@description('Optional. Controls whether Azure Front Door resources are deployed when spokeNetworkConfig.ingressOption is "frontDoor".')
+param deployFrontDoor bool = true
+
+@description('Optional. Controls whether private endpoint subnets, private DNS zones, private endpoints, and related private-link helpers are deployed. Set to false for a simpler public-only deployment.')
+param deployPrivateNetworking bool = true
+
+@description('Required. Configuration for the App Service Environment v3. Declare the intended state explicitly even when deployAseV3 is false.')
+param aseConfig aseConfigType
 
 // ================ //
 // Variables        //
@@ -78,221 +100,55 @@ param aseConfig aseConfigType?
 // ======================== //
 
 // Spoke Network
-var vnetSpokeAddressSpace = spokeNetworkConfig.?vnetAddressSpace ?? '10.240.0.0/20'
-var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.?appSvcSubnetAddressSpace ?? '10.240.0.0/26'
-var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.?privateEndpointSubnetAddressSpace ?? '10.240.11.0/24'
-var subnetSpokeAppGwAddressSpace = spokeNetworkConfig.?appGwSubnetAddressSpace ?? ''
-var vnetHubResourceId = spokeNetworkConfig.?hubVnetResourceId ?? ''
-var firewallInternalIp = spokeNetworkConfig.?firewallInternalIp ?? ''
-var networkingOption = spokeNetworkConfig.?ingressOption ?? 'frontDoor'
-var enableEgressLockdown = spokeNetworkConfig.?enableEgressLockdown ?? false
-var dnsServers = spokeNetworkConfig.?dnsServers ?? []
-var ddosProtectionPlanResourceId = spokeNetworkConfig.?ddosProtectionPlanResourceId ?? ''
-var disableBgpRoutePropagation = spokeNetworkConfig.?disableBgpRoutePropagation ?? true
-var vnetEncryption = spokeNetworkConfig.?encryption ?? false
-var vnetEncryptionEnforcement = spokeNetworkConfig.?encryptionEnforcement ?? 'AllowUnencrypted'
-var flowTimeoutInMinutes = spokeNetworkConfig.?flowTimeoutInMinutes ?? 0
-var enableVmProtection = spokeNetworkConfig.?enableVmProtection
-var virtualNetworkBgpCommunity = spokeNetworkConfig.?bgpCommunity
+var vnetSpokeAddressSpace = spokeNetworkConfig.vnetAddressSpace
+var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.appSvcSubnetAddressSpace
+var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointSubnetAddressSpace
+var subnetSpokeAppGwAddressSpace = spokeNetworkConfig.appGwSubnetAddressSpace
+var vnetHubResourceId = spokeNetworkConfig.hubVnetResourceId
+var hubPeeringAllowForwardedTraffic = spokeNetworkConfig.hubPeeringAllowForwardedTraffic
+var hubPeeringAllowGatewayTransit = spokeNetworkConfig.hubPeeringAllowGatewayTransit
+var hubPeeringAllowVirtualNetworkAccess = spokeNetworkConfig.hubPeeringAllowVirtualNetworkAccess
+var hubPeeringDoNotVerifyRemoteGateways = spokeNetworkConfig.hubPeeringDoNotVerifyRemoteGateways
+var hubPeeringUseRemoteGateways = spokeNetworkConfig.hubPeeringUseRemoteGateways
+var hubRemotePeeringEnabled = spokeNetworkConfig.hubRemotePeeringEnabled
+var hubRemotePeeringAllowForwardedTraffic = spokeNetworkConfig.hubRemotePeeringAllowForwardedTraffic
+var hubRemotePeeringAllowGatewayTransit = spokeNetworkConfig.hubRemotePeeringAllowGatewayTransit
+var hubRemotePeeringAllowVirtualNetworkAccess = spokeNetworkConfig.hubRemotePeeringAllowVirtualNetworkAccess
+var hubRemotePeeringDoNotVerifyRemoteGateways = spokeNetworkConfig.hubRemotePeeringDoNotVerifyRemoteGateways
+var hubRemotePeeringUseRemoteGateways = spokeNetworkConfig.hubRemotePeeringUseRemoteGateways
+var firewallInternalIp = spokeNetworkConfig.firewallInternalIp
+var networkingOption = spokeNetworkConfig.ingressOption
+var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
+var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
+var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
+var dnsServers = spokeNetworkConfig.dnsServers
+var ddosProtectionPlanResourceId = spokeNetworkConfig.ddosProtectionPlanResourceId
+var disableBgpRoutePropagation = spokeNetworkConfig.disableBgpRoutePropagation
+var vnetEncryption = spokeNetworkConfig.encryption
+var vnetEncryptionEnforcement = spokeNetworkConfig.encryptionEnforcement
+var flowTimeoutInMinutes = spokeNetworkConfig.flowTimeoutInMinutes
+var enableVmProtection = spokeNetworkConfig.enableVmProtection
+var enablePrivateEndpointVNetPolicies = spokeNetworkConfig.enablePrivateEndpointVNetPolicies
+var virtualNetworkBgpCommunity = spokeNetworkConfig.bgpCommunity
 var vnetLock = spokeNetworkConfig.?lock
-var vnetRoleAssignments = spokeNetworkConfig.?roleAssignments
-var vnetDiagnosticSettings = spokeNetworkConfig.?diagnosticSettings
+var vnetRoleAssignments = spokeNetworkConfig.roleAssignments
+var vnetDiagnosticSettings = spokeNetworkConfig.diagnosticSettings
 
-// Service Plan
-var webAppPlanSku = servicePlanConfig.?sku ?? 'P1V3'
-var zoneRedundant = servicePlanConfig.?zoneRedundant ?? true
-var webAppBaseOs = servicePlanConfig.?kind ?? 'windows'
-var existingAppServicePlanId = servicePlanConfig.?existingPlanId ?? ''
-var skuCapacity = servicePlanConfig.?skuCapacity
-var workerTierName = servicePlanConfig.?workerTierName
-var elasticScaleEnabled = servicePlanConfig.?elasticScaleEnabled
-var maximumElasticWorkerCount = servicePlanConfig.?maximumElasticWorkerCount ?? 20
-var perSiteScaling = servicePlanConfig.?perSiteScaling ?? false
-var targetWorkerCount = servicePlanConfig.?targetWorkerCount ?? 0
-var targetWorkerSize = servicePlanConfig.?targetWorkerSize ?? 0
-var appServicePlanVirtualNetworkSubnetId = servicePlanConfig.?virtualNetworkSubnetId
-var isCustomMode = servicePlanConfig.?isCustomMode
-var rdpEnabled = servicePlanConfig.?rdpEnabled
-var installScripts = servicePlanConfig.?installScripts
-var registryAdapters = servicePlanConfig.?registryAdapters
-var storageMounts = servicePlanConfig.?storageMounts
-var appServicePlanManagedIdentities = servicePlanConfig.?managedIdentities
-var appServicePlanLock = servicePlanConfig.?lock
-var appServicePlanRoleAssignments = servicePlanConfig.?roleAssignments
-var servicePlanDiagnosticSettings = servicePlanConfig.?diagnosticSettings ?? []
-
-// Web App
-var webAppKind = appServiceConfig.?kind ?? 'app'
-var httpsOnly = appServiceConfig.?httpsOnly ?? true
-var clientCertEnabled = appServiceConfig.?clientCertEnabled ?? false
-var clientCertMode = appServiceConfig.?clientCertMode ?? 'Required'
-var clientCertExclusionPaths = appServiceConfig.?clientCertExclusionPaths
-var disableBasicPublishingCredentials = appServiceConfig.?disableBasicPublishingCredentials ?? true
-var webAppPublicNetworkAccess = appServiceConfig.?publicNetworkAccess ?? ''
-var redundancyMode = appServiceConfig.?redundancyMode ?? 'None'
-var scmSiteAlsoStopped = appServiceConfig.?scmSiteAlsoStopped ?? false
-var siteConfig = appServiceConfig.?siteConfig ?? {
-  alwaysOn: true
-  ftpsState: 'FtpsOnly'
-  minTlsVersion: '1.2'
-  healthCheckPath: '/healthz'
-  http20Enabled: true
-}
-var functionAppConfig = appServiceConfig.?functionAppConfig
-var managedEnvironmentResourceId = appServiceConfig.?managedEnvironmentResourceId
-var outboundVnetRouting = appServiceConfig.?outboundVnetRouting
-var hostNameSslStates = appServiceConfig.?hostNameSslStates
-var e2eEncryptionEnabled = appServiceConfig.?e2eEncryptionEnabled
-var keyVaultAccessIdentityResourceId = appServiceConfig.?keyVaultAccessIdentityResourceId
-var hybridConnectionRelays = appServiceConfig.?hybridConnectionRelays
-var webAppExtensions = appServiceConfig.?extensions
-var webAppEnabled = appServiceConfig.?enabled ?? true
-var cloningInfo = appServiceConfig.?cloningInfo
-var containerSize = appServiceConfig.?containerSize
-var dailyMemoryTimeQuota = appServiceConfig.?dailyMemoryTimeQuota
-var storageAccountRequired = appServiceConfig.?storageAccountRequired ?? false
-var appServiceStorageAccounts = appServiceConfig.?storageAccounts
-var dnsConfiguration = appServiceConfig.?dnsConfiguration
-var autoGeneratedDomainNameLabelScope = appServiceConfig.?autoGeneratedDomainNameLabelScope
-var sshEnabled = appServiceConfig.?sshEnabled
-var daprConfig = appServiceConfig.?daprConfig
-var ipMode = appServiceConfig.?ipMode
-var resourceConfig = appServiceConfig.?resourceConfig
-var workloadProfileName = appServiceConfig.?workloadProfileName
-var hostNamesDisabled = appServiceConfig.?hostNamesDisabled
-var webAppReserved = appServiceConfig.?reserved
-var extendedLocation = appServiceConfig.?extendedLocation
-var clientAffinityEnabled = appServiceConfig.?clientAffinityEnabled ?? false
-var clientAffinityProxyEnabled = appServiceConfig.?clientAffinityProxyEnabled
-var clientAffinityPartitioningEnabled = appServiceConfig.?clientAffinityPartitioningEnabled
-var containerImageName = appServiceConfig.?container.?imageName ?? ''
-var containerRegistryUrl = appServiceConfig.?container.?registryUrl ?? ''
-var containerRegistryUsername = appServiceConfig.?container.?registryUsername ?? ''
-var containerRegistryPassword = appServiceConfig.?container.?registryPassword ?? ''
-var webAppLock = appServiceConfig.?lock
-var webAppRoleAssignments = appServiceConfig.?roleAssignments
-var appserviceDiagnosticSettings = appServiceConfig.?diagnosticSettings ?? []
-
-// Key Vault
-var keyVaultEnablePurgeProtection = keyVaultConfig.?enablePurgeProtection ?? true
-var keyVaultSoftDeleteRetentionInDays = keyVaultConfig.?softDeleteRetentionInDays ?? 90
-var keyVaultAccessPolicies = keyVaultConfig.?accessPolicies
-var keyVaultSecrets = keyVaultConfig.?secrets
-var keyVaultKeys = keyVaultConfig.?keys
-var keyVaultEnableVaultForTemplateDeployment = keyVaultConfig.?enableVaultForTemplateDeployment ?? true
-var keyVaultEnableVaultForDiskEncryption = keyVaultConfig.?enableVaultForDiskEncryption ?? true
-var keyVaultCreateMode = keyVaultConfig.?createMode ?? 'default'
-var keyVaultSku = keyVaultConfig.?sku ?? 'standard'
-var keyVaultEnableRbacAuthorization = keyVaultConfig.?enableRbacAuthorization ?? true
-var keyVaultEnableVaultForDeployment = keyVaultConfig.?enableVaultForDeployment ?? true
-var keyVaultNetworkAcls = keyVaultConfig.?networkAcls
-var keyVaultPublicNetworkAccess = keyVaultConfig.?publicNetworkAccess ?? 'Disabled'
-var keyVaultLock = keyVaultConfig.?lock
-var keyVaultAdditionalRoleAssignments = keyVaultConfig.?additionalRoleAssignments
-var keyVaultDiagnosticSettings = keyVaultConfig.?diagnosticSettings ?? []
-
-// App Insights
-var appInsightsPublicNetworkAccessForIngestion = appInsightsConfig.?publicNetworkAccessForIngestion ?? 'Disabled'
-var appInsightsPublicNetworkAccessForQuery = appInsightsConfig.?publicNetworkAccessForQuery ?? 'Disabled'
-var appInsightsRetentionInDays = appInsightsConfig.?retentionInDays ?? 90 // Valid: 30, 60, 90, 120, 180, 270, 365, 550, 730
-var appInsightsSamplingPercentage = appInsightsConfig.?samplingPercentage ?? 100
-var appInsightsDisableLocalAuth = appInsightsConfig.?disableLocalAuth ?? true
-var appInsightsDisableIpMasking = appInsightsConfig.?disableIpMasking
-var appInsightsForceCustomerStorageForProfiler = appInsightsConfig.?forceCustomerStorageForProfiler
-var appInsightsLinkedStorageAccountResourceId = appInsightsConfig.?linkedStorageAccountResourceId
-var appInsightsFlowType = appInsightsConfig.?flowType
-var appInsightsRequestSource = appInsightsConfig.?requestSource
-var appInsightsKind = appInsightsConfig.?kind
-var appInsightsImmediatePurgeDataOn30Days = appInsightsConfig.?immediatePurgeDataOn30Days
-var appInsightsIngestionMode = appInsightsConfig.?ingestionMode
-var appInsightsLock = appInsightsConfig.?lock
-var appInsightsRoleAssignments = appInsightsConfig.?roleAssignments
-var appInsightsDiagnosticSettings = appInsightsConfig.?diagnosticSettings
-
-// Application Gateway
-var appGatewaySslCertificates = appGatewayConfig.?sslCertificates
-var appGatewayManagedIdentities = appGatewayConfig.?managedIdentities
-var appGatewayTrustedRootCertificates = appGatewayConfig.?trustedRootCertificates
-var appGatewaySslPolicyType = appGatewayConfig.?sslPolicyType
-var appGatewaySslPolicyName = appGatewayConfig.?sslPolicyName
-var appGatewaySslPolicyMinProtocolVersion = appGatewayConfig.?sslPolicyMinProtocolVersion
-var appGatewaySslPolicyCipherSuites = appGatewayConfig.?sslPolicyCipherSuites ?? []
-var appGatewayRoleAssignments = appGatewayConfig.?roleAssignments
-var appGatewayAuthenticationCertificates = appGatewayConfig.?authenticationCertificates ?? []
-var appGatewayCustomErrorConfigurations = appGatewayConfig.?customErrorConfigurations ?? []
-var appGatewayEnableFips = appGatewayConfig.?enableFips ?? false
-var appGatewayEnableHttp2 = appGatewayConfig.?enableHttp2 ?? true
-var appGatewayEnableRequestBuffering = appGatewayConfig.?enableRequestBuffering ?? false
-var appGatewayEnableResponseBuffering = appGatewayConfig.?enableResponseBuffering ?? false
-var appGatewayHealthProbePath = appGatewayConfig.?healthProbePath ?? '/'
-var appGatewayLoadDistributionPolicies = appGatewayConfig.?loadDistributionPolicies ?? []
-var appGatewayPrivateEndpoints = appGatewayConfig.?privateEndpoints
-var appGatewayPrivateLinkConfigurations = appGatewayConfig.?privateLinkConfigurations ?? []
-var appGatewayRedirectConfigurations = appGatewayConfig.?redirectConfigurations ?? []
-var appGatewayRewriteRuleSets = appGatewayConfig.?rewriteRuleSets ?? []
-var appGatewaySslProfiles = appGatewayConfig.?sslProfiles ?? []
-var appGatewayTrustedClientCertificates = appGatewayConfig.?trustedClientCertificates ?? []
-var appGatewayUrlPathMaps = appGatewayConfig.?urlPathMaps ?? []
-var appGatewayBackendSettingsCollection = appGatewayConfig.?backendSettingsCollection ?? []
-var appGatewayListeners = appGatewayConfig.?listeners ?? []
-var appGatewayRoutingRules = appGatewayConfig.?routingRules ?? []
-var appGatewayLock = appGatewayConfig.?lock
-var appGatewayDiagnosticSettings = appGatewayConfig.?diagnosticSettings ?? []
-
-// Front Door
-var enableDefaultWafMethodBlock = frontDoorConfig.?enableDefaultWafMethodBlock ?? true
-var wafCustomRules = frontDoorConfig.?wafCustomRules
-var frontDoorHealthProbePath = frontDoorConfig.?healthProbePath ?? '/'
-var frontDoorHealthProbeIntervalInSeconds = frontDoorConfig.?healthProbeIntervalInSeconds ?? 100
-var frontDoorCustomDomains = frontDoorConfig.?customDomains
-var frontDoorRuleSets = frontDoorConfig.?ruleSets
-var frontDoorSecrets = frontDoorConfig.?secrets
-var frontDoorRoleAssignments = frontDoorConfig.?roleAssignments
-var frontDoorOriginResponseTimeoutSeconds = frontDoorConfig.?originResponseTimeoutSeconds ?? 120
-var autoApproveAfdPrivateEndpoint = frontDoorConfig.?autoApprovePrivateEndpoint ?? true
-var frontDoorLock = frontDoorConfig.?lock
-var frontDoorDiagnosticSettings = frontDoorConfig.?diagnosticSettings ?? []
-
-// ASE
-var aseClusterSettings = aseConfig.?clusterSettings ?? [{ name: 'DisableTls1.0', value: '1' }]
-var aseCustomDnsSuffix = aseConfig.?customDnsSuffix
-var aseIpsslAddressCount = aseConfig.?ipsslAddressCount
-var aseMultiSize = aseConfig.?multiSize
-var aseManagedIdentities = aseConfig.?managedIdentities
-var aseCustomDnsSuffixCertificateUrl = aseConfig.?customDnsSuffixCertificateUrl ?? ''
-var aseCustomDnsSuffixKeyVaultReferenceIdentity = aseConfig.?customDnsSuffixKeyVaultReferenceIdentity ?? ''
-var aseDedicatedHostCount = aseConfig.?dedicatedHostCount ?? 0
-var aseDnsSuffix = aseConfig.?dnsSuffix ?? ''
-var aseFrontEndScaleFactor = aseConfig.?frontEndScaleFactor ?? 15
-var aseInternalLoadBalancingMode = aseConfig.?internalLoadBalancingMode ?? 'Web, Publishing'
-var aseAllowNewPrivateEndpointConnections = aseConfig.?allowNewPrivateEndpointConnections ?? true
-var aseFtpEnabled = aseConfig.?ftpEnabled ?? false
-var aseInboundIpAddressOverride = aseConfig.?inboundIpAddressOverride ?? ''
-var aseRemoteDebugEnabled = aseConfig.?remoteDebugEnabled ?? false
-var aseUpgradePreference = aseConfig.?upgradePreference ?? 'None'
-var aseLock = aseConfig.?lock
-var aseRoleAssignments = aseConfig.?roleAssignments
-var aseDiagnosticSettings = aseConfig.?diagnosticSettings ?? []
+// Log Analytics
+var logAnalyticsWorkspaceSku = logAnalyticsConfig.sku
+var logAnalyticsWorkspaceRetentionInDays = logAnalyticsConfig.retentionInDays
+var logAnalyticsWorkspaceEnableLogAccessUsingOnlyResourcePermissions = logAnalyticsConfig.enableLogAccessUsingOnlyResourcePermissions
+var logAnalyticsWorkspaceDisableLocalAuth = logAnalyticsConfig.disableLocalAuth
+var logAnalyticsWorkspacePublicNetworkAccessForIngestion = logAnalyticsConfig.publicNetworkAccessForIngestion
+var logAnalyticsWorkspacePublicNetworkAccessForQuery = logAnalyticsConfig.publicNetworkAccessForQuery
 
 // ======================== //
 // Naming & Resource Names  //
 // ======================== //
 
-var resourceSuffix = '${workloadName}-${environmentName}-${location}'
-var resourceGroupName = spokeNetworkConfig.?resourceGroupName ?? 'rg-spoke-${resourceSuffix}'
-
-var names = naming.outputs.names
-var resourceNames = {
-  aseName: aseConfig.?name ?? names.appServiceEnvironment.nameUnique
-  aspName: servicePlanConfig.?name ?? names.appServicePlan.name
-  webApp: appServiceConfig.?name ?? names.appService.nameUnique
-  appSvcUserAssignedManagedIdentity: appServiceConfig.?managedIdentityName ?? take('${names.managedIdentity.name}-appSvc', 128)
-  frontDoorEndPoint: frontDoorConfig.?endpointName ?? 'webAppLza-${take(uniqueString(resourceGroupName), 6)}'
-  frontDoorWaf: replace(frontDoorConfig.?wafName ?? names.frontDoorFirewallPolicy.name, '-', '')
-  frontDoor: frontDoorConfig.?name ?? names.frontDoor.name
-  frontDoorOriginGroup: frontDoorConfig.?originGroupName ?? '${names.frontDoor.name}-originGroup'
-  idAfdApprovePeAutoApprover: frontDoorConfig.?afdPeAutoApproverName ?? take('${names.managedIdentity.name}-AfdApprovePe', 128)
-}
+var regionAbbreviation = regionAbbreviations[?location] ?? location
+var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
+var resourceGroupName = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
 
 var virtualNetworkLinks = [
   {
@@ -306,40 +162,51 @@ var virtualNetworkLinks = [
 // Resources        //
 // ================ //
 
-module spokeResourceGroup 'br/public:avm/res/resources/resource-group:0.4.3' = {
-  name: '${uniqueString(deployment().name, location, resourceGroupName)}-deployment'
+resource spokeResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
+  name: resourceGroupName
+  location: location
+  tags: tags
+  properties: {}
+}
+
+module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bicep' = if (empty(logAnalyticsWorkspaceResourceId)) {
+  name: '${uniqueString(deployment().name, location, systemAbbreviation, environmentAbbreviation, instanceNumber, 'law')}-law'
+  scope: spokeResourceGroup
   params: {
-    name: resourceGroupName
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
     tags: tags
-    enableTelemetry: enableTelemetry
+    sku: logAnalyticsWorkspaceSku
+    retentionInDays: logAnalyticsWorkspaceRetentionInDays
+    enableLogAccessUsingOnlyResourcePermissions: logAnalyticsWorkspaceEnableLogAccessUsingOnlyResourcePermissions
+    disableLocalAuth: logAnalyticsWorkspaceDisableLocalAuth
+    publicNetworkAccessForIngestion: logAnalyticsWorkspacePublicNetworkAccessForIngestion
+    publicNetworkAccessForQuery: logAnalyticsWorkspacePublicNetworkAccessForQuery
   }
 }
 
-module naming './modules/naming/naming.module.bicep' = {
-  scope: az.resourceGroup(resourceGroupName)
-  name: 'NamingDeployment'
-  params: {
-    location: location
-    suffix: [
-      environmentName
-    ]
-    uniqueLength: 6
-    uniqueSeed: spokeResourceGroup.outputs.resourceId
-  }
-}
+#disable-next-line BCP318
+var resolvedLogAnalyticsWorkspaceResourceId = !empty(logAnalyticsWorkspaceResourceId)
+  ? logAnalyticsWorkspaceResourceId
+  : logAnalyticsWorkspace.outputs.resourceId
 
 // ======================== //
 // Networking               //
 // ======================== //
 
-module networking './modules/networking/network.module.bicep' = {
+module networking 'modules/01-network/network.bicep' = {
   name: '${uniqueString(deployment().name, location)}-networking'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
-    naming: naming.outputs.names
-    enableTelemetry: enableTelemetry
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     deployAseV3: deployAseV3
+    deployPrivateNetworking: privateNetworkingEnabled
     enableEgressLockdown: enableEgressLockdown
     vnetSpokeAddressSpace: vnetSpokeAddressSpace
     subnetSpokeAppSvcAddressSpace: subnetSpokeAppSvcAddressSpace
@@ -347,13 +214,22 @@ module networking './modules/networking/network.module.bicep' = {
     subnetSpokeAppGwAddressSpace: subnetSpokeAppGwAddressSpace
     firewallInternalIp: firewallInternalIp
     hubVnetResourceId: vnetHubResourceId
+    hubPeeringAllowForwardedTraffic: hubPeeringAllowForwardedTraffic
+    hubPeeringAllowGatewayTransit: hubPeeringAllowGatewayTransit
+    hubPeeringAllowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
+    hubPeeringDoNotVerifyRemoteGateways: hubPeeringDoNotVerifyRemoteGateways
+    hubPeeringUseRemoteGateways: hubPeeringUseRemoteGateways
+    hubRemotePeeringEnabled: hubRemotePeeringEnabled
+    hubRemotePeeringAllowForwardedTraffic: hubRemotePeeringAllowForwardedTraffic
+    hubRemotePeeringAllowGatewayTransit: hubRemotePeeringAllowGatewayTransit
+    hubRemotePeeringAllowVirtualNetworkAccess: hubRemotePeeringAllowVirtualNetworkAccess
+    hubRemotePeeringDoNotVerifyRemoteGateways: hubRemotePeeringDoNotVerifyRemoteGateways
+    hubRemotePeeringUseRemoteGateways: hubRemotePeeringUseRemoteGateways
     networkingOption: networkingOption
-    logAnalyticsWorkspaceId: logAnalyticsWorkspaceResourceId
+    logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
     dnsServers: dnsServers
     ddosProtectionPlanResourceId: ddosProtectionPlanResourceId
-    vnetDiagnosticSettings: !empty(vnetDiagnosticSettings)
-      ? vnetDiagnosticSettings
-      : null
+    vnetDiagnosticSettings: vnetDiagnosticSettings
     vnetLock: vnetLock
     disableBgpRoutePropagation: disableBgpRoutePropagation
     vnetRoleAssignments: vnetRoleAssignments
@@ -361,6 +237,7 @@ module networking './modules/networking/network.module.bicep' = {
     vnetEncryptionEnforcement: vnetEncryptionEnforcement
     flowTimeoutInMinutes: flowTimeoutInMinutes
     enableVmProtection: enableVmProtection
+    enablePrivateEndpointVNetPolicies: enablePrivateEndpointVNetPolicies
     virtualNetworkBgpCommunity: virtualNetworkBgpCommunity
     tags: tags
   }
@@ -370,101 +247,142 @@ module networking './modules/networking/network.module.bicep' = {
 // App Service Variables    //
 // ======================== //
 
+// Service Plan
+var webAppPlanSku = servicePlanConfig.sku
+var zoneRedundant = servicePlanConfig.zoneRedundant
+var webAppBaseOs = servicePlanConfig.kind
+var existingAppServicePlanId = servicePlanConfig.existingPlanId
+var skuCapacity = servicePlanConfig.skuCapacity
+var workerTierName = servicePlanConfig.workerTierName
+var elasticScaleEnabled = servicePlanConfig.elasticScaleEnabled
+var maximumElasticWorkerCount = servicePlanConfig.maximumElasticWorkerCount
+var perSiteScaling = servicePlanConfig.perSiteScaling
+var targetWorkerCount = servicePlanConfig.targetWorkerCount
+var targetWorkerSize = servicePlanConfig.targetWorkerSize
+var appServicePlanVirtualNetworkSubnetId = servicePlanConfig.virtualNetworkSubnetId
+var isCustomMode = servicePlanConfig.isCustomMode
+var rdpEnabled = servicePlanConfig.rdpEnabled
+var installScripts = servicePlanConfig.installScripts
+var registryAdapters = servicePlanConfig.registryAdapters
+var storageMounts = servicePlanConfig.storageMounts
+var appServicePlanManagedIdentities = servicePlanConfig.managedIdentities
+var appServicePlanLock = servicePlanConfig.?lock
+var appServicePlanRoleAssignments = servicePlanConfig.roleAssignments
+var servicePlanDiagnosticSettings = servicePlanConfig.diagnosticSettings
+
+// Web App
+var webAppKind = appServiceConfig.kind
+var httpsOnly = appServiceConfig.httpsOnly
+var clientCertEnabled = appServiceConfig.clientCertEnabled
+var clientCertMode = appServiceConfig.?clientCertMode
+var clientCertExclusionPaths = appServiceConfig.?clientCertExclusionPaths
+var disableBasicPublishingCredentials = appServiceConfig.disableBasicPublishingCredentials
+var resolvedWebAppPublicNetworkAccess = appServiceConfig.publicNetworkAccess
+var redundancyMode = appServiceConfig.redundancyMode
+var scmSiteAlsoStopped = appServiceConfig.scmSiteAlsoStopped
+var siteConfig = appServiceConfig.siteConfig
+var functionAppConfig = appServiceConfig.?functionAppConfig
+var managedEnvironmentResourceId = appServiceConfig.?managedEnvironmentResourceId
+var outboundVnetRouting = appServiceConfig.?outboundVnetRouting
+var hostNameSslStates = appServiceConfig.?hostNameSslStates
+var e2eEncryptionEnabled = appServiceConfig.?e2eEncryptionEnabled
+var keyVaultAccessIdentityResourceId = appServiceConfig.?keyVaultAccessIdentityResourceId
+var appServiceManagedIdentities = appServiceConfig.managedIdentities
+var webAppExtensions = appServiceConfig.?extensions
+var webAppEnabled = appServiceConfig.enabled
+var cloningInfo = appServiceConfig.?cloningInfo
+var containerSize = appServiceConfig.?containerSize
+var dailyMemoryTimeQuota = appServiceConfig.?dailyMemoryTimeQuota
+var storageAccountRequired = appServiceConfig.storageAccountRequired
+var dnsConfiguration = appServiceConfig.?dnsConfiguration
+var autoGeneratedDomainNameLabelScope = appServiceConfig.?autoGeneratedDomainNameLabelScope
+var sshEnabled = appServiceConfig.?sshEnabled
+var daprConfig = appServiceConfig.?daprConfig
+var ipMode = appServiceConfig.?ipMode
+var resourceConfig = appServiceConfig.?resourceConfig
+var workloadProfileName = appServiceConfig.?workloadProfileName
+var hostNamesDisabled = appServiceConfig.?hostNamesDisabled
+var webAppReserved = appServiceConfig.reserved
+var extendedLocation = appServiceConfig.?extendedLocation
+var clientAffinityEnabled = appServiceConfig.clientAffinityEnabled
+var clientAffinityProxyEnabled = appServiceConfig.clientAffinityProxyEnabled
+var clientAffinityPartitioningEnabled = appServiceConfig.clientAffinityPartitioningEnabled
+var webAppLock = appServiceConfig.?lock
+var webAppRoleAssignments = appServiceConfig.?roleAssignments
+var appserviceDiagnosticSettings = appServiceConfig.diagnosticSettings
+var configuredAppSlots = appServiceConfig.slots
+var appServiceConfigs = appServiceConfig.configs
+var webAppPrivateEndpoints = appServiceConfig.privateEndpoints
+
 var webAppDnsZoneName = 'privatelink.azurewebsites.net'
-var slotName = 'staging'
+var keyVaultPrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
 
 var deployPlan = empty(existingAppServicePlanId)
 var resolvedServerFarmResourceId = appServicePlan.?outputs.?resourceId ?? existingAppServicePlanId
-
 var isLinux = webAppBaseOs =~ 'linux'
-var isContainer = contains(webAppKind, 'container')
 var isWindowsContainer = contains(webAppKind, 'container') && contains(webAppKind, 'windows')
-
-// Merge container-specific site config properties
-var containerSiteConfig = isContainer && !empty(containerImageName)
-  ? union(siteConfig, isLinux
-      ? { linuxFxVersion: 'DOCKER|${containerImageName}' }
-      : { windowsFxVersion: 'DOCKER|${containerImageName}' })
-  : siteConfig
-
-// Container registry app settings for private registries
-var containerRegistryAppSettings = isContainer && !empty(containerRegistryUrl)
-  ? {
-      DOCKER_REGISTRY_SERVER_URL: containerRegistryUrl
-      ...(!empty(containerRegistryUsername)
-        ? {
-            DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryUsername
-            DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
-          }
-        : {})
-    }
-  : {}
-
-var resolvedAppServiceDiagnosticSettings = !empty(appserviceDiagnosticSettings)
-  ? appserviceDiagnosticSettings
-  : [
+var webAppHyperV = appServiceConfig.hyperV
+var resolvedWebAppSlots = configuredAppSlots
+var containerSiteConfig = siteConfig
+var resolvedAppServiceDiagnosticSettings = appserviceDiagnosticSettings
+var resolvedServicePlanDiagnosticSettings = servicePlanDiagnosticSettings
+var resolvedAseDiagnosticSettings = aseDiagnosticSettings
+var resolvedWebAppClientCertMode = clientCertEnabled ? clientCertMode : null
+var webAppPublishingCredentialPolicies = disableBasicPublishingCredentials
+  ? [
       {
-        name: 'appservice-diagnosticSettings'
-        workspaceResourceId: logAnalyticsWorkspaceResourceId
-        logCategoriesAndGroups: [
-          {
-            categoryGroup: 'allLogs'
-          }
-        ]
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
+        name: 'ftp'
+        allow: false
+      }
+      {
+        name: 'scm'
+        allow: false
       }
     ]
-
-var resolvedServicePlanDiagnosticSettings = !empty(servicePlanDiagnosticSettings)
-  ? servicePlanDiagnosticSettings
-  : [
-      {
-        name: 'servicePlan-diagnosticSettings'
-        workspaceResourceId: logAnalyticsWorkspaceResourceId
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
-      }
-    ]
-
-var resolvedAseDiagnosticSettings = !empty(aseDiagnosticSettings)
-  ? aseDiagnosticSettings
-  : [
-      {
-        name: 'ase-diagnosticSettings'
-        workspaceResourceId: logAnalyticsWorkspaceResourceId
-        logCategoriesAndGroups: [
-          {
-            categoryGroup: 'allLogs'
-          }
-        ]
-      }
-    ]
-
+  : null
+var webAppVirtualNetworkSubnetResourceId = !deployAseV3 && !isCustomMode
+  ? networking.outputs.snetAppSvcResourceId
+  : null
 // ======================== //
 // ASE                      //
 // ======================== //
 
-module aseEnvironment 'br/public:avm/res/web/hosting-environment:0.5.0' = if (deployAseV3) {
+var aseClusterSettings = aseConfig.clusterSettings
+var aseCustomDnsSuffix = aseConfig.customDnsSuffix
+var aseIpsslAddressCount = aseConfig.ipsslAddressCount
+var aseMultiSize = aseConfig.multiSize
+var aseCustomDnsSuffixCertificateUrl = aseConfig.customDnsSuffixCertificateUrl
+var aseCustomDnsSuffixKeyVaultReferenceIdentity = aseConfig.customDnsSuffixKeyVaultReferenceIdentity
+var aseDedicatedHostCount = aseConfig.dedicatedHostCount
+var aseDnsSuffix = aseConfig.dnsSuffix
+var aseFrontEndScaleFactor = aseConfig.frontEndScaleFactor
+var aseInternalLoadBalancingMode = aseConfig.internalLoadBalancingMode
+var aseZoneRedundant = aseConfig.zoneRedundant
+var aseAllowNewPrivateEndpointConnections = aseConfig.allowNewPrivateEndpointConnections
+var aseFtpEnabled = aseConfig.ftpEnabled
+var aseInboundIpAddressOverride = aseConfig.inboundIpAddressOverride
+var aseRemoteDebugEnabled = aseConfig.remoteDebugEnabled
+var aseUpgradePreference = aseConfig.upgradePreference
+var aseLock = aseConfig.?lock
+var aseRoleAssignments = aseConfig.?roleAssignments
+var aseDiagnosticSettings = aseConfig.diagnosticSettings
+
+module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-avm'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
-    name: resourceNames.aseName
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
     tags: tags
     subnetResourceId: networking.outputs.snetAppSvcResourceId
     clusterSettings: aseClusterSettings
     dedicatedHostCount: aseDedicatedHostCount != 0 ? aseDedicatedHostCount : null
     frontEndScaleFactor: aseFrontEndScaleFactor
     internalLoadBalancingMode: aseInternalLoadBalancingMode
-    zoneRedundant: zoneRedundant
+    zoneRedundant: aseZoneRedundant
     networkConfiguration: {
       properties: {
         allowNewPrivateEndpointConnections: aseAllowNewPrivateEndpointConnections
@@ -480,7 +398,6 @@ module aseEnvironment 'br/public:avm/res/web/hosting-environment:0.5.0' = if (de
     upgradePreference: aseUpgradePreference
     ipsslAddressCount: aseIpsslAddressCount
     multiSize: aseMultiSize
-    managedIdentities: aseManagedIdentities
     diagnosticSettings: resolvedAseDiagnosticSettings
     lock: aseLock
     roleAssignments: aseRoleAssignments
@@ -490,25 +407,21 @@ module aseEnvironment 'br/public:avm/res/web/hosting-environment:0.5.0' = if (de
 
 // Lookup ASE properties via a resource-group-scoped module to avoid ARM reference() validation issues
 // in subscription-scoped templates with conditional existing resources.
-module aseLookup './modules/networking/ase-lookup.bicep' = if (deployAseV3) {
+module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-lookup'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
-    aseName: resourceNames.aseName
+    aseName: aseEnvironment.outputs.name
   }
-  dependsOn: [
-    aseEnvironment
-  ]
 }
 
-#disable-diagnostics BCP318
-module asePrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = if (deployAseV3) {
+#disable-next-line BCP318
+module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-dnszone'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
     name: '${aseEnvironment.outputs.name}.appserviceenvironment.net'
     virtualNetworkLinks: virtualNetworkLinks
-    enableTelemetry: enableTelemetry
     tags: tags
     a: [
       {
@@ -546,27 +459,47 @@ module asePrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = if
 // App Insights             //
 // ======================== //
 
-module appInsights 'br/public:avm/res/insights/component:0.7.1' = {
+var appInsightsPublicNetworkAccessForIngestion = appInsightsConfig.publicNetworkAccessForIngestion
+var appInsightsPublicNetworkAccessForQuery = appInsightsConfig.publicNetworkAccessForQuery
+var appInsightsApplicationType = appInsightsConfig.applicationType
+var appInsightsRetentionInDays = appInsightsConfig.retentionInDays
+var appInsightsSamplingPercentage = appInsightsConfig.samplingPercentage
+var appInsightsDisableLocalAuth = appInsightsConfig.disableLocalAuth
+var appInsightsDisableIpMasking = appInsightsConfig.disableIpMasking
+var appInsightsForceCustomerStorageForProfiler = appInsightsConfig.forceCustomerStorageForProfiler
+var appInsightsLinkedStorageAccountResourceId = appInsightsConfig.?linkedStorageAccountResourceId
+var appInsightsFlowType = appInsightsConfig.?flowType
+var appInsightsRequestSource = appInsightsConfig.?requestSource
+var appInsightsKind = appInsightsConfig.kind
+var appInsightsImmediatePurgeDataOn30Days = appInsightsConfig.?immediatePurgeDataOn30Days
+var appInsightsIngestionMode = appInsightsConfig.?ingestionMode
+var appInsightsLock = appInsightsConfig.?lock
+var appInsightsRoleAssignments = appInsightsConfig.roleAssignments
+var appInsightsDiagnosticSettings = appInsightsConfig.diagnosticSettings
+
+module appInsights 'modules/02-monitoring/application-insights.bicep' = {
   name: '${uniqueString(deployment().name, location)}-appInsights'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
-    name: 'appi-${resourceNames.webApp}'
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
     tags: tags
-    workspaceResourceId: logAnalyticsWorkspaceResourceId
-    applicationType: 'web'
+    workspaceResourceId: resolvedLogAnalyticsWorkspaceResourceId
+    applicationType: appInsightsApplicationType
     publicNetworkAccessForIngestion: appInsightsPublicNetworkAccessForIngestion
     publicNetworkAccessForQuery: appInsightsPublicNetworkAccessForQuery
     retentionInDays: appInsightsRetentionInDays
     samplingPercentage: appInsightsSamplingPercentage
     disableLocalAuth: appInsightsDisableLocalAuth
-    disableIpMasking: appInsightsDisableIpMasking ?? true
-    forceCustomerStorageForProfiler: appInsightsForceCustomerStorageForProfiler ?? false
+    disableIpMasking: appInsightsDisableIpMasking
+    forceCustomerStorageForProfiler: appInsightsForceCustomerStorageForProfiler
     linkedStorageAccountResourceId: appInsightsLinkedStorageAccountResourceId
     flowType: appInsightsFlowType
     requestSource: appInsightsRequestSource
-    kind: appInsightsKind ?? 'web'
+    kind: appInsightsKind
     immediatePurgeDataOn30Days: appInsightsImmediatePurgeDataOn30Days
     ingestionMode: appInsightsIngestionMode
     lock: appInsightsLock
@@ -579,29 +512,31 @@ module appInsights 'br/public:avm/res/insights/component:0.7.1' = {
 // App Service Plan         //
 // ======================== //
 
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.7.0' = if (deployPlan) {
+module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan) {
   name: '${uniqueString(deployment().name, location, 'webapp')}-plan'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
-    name: resourceNames.aspName
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
     tags: tags
     skuName: webAppPlanSku
     skuCapacity: skuCapacity
     zoneRedundant: zoneRedundant
     kind: isLinux ? 'Linux' : 'Windows'
     perSiteScaling: perSiteScaling
-    maximumElasticWorkerCount: deployAseV3 ? null : ((maximumElasticWorkerCount < 3 && zoneRedundant) ? 3 : maximumElasticWorkerCount)
-    elasticScaleEnabled: deployAseV3 ? false : elasticScaleEnabled
+    maximumElasticWorkerCount: maximumElasticWorkerCount
+    elasticScaleEnabled: elasticScaleEnabled
     reserved: isLinux
-    targetWorkerCount: (targetWorkerCount < 3 && zoneRedundant) ? 3 : targetWorkerCount
+    targetWorkerCount: targetWorkerCount
     targetWorkerSize: targetWorkerSize
     workerTierName: workerTierName
     hyperV: isWindowsContainer
     appServiceEnvironmentResourceId: aseEnvironment.?outputs.?resourceId ?? null
-    virtualNetworkSubnetId: (isCustomMode ?? false) ? networking.outputs.snetAppSvcResourceId : appServicePlanVirtualNetworkSubnetId
-    isCustomMode: isCustomMode ?? false
+    virtualNetworkSubnetId: isCustomMode ? networking.outputs.snetAppSvcResourceId : appServicePlanVirtualNetworkSubnetId
+    isCustomMode: isCustomMode
     rdpEnabled: rdpEnabled
     installScripts: installScripts
     registryAdapters: registryAdapters
@@ -617,33 +552,35 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.7.0' = if (deployPlan)
 // Web App                  //
 // ======================== //
 
-module webAppSite 'br/public:avm/res/web/site:0.22.0' = {
+module webAppSite 'modules/04-application/web-site.bicep' = {
   name: '${uniqueString(deployment().name, location)}-webapp'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
     kind: webAppKind
-    name: resourceNames.webApp
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
     serverFarmResourceId: resolvedServerFarmResourceId
     siteConfig: containerSiteConfig
     httpsOnly: httpsOnly
     clientAffinityEnabled: clientAffinityEnabled
-    clientAffinityProxyEnabled: clientAffinityProxyEnabled ?? true
-    clientAffinityPartitioningEnabled: clientAffinityPartitioningEnabled ?? false
+    clientAffinityProxyEnabled: clientAffinityProxyEnabled
+    clientAffinityPartitioningEnabled: clientAffinityPartitioningEnabled
     clientCertEnabled: clientCertEnabled
-    clientCertMode: clientCertEnabled ? clientCertMode : null
+    clientCertMode: resolvedWebAppClientCertMode
     clientCertExclusionPaths: clientCertExclusionPaths
-    publicNetworkAccess: !empty(webAppPublicNetworkAccess) ? webAppPublicNetworkAccess : null
+    publicNetworkAccess: resolvedWebAppPublicNetworkAccess
     redundancyMode: redundancyMode
     scmSiteAlsoStopped: scmSiteAlsoStopped
     functionAppConfig: functionAppConfig
     managedEnvironmentResourceId: managedEnvironmentResourceId
     outboundVnetRouting: outboundVnetRouting
     hostNameSslStates: hostNameSslStates
+    hyperV: webAppHyperV
     e2eEncryptionEnabled: e2eEncryptionEnabled
     keyVaultAccessIdentityResourceId: keyVaultAccessIdentityResourceId
-    hybridConnectionRelays: hybridConnectionRelays
     extensions: webAppExtensions
     enabled: webAppEnabled
     cloningInfo: cloningInfo
@@ -658,120 +595,22 @@ module webAppSite 'br/public:avm/res/web/site:0.22.0' = {
     resourceConfig: resourceConfig
     workloadProfileName: workloadProfileName
     hostNamesDisabled: hostNamesDisabled
-    reserved: webAppReserved ?? isLinux
+    reserved: webAppReserved
     extendedLocation: extendedLocation
-    basicPublishingCredentialsPolicies: disableBasicPublishingCredentials
-      ? [
-          {
-            name: 'ftp'
-            allow: false
-          }
-          {
-            name: 'scm'
-            allow: false
-          }
-        ]
-      : null
+    basicPublishingCredentialsPolicies: webAppPublishingCredentialPolicies
     diagnosticSettings: resolvedAppServiceDiagnosticSettings
     lock: webAppLock
     roleAssignments: webAppRoleAssignments
-    virtualNetworkSubnetResourceId: !deployAseV3 && !(isCustomMode ?? false) ? networking.outputs.snetAppSvcResourceId : null
-    managedIdentities: {
-      userAssignedResourceIds: [webAppUserAssignedManagedIdentity.outputs.resourceId]
-    }
-    configs: union(
-      [
-        {
-          name: 'appsettings'
-          applicationInsightResourceId: appInsights.outputs.resourceId
-          properties: !empty(containerRegistryAppSettings) ? containerRegistryAppSettings : {}
-        }
-      ],
-      !empty(appServiceStorageAccounts)
-        ? [
-            {
-              name: 'azurestorageaccounts'
-              properties: appServiceStorageAccounts
-            }
-          ]
-        : []
-    )
-    slots: [
-      {
-        name: slotName
-      }
-    ]
-    privateEndpoints: (!empty(subnetSpokePrivateEndpointAddressSpace) && !deployAseV3)
-      ? [
-          {
-            name: 'webApp'
-            subnetResourceId: networking.outputs.snetPeResourceId
-            privateDnsZoneGroup: {
-              name: 'webApp'
-              privateDnsZoneGroupConfigs: [
-                {
-                  name: webAppDnsZoneName
-                  privateDnsZoneResourceId: webAppPrivateDnsZone.?outputs.?resourceId ?? ''
-                }
-              ]
-            }
-          }
-        ]
-      : []
+    virtualNetworkSubnetResourceId: webAppVirtualNetworkSubnetResourceId
+    managedIdentities: appServiceManagedIdentities
+    configs: appServiceConfigs
+    slots: resolvedWebAppSlots
+    privateEndpoints: webAppPrivateEndpoints
+    enableDefaultPrivateEndpoint: webAppPrivateNetworkingEnabled
+    defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
+    defaultPrivateDnsZoneName: webAppDnsZoneName
+    defaultPrivateDnsZoneVirtualNetworkLinks: virtualNetworkLinks
     tags: tags
-  }
-}
-
-module webAppPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1'= if (!empty(subnetSpokePrivateEndpointAddressSpace) && !deployAseV3) {
-  name: '${uniqueString(deployment().name, location, 'webapp')}-dnszone'
-  scope: az.resourceGroup(resourceGroupName)
-  params: {
-    name: webAppDnsZoneName
-    location: 'global'
-    enableTelemetry: enableTelemetry
-    virtualNetworkLinks: virtualNetworkLinks
-    tags: tags
-  }
-}
-
-module webAppUserAssignedManagedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.5.0' = {
-  name: '${uniqueString(deployment().name, location, 'webapp')}-uami'
-  scope: az.resourceGroup(resourceGroupName)
-  params: {
-    name: resourceNames.appSvcUserAssignedManagedIdentity
-    location: location
-    enableTelemetry: enableTelemetry
-    tags: tags
-  }
-}
-
-module peWebAppSlot 'br/public:avm/res/network/private-endpoint:0.12.0' = if (!empty(subnetSpokePrivateEndpointAddressSpace) && !deployAseV3) {
-  name: '${uniqueString(deployment().name, location, 'webapp')}-slot-${slotName}'
-  scope: az.resourceGroup(resourceGroupName)
-  params: {
-    name: take('pe-${resourceNames.webApp}-slot-${slotName}', 64)
-    location: location
-    enableTelemetry: enableTelemetry
-    tags: tags
-    privateDnsZoneGroup: (!empty(subnetSpokePrivateEndpointAddressSpace) && !deployAseV3)
-      ? {
-          privateDnsZoneGroupConfigs: [
-            {
-              privateDnsZoneResourceId: webAppPrivateDnsZone.?outputs.?resourceId ?? ''
-            }
-          ]
-        }
-      : null
-    subnetResourceId: networking.outputs.snetPeResourceId
-    privateLinkServiceConnections: [
-      {
-        name: 'webApp'
-        properties: {
-          privateLinkServiceId: webAppSite.outputs.resourceId
-          groupIds: ['sites-${slotName}']
-        }
-      }
-    ]
   }
 }
 
@@ -779,68 +618,197 @@ module peWebAppSlot 'br/public:avm/res/network/private-endpoint:0.12.0' = if (!e
 // Front Door               //
 // ======================== //
 
-module afd './modules/front-door/front-door.module.bicep' = if (networkingOption == 'frontDoor') {
-  name: '${uniqueString(deployment().name, location)}-afd'
-  scope: az.resourceGroup(resourceGroupName)
-  params: {
-    enableTelemetry: enableTelemetry
-    afdName: '${resourceNames.frontDoor}${workloadName}'
-    endpointName: resourceNames.frontDoorEndPoint
-    originGroupName: resourceNames.frontDoorOriginGroup
-    origins: [
-      {
-        hostname: webAppSite.outputs.defaultHostname
-        enabledState: true
-        privateLinkOrigin: {
-          privateEndpointResourceId: webAppSite.outputs.resourceId
-          privateLinkResourceType: 'sites'
-          privateEndpointLocation: webAppSite.outputs.location
+var shouldDeployFrontDoor = deployFrontDoor
+var frontDoorSettings = frontDoorConfig
+var autoApproveAfdPrivateEndpoint = frontDoorSettings.autoApprovePrivateEndpoint
+var afdPeAutoApproverIsolationScope = frontDoorSettings.afdPeAutoApproverIsolationScope
+var frontDoorWafCustomRules = frontDoorSettings.enableDefaultWafMethodBlock
+  ? {
+      rules: [
+        {
+          name: 'BlockMethod'
+          enabledState: 'Enabled'
+          action: 'Block'
+          ruleType: 'MatchRule'
+          priority: 10
+          rateLimitDurationInMinutes: 1
+          rateLimitThreshold: 100
+          matchConditions: [
+            {
+              matchVariable: 'RequestMethod'
+              operator: 'Equal'
+              negateCondition: true
+              matchValue: [
+                'GET'
+                'OPTIONS'
+                'HEAD'
+              ]
+            }
+          ]
         }
-      }
-    ]
-    skuName: 'Premium_AzureFrontDoor'
-    enableDefaultWafMethodBlock: enableDefaultWafMethodBlock
-    wafCustomRules: wafCustomRules
-    healthProbePath: frontDoorHealthProbePath
-    healthProbeIntervalInSeconds: frontDoorHealthProbeIntervalInSeconds
-    customDomains: frontDoorCustomDomains
-    ruleSets: frontDoorRuleSets
-    secrets: frontDoorSecrets
-    lock: frontDoorLock
-    roleAssignments: frontDoorRoleAssignments
-    originResponseTimeoutSeconds: frontDoorOriginResponseTimeoutSeconds
-    wafPolicyName: resourceNames.frontDoorWaf
-    diagnosticSettings: !empty(frontDoorDiagnosticSettings)
-      ? frontDoorDiagnosticSettings
-      : [
-          {
-            name: 'frontdoor-diagnosticSettings'
-            workspaceResourceId: logAnalyticsWorkspaceResourceId
-            logCategoriesAndGroups: [
-              {
-                category: 'FrontdoorAccessLog'
-              }
-              {
-                category: 'FrontdoorWebApplicationFirewallLog'
-              }
-            ]
-          }
-        ]
+      ]
+    }
+  : frontDoorSettings.wafCustomRules
+
+module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDeployFrontDoor) {
+  name: '${uniqueString(deployment().name, location)}-afd-waf'
+  scope: spokeResourceGroup
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
+    location: 'global'
+    tags: tags
+    sku: any(frontDoorSettings.sku)
+    policySettings: frontDoorSettings.wafPolicySettings
+    customRules: frontDoorWafCustomRules
+    managedRules: {
+      managedRuleSets: frontDoorSettings.wafManagedRuleSets
+    }
+  }
+}
+
+module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoor) {
+  name: '${uniqueString(deployment().name, location)}-afd'
+  scope: spokeResourceGroup
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
+    sku: any(frontDoorSettings.sku)
+    location: 'global'
+    originResponseTimeoutSeconds: frontDoorSettings.originResponseTimeoutSeconds
+    managedIdentities: frontDoorSettings.managedIdentities
+    diagnosticSettings: frontDoorSettings.diagnosticSettings
+    lock: frontDoorSettings.?lock
+    roleAssignments: frontDoorSettings.roleAssignments
+    customDomains: frontDoorSettings.customDomains
+    ruleSets: frontDoorSettings.ruleSets
+    secrets: frontDoorSettings.secrets
+    defaultEndpointEnabledState: frontDoorSettings.endpointEnabledState
+    defaultRoutePatternsToMatch: frontDoorSettings.routePatternsToMatch
+    defaultRouteForwardingProtocol: frontDoorSettings.routeForwardingProtocol
+    defaultRouteLinkToDefaultDomain: frontDoorSettings.routeLinkToDefaultDomain
+    defaultRouteHttpsRedirect: frontDoorSettings.routeHttpsRedirect
+    defaultRouteEnabledState: frontDoorSettings.routeEnabledState
+    defaultOriginHostName: webAppSite.outputs.defaultHostname
+    defaultOriginResourceId: webAppSite.outputs.resourceId
+    defaultOriginLocation: webAppSite.outputs.location
+    defaultHealthProbePath: frontDoorSettings.healthProbePath
+    defaultHealthProbeIntervalInSeconds: frontDoorSettings.healthProbeIntervalInSeconds
+    defaultHealthProbeRequestType: frontDoorSettings.healthProbeRequestType
+    defaultHealthProbeProtocol: frontDoorSettings.healthProbeProtocol
+    defaultLoadBalancingSampleSize: frontDoorSettings.loadBalancingSampleSize
+    defaultLoadBalancingSuccessfulSamplesRequired: frontDoorSettings.loadBalancingSuccessfulSamplesRequired
+    defaultLoadBalancingAdditionalLatencyInMilliseconds: frontDoorSettings.loadBalancingAdditionalLatencyInMilliseconds
+    defaultSessionAffinityState: frontDoorSettings.sessionAffinityState
+    defaultTrafficRestorationTimeToHealedOrNewEndpointsInMinutes: frontDoorSettings.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
+    defaultOriginHttpPort: frontDoorSettings.originHttpPort
+    defaultOriginHttpsPort: frontDoorSettings.originHttpsPort
+    defaultOriginPriority: frontDoorSettings.originPriority
+    defaultOriginWeight: frontDoorSettings.originWeight
+    defaultOriginEnabledState: frontDoorSettings.originEnabledState
+    defaultOriginEnforceCertificateNameCheck: frontDoorSettings.originEnforceCertificateNameCheck
+    defaultSharedPrivateLinkRequestMessage: frontDoorSettings.sharedPrivateLinkRequestMessage
+    defaultSharedPrivateLinkGroupId: frontDoorSettings.sharedPrivateLinkGroupId
     tags: tags
   }
 }
 
-module autoApproveAfdPe './modules/front-door/approve-afd-pe.module.bicep' = if (autoApproveAfdPrivateEndpoint && networkingOption == 'frontDoor') {
-  name: '${uniqueString(deployment().name, location)}-autoApproveAfdPe'
-  scope: az.resourceGroup(resourceGroupName)
+#disable-next-line BCP318
+var frontDoorSecurityPolicyDomainResourceId = !empty(frontDoorSettings.customDomains)
+  ? afd.outputs.customDomainResourceIds[0]
+  : afd.outputs.afdEndpointResourceIds[0]
+
+module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (shouldDeployFrontDoor) {
+  name: '${uniqueString(deployment().name, location)}-afd-security-policy'
+  scope: spokeResourceGroup
   params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
-    idAfdPeAutoApproverName: resourceNames.idAfdApprovePeAutoApprover
+    profileName: afd.outputs.name
+    wafPolicyResourceId: frontDoorWaf.outputs.resourceId
+    associations: [
+      {
+        domains: [
+          {
+            id: frontDoorSecurityPolicyDomainResourceId
+          }
+        ]
+        patternsToMatch: frontDoorSettings.securityPatternsToMatch
+      }
+    ]
+  }
+}
+
+module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+  name: '${uniqueString(deployment().name, location)}-afd-uami'
+  scope: spokeResourceGroup
+  dependsOn: [
+    spokeResourceGroup
+    afd
+  ]
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: 'afdprivateendpointapprover'
+    location: location
     tags: tags
+    isolationScope: afdPeAutoApproverIsolationScope
+  }
+}
+
+module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assignments.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+  name: '${uniqueString(deployment().name, location)}-afd-uami-rbac'
+  scope: spokeResourceGroup
+  params: {
+    roleAssignments: [
+      {
+        roleDefinitionIdOrName: 'Contributor'
+        principalId: afdPeAutoApproverIdentity.outputs.principalId
+        principalType: 'ServicePrincipal'
+      }
+    ]
+  }
+}
+
+module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+  name: '${uniqueString(deployment().name, location)}-autoApproveAfdPe'
+  scope: spokeResourceGroup
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: 'afdapproval'
+    location: location
+    tags: tags
+    kind: 'AzureCLI'
+    managedIdentities: {
+      userAssignedResourceIds: [afdPeAutoApproverIdentity.outputs.resourceId]
+    }
+    azCliVersion: '2.67.0'
+    timeout: 'PT30M'
+    environmentVariables: [
+      {
+        name: 'ResourceGroupName'
+        value: resourceGroupName
+      }
+    ]
+    scriptContent: '''
+      rg_name="$ResourceGroupName"; webapp_ids=$(az webapp list -g $rg_name --query "[].id" -o tsv); for webapp_id in $webapp_ids; do fd_conn_ids=$(az network private-endpoint-connection list --id $webapp_id --query "[?properties.provisioningState == 'Pending'].id" -o tsv); for fd_conn_id in $fd_conn_ids; do az network private-endpoint-connection approve --id "$fd_conn_id" --description "ApprovedByCli"; done; done
+      '''
+    cleanupPreference: 'OnSuccess'
+    retentionInterval: 'P1D'
   }
   dependsOn: [
     afd
+    afdPeAutoApproverRoleAssignment
   ]
 }
 
@@ -848,32 +816,96 @@ module autoApproveAfdPe './modules/front-door/approve-afd-pe.module.bicep' = if 
 // Application Gateway      //
 // ======================== //
 
-module appGw './modules/networking/application-gateway.module.bicep' = if (networkingOption == 'applicationGateway') {
-  name: '${uniqueString(deployment().name, location)}-appGw'
-  scope: az.resourceGroup(resourceGroupName)
+var appGatewaySettings = appGatewayConfig
+var appGatewaySslCertificates = appGatewaySettings.sslCertificates
+var appGatewayManagedIdentities = appGatewaySettings.managedIdentities
+var appGatewayTrustedRootCertificates = appGatewaySettings.trustedRootCertificates
+var appGatewaySku = appGatewaySettings.sku
+var appGatewayCapacity = appGatewaySettings.capacity
+var appGatewayAutoscaleMinCapacity = appGatewaySettings.autoscaleMinCapacity
+var appGatewayAutoscaleMaxCapacity = appGatewaySettings.autoscaleMaxCapacity
+var appGatewayAvailabilityZones = appGatewaySettings.availabilityZones
+var appGatewaySslPolicyType = appGatewaySettings.sslPolicyType
+var appGatewaySslPolicyName = appGatewayConfig.sslPolicyName
+var appGatewaySslPolicyMinProtocolVersion = appGatewaySettings.sslPolicyMinProtocolVersion
+var appGatewaySslPolicyCipherSuites = appGatewaySettings.sslPolicyCipherSuites
+var appGatewayRoleAssignments = appGatewaySettings.roleAssignments
+var appGatewayAuthenticationCertificates = appGatewaySettings.authenticationCertificates
+var appGatewayCustomErrorConfigurations = appGatewaySettings.customErrorConfigurations
+var appGatewayEnableFips = appGatewaySettings.enableFips
+var appGatewayEnableHttp2 = appGatewaySettings.enableHttp2
+var appGatewayEnableRequestBuffering = appGatewaySettings.enableRequestBuffering
+var appGatewayEnableResponseBuffering = appGatewaySettings.enableResponseBuffering
+var appGatewayHealthProbePath = appGatewaySettings.healthProbePath
+var appGatewayLoadDistributionPolicies = appGatewaySettings.loadDistributionPolicies
+var appGatewayPrivateEndpoints = appGatewaySettings.privateEndpoints
+var appGatewayPrivateLinkConfigurations = appGatewaySettings.privateLinkConfigurations
+var appGatewayRedirectConfigurations = appGatewaySettings.redirectConfigurations
+var appGatewayRewriteRuleSets = appGatewaySettings.rewriteRuleSets
+var appGatewaySslProfiles = appGatewaySettings.sslProfiles
+var appGatewayTrustedClientCertificates = appGatewaySettings.trustedClientCertificates
+var appGatewayUrlPathMaps = appGatewaySettings.urlPathMaps
+var appGatewayBackendSettingsCollection = appGatewaySettings.backendSettingsCollection
+var appGatewayListeners = appGatewaySettings.listeners
+var appGatewayRoutingRules = appGatewaySettings.routingRules
+var appGatewayLock = appGatewaySettings.?lock
+var appGatewayDiagnosticSettings = appGatewaySettings.diagnosticSettings
+var appGatewayBackendRequestTimeout = appGatewaySettings.backendRequestTimeout
+var appGatewayProbeInterval = appGatewaySettings.probeInterval
+var appGatewayProbeTimeout = appGatewaySettings.probeTimeout
+var appGatewayProbeUnhealthyThreshold = appGatewaySettings.probeUnhealthyThreshold
+var appGatewayWafPolicySettings = appGatewaySettings.wafPolicySettings
+var appGatewayWafManagedRuleSets = appGatewaySettings.wafManagedRuleSets
+
+module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = if (networkingOption == 'applicationGateway') {
+  name: '${uniqueString(deployment().name, location)}-appgw-waf'
+  scope: spokeResourceGroup
   params: {
-    appGwName: appGatewayConfig.?name ?? '${names.applicationGateway.name}-${workloadName}'
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    enableTelemetry: enableTelemetry
     tags: tags
-    subnetResourceId: networking.outputs.snetAppGwResourceId
-    backendHostName: webAppSite.outputs.defaultHostname
-    healthProbePath: appGatewayHealthProbePath
+    managedRules: {
+      managedRuleSets: appGatewayWafManagedRuleSets
+    }
+    policySettings: appGatewayWafPolicySettings
+  }
+}
+
+module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption == 'applicationGateway') {
+  name: '${uniqueString(deployment().name, location)}-appGw'
+  scope: spokeResourceGroup
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
+    location: location
+    tags: tags
+    sku: appGatewaySku
+    capacity: appGatewayCapacity
+    autoscaleMinCapacity: appGatewayAutoscaleMinCapacity
+    autoscaleMaxCapacity: appGatewayAutoscaleMaxCapacity
+    enableHttp2: appGatewayEnableHttp2
+    enableFips: appGatewayEnableFips
+    enableRequestBuffering: appGatewayEnableRequestBuffering
+    enableResponseBuffering: appGatewayEnableResponseBuffering
+    availabilityZones: appGatewayAvailabilityZones
+    firewallPolicyResourceId: appGwWafPolicy.outputs.resourceId
+    diagnosticSettings: appGatewayDiagnosticSettings
     lock: appGatewayLock
+    roleAssignments: appGatewayRoleAssignments
     managedIdentities: appGatewayManagedIdentities
     sslCertificates: appGatewaySslCertificates
     trustedRootCertificates: appGatewayTrustedRootCertificates
     sslPolicyType: appGatewaySslPolicyType
-    sslPolicyName: appGatewaySslPolicyName
+    sslPolicyName: empty(appGatewaySslPolicyName ?? '') ? null : any(appGatewaySslPolicyName)
     sslPolicyMinProtocolVersion: appGatewaySslPolicyMinProtocolVersion
     sslPolicyCipherSuites: appGatewaySslPolicyCipherSuites
-    roleAssignments: appGatewayRoleAssignments
     authenticationCertificates: appGatewayAuthenticationCertificates
     customErrorConfigurations: appGatewayCustomErrorConfigurations
-    enableFips: appGatewayEnableFips
-    enableHttp2: appGatewayEnableHttp2
-    enableRequestBuffering: appGatewayEnableRequestBuffering
-    enableResponseBuffering: appGatewayEnableResponseBuffering
     loadDistributionPolicies: appGatewayLoadDistributionPolicies
     privateEndpoints: appGatewayPrivateEndpoints
     privateLinkConfigurations: appGatewayPrivateLinkConfigurations
@@ -885,24 +917,13 @@ module appGw './modules/networking/application-gateway.module.bicep' = if (netwo
     backendSettingsCollection: appGatewayBackendSettingsCollection
     listeners: appGatewayListeners
     routingRules: appGatewayRoutingRules
-    diagnosticSettings: !empty(appGatewayDiagnosticSettings)
-      ? appGatewayDiagnosticSettings
-      : [
-          {
-            name: 'appgw-diagnosticSettings'
-            workspaceResourceId: logAnalyticsWorkspaceResourceId
-            logCategoriesAndGroups: [
-              {
-                categoryGroup: 'allLogs'
-              }
-            ]
-            metricCategories: [
-              {
-                category: 'AllMetrics'
-              }
-            ]
-          }
-        ]
+    appGatewaySubnetResourceId: networking.outputs.snetAppGwResourceId
+    defaultBackendHostName: webAppSite.outputs.defaultHostname
+    defaultBackendRequestTimeout: appGatewayBackendRequestTimeout
+    defaultHealthProbePath: appGatewayHealthProbePath
+    defaultProbeInterval: appGatewayProbeInterval
+    defaultProbeTimeout: appGatewayProbeTimeout
+    defaultProbeUnhealthyThreshold: appGatewayProbeUnhealthyThreshold
   }
 }
 
@@ -910,76 +931,69 @@ module appGw './modules/networking/application-gateway.module.bicep' = if (netwo
 // Supporting Services      //
 // ======================== //
 
+var keyVaultEnablePurgeProtection = keyVaultConfig.enablePurgeProtection
+var keyVaultSoftDeleteRetentionInDays = keyVaultConfig.softDeleteRetentionInDays
+var keyVaultSecrets = keyVaultConfig.?secrets
+var keyVaultKeys = keyVaultConfig.?keys
+var keyVaultEnableVaultForTemplateDeployment = keyVaultConfig.enableVaultForTemplateDeployment
+var keyVaultEnableVaultForDiskEncryption = keyVaultConfig.enableVaultForDiskEncryption
+var keyVaultCreateMode = keyVaultConfig.createMode
+var keyVaultSku = keyVaultConfig.sku
+var keyVaultEnableVaultForDeployment = keyVaultConfig.enableVaultForDeployment
+var resolvedKeyVaultNetworkAcls = keyVaultConfig.networkAcls
+var resolvedKeyVaultPublicNetworkAccess = keyVaultConfig.publicNetworkAccess
+var keyVaultPrivateEndpoints = keyVaultConfig.privateEndpoints
+var keyVaultLock = keyVaultConfig.?lock
+var keyVaultRoleAssignments = keyVaultConfig.roleAssignments
+var keyVaultDiagnosticSettings = keyVaultConfig.diagnosticSettings
+
 @description('Azure Key Vault used to hold items like TLS certs and application secrets that your workload will need.')
-module keyVault './modules/supporting-services/modules/key-vault.bicep' = {
+module keyVault 'modules/06-secrets/key-vault.bicep' = {
   name: '${uniqueString(deployment().name, location)}-keyVault'
-  scope: az.resourceGroup(resourceGroupName)
+  scope: spokeResourceGroup
   params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: workloadDescription
     location: location
-    keyVaultName: names.keyVault.nameUnique
     tags: tags
-    enableTelemetry: enableTelemetry
-    hubVNetResourceId: vnetHubResourceId
-    spokeVNetResourceId: networking.outputs.vnetSpokeResourceId
-    spokePrivateEndpointSubnetName: networking.outputs.snetPeName
-    appServiceManagedIdentityPrincipalId: webAppUserAssignedManagedIdentity.outputs.principalId
-    lock: keyVaultLock
-    enablePurgeProtection: keyVaultEnablePurgeProtection
+    sku: keyVaultSku
+    networkAcls: resolvedKeyVaultNetworkAcls
     softDeleteRetentionInDays: keyVaultSoftDeleteRetentionInDays
-    additionalRoleAssignments: keyVaultAdditionalRoleAssignments
-    accessPolicies: keyVaultAccessPolicies
-    secrets: keyVaultSecrets
-    keys: keyVaultKeys
+    enablePurgeProtection: keyVaultEnablePurgeProtection
+    publicNetworkAccess: resolvedKeyVaultPublicNetworkAccess
+    enableVaultForDeployment: keyVaultEnableVaultForDeployment
     enableVaultForTemplateDeployment: keyVaultEnableVaultForTemplateDeployment
     enableVaultForDiskEncryption: keyVaultEnableVaultForDiskEncryption
     createMode: keyVaultCreateMode
-    keyVaultSku: keyVaultSku
-    enableRbacAuthorization: keyVaultEnableRbacAuthorization
-    enableVaultForDeployment: keyVaultEnableVaultForDeployment
-    networkAcls: keyVaultNetworkAcls
-    keyVaultPublicNetworkAccess: keyVaultPublicNetworkAccess
-    diagnosticSettings: !empty(keyVaultDiagnosticSettings)
-      ? keyVaultDiagnosticSettings
-      : [
-          {
-            name: 'keyvault-diagnosticSettings'
-            workspaceResourceId: logAnalyticsWorkspaceResourceId
-            logCategoriesAndGroups: [
-              {
-                categoryGroup: 'allLogs'
-              }
-            ]
-            metricCategories: [
-              {
-                category: 'AllMetrics'
-              }
-            ]
-          }
-        ]
-  }
-}
-
-// ======================== //
-// Telemetry                //
-// ======================== //
-
-#disable-next-line no-deployments-resources use-recent-api-versions
-resource avmTelemetry 'Microsoft.Resources/deployments@2024-03-01' = if (enableTelemetry) {
-  name: '46d3xbcp.ptn.appsvclza-hostingenvironment.${substring(uniqueString(deployment().name, location), 0, 4)}'
-  location: location
-  properties: {
-    mode: 'Incremental'
-    template: {
-      '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
-      contentVersion: '1.0.0.0'
-      resources: []
-      outputs: {
-        telemetry: {
-          type: 'String'
-          value: 'For more information, see https://aka.ms/avm/TelemetryInfo'
+    secrets: keyVaultSecrets
+    keys: keyVaultKeys
+    privateEndpoints: keyVaultPrivateEndpoints
+    enableDefaultPrivateEndpoint: privateNetworkingEnabled
+    defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
+    defaultPrivateDnsZoneName: keyVaultPrivateDnsZoneName
+    defaultPrivateDnsZoneVirtualNetworkLinks: concat(
+      [
+        {
+          name: networking.outputs.vnetSpokeName
+          virtualNetworkResourceId: networking.outputs.vnetSpokeResourceId
+          registrationEnabled: false
         }
-      }
-    }
+      ],
+      !empty(vnetHubResourceId)
+        ? [
+            {
+              name: last(split(vnetHubResourceId, '/'))
+              virtualNetworkResourceId: vnetHubResourceId
+              registrationEnabled: false
+            }
+          ]
+        : []
+    )
+    diagnosticSettings: keyVaultDiagnosticSettings
+    lock: keyVaultLock
+    roleAssignments: keyVaultRoleAssignments
   }
 }
 
@@ -988,7 +1002,7 @@ resource avmTelemetry 'Microsoft.Resources/deployments@2024-03-01' = if (enableT
 // ================ //
 
 @description('The name of the Spoke resource group.')
-output spokeResourceGroupName string = spokeResourceGroup.outputs.name
+output spokeResourceGroupName string = spokeResourceGroup.name
 
 @description('The resource ID of the Spoke Virtual Network.')
 output spokeVNetResourceId string = networking.outputs.vnetSpokeResourceId
@@ -997,10 +1011,10 @@ output spokeVNetResourceId string = networking.outputs.vnetSpokeResourceId
 output spokeVnetName string = networking.outputs.vnetSpokeName
 
 @description('The resource ID of the key vault.')
-output keyVaultResourceId string = keyVault.outputs.keyVaultResourceId
+output keyVaultResourceId string = keyVault.outputs.resourceId
 
 @description('The name of the Azure key vault.')
-output keyVaultName string = keyVault.outputs.keyVaultName
+output keyVaultName string = keyVault.outputs.name
 
 @description('The name of the web app.')
 output webAppName string = webAppSite.outputs.name
@@ -1014,8 +1028,8 @@ output webAppResourceId string = webAppSite.outputs.resourceId
 @description('The location of the web app.')
 output webAppLocation string = webAppSite.outputs.location
 
-@description('The principal ID of the user-assigned managed identity for the web app.')
-output webAppManagedIdentityPrincipalId string = webAppUserAssignedManagedIdentity.outputs.principalId
+@description('The principal ID of the web app managed identity.')
+output webAppManagedIdentityPrincipalId string = webAppSite.outputs.systemAssignedMIPrincipalId
 
 @description('The resource ID of the App Service Plan used (either created or pre-existing).')
 output appServicePlanResourceId string = resolvedServerFarmResourceId
@@ -1025,3 +1039,9 @@ output internalInboundIpAddress string = aseLookup.?outputs.?internalInboundIpAd
 
 @description('The name of the ASE.')
 output aseName string = aseEnvironment.?outputs.?name ?? ''
+
+@description('The resource ID of the Log Analytics workspace used by this deployment.')
+output logAnalyticsWorkspaceUsedResourceId string = resolvedLogAnalyticsWorkspaceResourceId
+
+@description('The name of the Log Analytics workspace created by this deployment, if one was created.')
+output logAnalyticsWorkspaceCreatedName string = logAnalyticsWorkspace.?outputs.?name ?? ''

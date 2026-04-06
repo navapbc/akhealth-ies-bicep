@@ -1,0 +1,269 @@
+metadata name = 'Deployment Scripts'
+metadata description = 'This module deploys Deployment Scripts.'
+
+import { regionAbbreviations } from './region-abbreviations.bicep'
+
+// ================ //
+// Parameters       //
+// ================ //
+@description('Required. System abbreviation used for resource naming.')
+param systemAbbreviation string
+
+@description('Required. Environment abbreviation used for resource naming.')
+param environmentAbbreviation string
+
+@description('Required. Instance number used for resource naming.')
+param instanceNumber string
+
+@description('Required. Workload description segment used for resource naming.')
+param workloadDescription string
+
+@description('Optional. Location for all resources.')
+param location string = resourceGroup().location
+
+@description('Required. Specifies the Kind of the Deployment Script.')
+@allowed([
+  'AzureCLI'
+  'AzurePowerShell'
+])
+param kind string
+
+import { managedIdentityOnlyUserAssignedType } from './avm-common-types.bicep'
+@description('Optional. The managed identity definition for this resource.')
+param managedIdentities managedIdentityOnlyUserAssignedType?
+
+@description('Optional. Resource tags.')
+param tags resourceInput<'Microsoft.Resources/deploymentScripts@2021-12-01'>.tags?
+
+@description('Optional. Azure PowerShell module version to be used. See a list of supported Azure PowerShell versions: https://mcr.microsoft.com/v2/azuredeploymentscripts-powershell/tags/list.')
+param azPowerShellVersion string?
+
+@description('Optional. Azure CLI module version to be used. See a list of supported Azure CLI versions: https://mcr.microsoft.com/v2/azure-cli/tags/list.')
+param azCliVersion string?
+
+@description('Optional. Script body. Max length: 32000 characters. To run an external script, use primaryScriptURI instead.')
+param scriptContent string?
+
+@description('Optional. Uri for the external script. This is the entry point for the external script. To run an internal script, use the scriptContent parameter instead.')
+param primaryScriptUri string?
+
+@description('Optional. The environment variables to pass over to the script.')
+param environmentVariables environmentVariableType[]?
+
+@description('Optional. List of supporting files for the external script (defined in primaryScriptUri). Does not work with internal scripts (code defined in scriptContent).')
+param supportingScriptUris string[]?
+
+@description('Optional. List of subnet IDs to use for the container group. This is required if you want to run the deployment script in a private network. When using a private network, the `Storage File Data Privileged Contributor` role needs to be assigned to the user-assigned managed identity and the deployment principal needs to have permissions to list the storage account keys. Also, Shared-Keys must not be disabled on the used storage account [ref](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deployment-script-vnet).')
+param subnetResourceIds string[]?
+
+@description('Optional. Command-line arguments to pass to the script. Arguments are separated by spaces.')
+param arguments string?
+
+@description('Optional. Interval for which the service retains the script resource after it reaches a terminal state. Resource will be deleted when this duration expires. Duration is based on ISO 8601 pattern (for example P7D means one week).')
+param retentionInterval string = 'P1D'
+
+@description('Generated. Do not provide a value! This date value is used to make sure the script run every time the template is deployed.')
+param baseTime string = utcNow('yyyy-MM-dd-HH-mm-ss')
+
+@description('Optional. When set to false, script will run every time the template is deployed. When set to true, the script will only run once.')
+param runOnce bool = false
+
+@description('Optional. The clean up preference when the script execution gets in a terminal state. Specify the preference on when to delete the deployment script resources. The default value is Always, which means the deployment script resources are deleted despite the terminal state (Succeeded, Failed, canceled).')
+@allowed([
+  'Always'
+  'OnSuccess'
+  'OnExpiration'
+])
+param cleanupPreference string = 'Always'
+
+@description('Optional. Container group name, if not specified then the name will get auto-generated. Not specifying a \'containerGroupName\' indicates the system to generate a unique name which might end up flagging an Azure Policy as non-compliant. Use \'containerGroupName\' when you have an Azure Policy that expects a specific naming convention or when you want to fully control the name. \'containerGroupName\' property must be between 1 and 63 characters long, must contain only lowercase letters, numbers, and dashes and it cannot start or end with a dash and consecutive dashes are not allowed.')
+param containerGroupName string?
+
+@description('Optional. The resource ID of the storage account to use for this deployment script. If none is provided, the deployment script uses a temporary, managed storage account.')
+param storageAccountResourceId string = ''
+
+@description('Optional. Maximum allowed script execution time specified in ISO 8601 format. Default value is PT1H - 1 hour; \'PT30M\' - 30 minutes; \'P5D\' - 5 days; \'P1Y\' 1 year.')
+param timeout string?
+
+import { lockType } from './avm-common-types.bicep'
+@description('Optional. The lock settings of the service.')
+param lock lockType?
+
+import { roleAssignmentType } from './avm-common-types.bicep'
+@description('Optional. Array of role assignments to create.')
+param roleAssignments roleAssignmentType[]?
+
+
+// =========== //
+// Variables   //
+// =========== //
+
+var resourceAbbreviation = 'dps'
+var regionAbbreviation = regionAbbreviations[?location] ?? location
+var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 90)
+
+var builtInRoleNames = {
+  Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+  Owner: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
+  Reader: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
+  'Role Based Access Control Administrator': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'f58310d9-a9f6-439a-9e8d-f62e7b41a168'
+  )
+  'User Access Administrator': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'
+  )
+}
+
+var formattedRoleAssignments = [
+  for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
+    roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
+        roleAssignment.roleDefinitionIdOrName,
+        '/providers/Microsoft.Authorization/roleDefinitions/'
+      )
+      ? roleAssignment.roleDefinitionIdOrName
+      : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
+  })
+]
+
+var subnetIds = [
+  for subnetResourceId in (subnetResourceIds ?? []): {
+    id: subnetResourceId
+  }
+]
+
+var containerSettings = {
+  containerGroupName: containerGroupName
+  subnetIds: !empty(subnetIds ?? []) ? subnetIds : null
+}
+
+var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
+var hasUserAssignedIdentities = !empty(userAssignedIdentityResourceIds)
+var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
+var formattedUserAssignedIdentities = reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
+var identity = !empty(managedIdentities)
+  ? {
+      type: hasUserAssignedIdentities ? 'UserAssigned' : null
+      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : null
+    }
+  : null
+
+var hasStorageAccountResourceId = !empty(storageAccountResourceId)
+var storageAccountResourceIdSegments = split(storageAccountResourceId, '/')
+var storageAccountSubscriptionId = hasStorageAccountResourceId ? storageAccountResourceIdSegments[2] : ''
+var storageAccountResourceGroupName = hasStorageAccountResourceId ? storageAccountResourceIdSegments[4] : ''
+var storageAccountName = hasStorageAccountResourceId ? last(storageAccountResourceIdSegments) : ''
+var deploymentScriptContainerSettings = !empty(containerSettings) ? containerSettings : null
+var deploymentScriptAzPowerShellVersion = kind == 'AzurePowerShell' ? azPowerShellVersion : null
+var deploymentScriptAzCliVersion = kind == 'AzureCLI' ? azCliVersion : null
+var forceUpdateTag = runOnce ? resourceGroup().name : baseTime
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccountResourceId) {
+  name: storageAccountName
+  scope: resourceGroup(storageAccountSubscriptionId, storageAccountResourceGroupName)
+}
+
+var deploymentScriptStorageAccountSettings = hasStorageAccountResourceId
+  ? {
+      storageAccountKey: empty(subnetResourceIds) ? storageAccount!.listKeys().keys[0].value : null
+      storageAccountName: storageAccountName
+    }
+  : null
+
+// ================ //
+// Resources        //
+// ================ //
+
+resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: derivedName
+  location: location
+  tags: tags
+  identity: identity
+  kind: any(kind)
+  properties: {
+    azPowerShellVersion: deploymentScriptAzPowerShellVersion
+    azCliVersion: deploymentScriptAzCliVersion
+    containerSettings: deploymentScriptContainerSettings
+    storageAccountSettings: deploymentScriptStorageAccountSettings
+    arguments: arguments
+    environmentVariables: environmentVariables
+    scriptContent: scriptContent
+    primaryScriptUri: primaryScriptUri
+    supportingScriptUris: supportingScriptUris
+    cleanupPreference: cleanupPreference
+    forceUpdateTag: forceUpdateTag
+    retentionInterval: retentionInterval
+    timeout: timeout
+  }
+}
+
+resource deploymentScript_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${derivedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: deploymentScript
+}
+
+resource deploymentScript_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
+    name: roleAssignment.?name ?? guid(deploymentScript.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
+    properties: {
+      roleDefinitionId: roleAssignment.roleDefinitionId
+      principalId: roleAssignment.principalId
+      description: roleAssignment.?description
+      principalType: roleAssignment.?principalType
+      condition: roleAssignment.?condition
+      conditionVersion: !empty(roleAssignment.?condition) ? (roleAssignment.?conditionVersion ?? '2.0') : null // Must only be set if condtion is set
+      delegatedManagedIdentityResourceId: roleAssignment.?delegatedManagedIdentityResourceId
+    }
+    scope: deploymentScript
+  }
+]
+
+resource deploymentScriptLogs 'Microsoft.Resources/deploymentScripts/logs@2023-08-01' existing = {
+  name: 'default'
+  parent: deploymentScript
+}
+
+// ================ //
+// Outputs          //
+// ================ //
+
+@description('The resource ID of the deployment script.')
+output resourceId string = deploymentScript.id
+
+@description('The resource group the deployment script was deployed into.')
+output resourceGroupName string = resourceGroup().name
+
+@description('The name of the deployment script.')
+output name string = deploymentScript.name
+
+@description('The location the resource was deployed into.')
+output location string = deploymentScript.location
+
+@description('The output of the deployment script.')
+output outputs object = deploymentScript.properties.?outputs ?? {}
+
+@description('The logs of the deployment script.')
+output deploymentScriptLogs string[] = split(deploymentScriptLogs.properties.log, '\n')
+
+// ================ //
+// Definitions      //
+// ================ //
+
+type environmentVariableType = {
+  @description('Required. The name of the environment variable.')
+  name: string
+
+  @description('Conditional. The value of the secure environment variable. Required if `value` is null.')
+  @secure()
+  secureValue: string?
+
+  @description('Conditional. The value of the environment variable. Required if `secureValue` is null.')
+  value: string?
+}
