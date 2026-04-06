@@ -41,6 +41,9 @@ param subnetSpokePrivateEndpointAddressSpace string
 @description('Optional. CIDR of the subnet that will hold the Application Gateway. Required if networkingOption is "applicationGateway".')
 param subnetSpokeAppGwAddressSpace string
 
+@description('Optional. CIDR of the subnet that will hold Azure Database for PostgreSQL Flexible Server private access. Required when deployPostgreSqlPrivateAccess is true.')
+param subnetSpokePostgreSqlAddressSpace string
+
 @description('Optional. Internal IP of the Azure firewall deployed in Hub. Used for creating UDR to route all vnet egress traffic through Firewall. If empty no UDR.')
 param firewallInternalIp string
 
@@ -53,6 +56,9 @@ param enableEgressLockdown bool
 @description('Optional. The networking option to use. Options: frontDoor, applicationGateway, none.')
 @allowed(['frontDoor', 'applicationGateway', 'none'])
 param networkingOption string
+
+@description('Optional. Controls whether the PostgreSQL delegated subnet is deployed.')
+param deployPostgreSqlPrivateAccess bool = false
 
 @description('Required. The resource ID of the Log Analytics workspace for diagnostic settings.')
 param logAnalyticsWorkspaceId string
@@ -140,6 +146,7 @@ var sharedNameSuffix = '${workloadSegment}-${instanceNumber}'
 var spokeVnetName = take('vnet-${sharedNamePrefix}${sharedNameSuffix}', 80)
 var appServiceSubnetName = take('snet-${sharedNamePrefix}-appservice-${instanceNumber}', 80)
 var privateEndpointSubnetName = take('snet-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
+var postgreSqlSubnetName = take('snet-${sharedNamePrefix}-postgresql-${instanceNumber}', 80)
 var appGatewaySubnetName = take('snet-${sharedNamePrefix}-appgateway-${instanceNumber}', 80)
 var privateEndpointNsgName = take('nsg-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
 var aseNsgName = take('nsg-${sharedNamePrefix}-ase-${instanceNumber}', 80)
@@ -152,6 +159,7 @@ var resourceNames = {
   snetAppSvc: appServiceSubnetName
   snetDevOps: take('snet-${sharedNamePrefix}-devops-${instanceNumber}', 80)
   snetPe: privateEndpointSubnetName
+  snetPostgreSql: postgreSqlSubnetName
   snetAppGw: appGatewaySubnetName
   pepNsg: privateEndpointNsgName
   aseNsg: aseNsgName
@@ -193,6 +201,13 @@ var privateEndpointSubnet = {
   networkSecurityGroupResourceId: nsgPep.outputs.resourceId
 }
 
+var shouldCreatePostgreSqlSubnet = deployPostgreSqlPrivateAccess
+var postgreSqlSubnet = {
+  name: resourceNames.snetPostgreSql
+  addressPrefix: subnetSpokePostgreSqlAddressSpace
+  delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
+}
+
 var shouldCreateAppGatewaySubnet = deployAppGw && !empty(subnetSpokeAppGwAddressSpace)
 var appGatewaySubnet = {
   name: resourceNames.snetAppGw
@@ -204,8 +219,11 @@ var baseSubnets = [
   appServiceSubnet
 ]
 var privateEndpointSubnets = shouldCreatePrivateEndpointSubnet ? [privateEndpointSubnet] : []
+var postgreSqlSubnets = shouldCreatePostgreSqlSubnet ? [postgreSqlSubnet] : []
 var appGatewaySubnets = shouldCreateAppGatewaySubnet ? [appGatewaySubnet] : []
-var subnets = concat(baseSubnets, privateEndpointSubnets, appGatewaySubnets)
+var subnets = concat(baseSubnets, privateEndpointSubnets, postgreSqlSubnets, appGatewaySubnets)
+var postgreSqlSubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0)
+var appGatewaySubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0) + (shouldCreatePostgreSqlSubnet ? 1 : 0)
 
 var shouldCreateHubPeering = !empty(hubVnetResourceId)
 var hubPeering = {
@@ -406,8 +424,14 @@ output snetPeResourceId string = deployPrivateNetworking ? vnetSpoke.outputs.sub
 @description('The name of the private endpoint subnet.')
 output snetPeName string = deployPrivateNetworking ? vnetSpoke.outputs.subnetNames[1] : ''
 
+@description('The resource ID of the PostgreSQL delegated subnet. Empty if not deployed.')
+output snetPostgreSqlResourceId string = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetResourceIds[postgreSqlSubnetIndex] : ''
+
+@description('The name of the PostgreSQL delegated subnet. Empty if not deployed.')
+output snetPostgreSqlName string = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetNames[postgreSqlSubnetIndex] : ''
+
 @description('The resource ID of the Application Gateway subnet. Empty if not deployed.')
-output snetAppGwResourceId string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[deployPrivateNetworking ? 2 : 1] : ''
+output snetAppGwResourceId string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[appGatewaySubnetIndex] : ''
 
 @description('The name of the Application Gateway subnet. Empty if not deployed.')
-output snetAppGwName string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[deployPrivateNetworking ? 2 : 1] : ''
+output snetAppGwName string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[appGatewaySubnetIndex] : ''

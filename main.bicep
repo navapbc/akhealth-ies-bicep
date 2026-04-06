@@ -19,6 +19,8 @@ import {
   appGatewayConfigType
   frontDoorConfigType
   aseConfigType
+  entraGroupConfigType
+  postgresqlConfigType
 } from 'modules/shared/shared.types.bicep'
 
 @maxLength(10)
@@ -91,6 +93,15 @@ param deployPrivateNetworking bool = true
 @description('Required. Configuration for the App Service Environment v3. Declare the intended state explicitly even when deployAseV3 is false.')
 param aseConfig aseConfigType
 
+@description('Optional. Controls whether PostgreSQL Flexible Server resources are deployed.')
+param deployPostgreSql bool = false
+
+@description('Required. Configuration for the Microsoft Entra group used as the PostgreSQL administrator. Declare the intended state explicitly even when deployPostgreSql is false.')
+param postgresqlAdminGroupConfig entraGroupConfigType
+
+@description('Required. Configuration for Azure Database for PostgreSQL Flexible Server. Declare the intended state explicitly even when deployPostgreSql is false.')
+param postgresqlConfig postgresqlConfigType
+
 // ================ //
 // Variables        //
 // ================ //
@@ -104,6 +115,7 @@ var vnetSpokeAddressSpace = spokeNetworkConfig.vnetAddressSpace
 var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.appSvcSubnetAddressSpace
 var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointSubnetAddressSpace
 var subnetSpokeAppGwAddressSpace = spokeNetworkConfig.appGwSubnetAddressSpace
+var subnetSpokePostgreSqlAddressSpace = spokeNetworkConfig.postgresSubnetAddressSpace
 var vnetHubResourceId = spokeNetworkConfig.hubVnetResourceId
 var hubPeeringAllowForwardedTraffic = spokeNetworkConfig.hubPeeringAllowForwardedTraffic
 var hubPeeringAllowGatewayTransit = spokeNetworkConfig.hubPeeringAllowGatewayTransit
@@ -120,6 +132,7 @@ var firewallInternalIp = spokeNetworkConfig.firewallInternalIp
 var networkingOption = spokeNetworkConfig.ingressOption
 var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
+var postgreSqlPrivateAccessEnabled = deployPostgreSql && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
 var dnsServers = spokeNetworkConfig.dnsServers
 var ddosProtectionPlanResourceId = spokeNetworkConfig.ddosProtectionPlanResourceId
@@ -157,6 +170,18 @@ var virtualNetworkLinks = [
     registrationEnabled: false
   }
 ]
+var postgreSqlPrivateDnsZoneVirtualNetworkLinks = concat(
+  virtualNetworkLinks,
+  !empty(vnetHubResourceId)
+    ? [
+        {
+          name: last(split(vnetHubResourceId, '/'))
+          virtualNetworkResourceId: vnetHubResourceId
+          registrationEnabled: false
+        }
+      ]
+    : []
+)
 
 // ================ //
 // Resources        //
@@ -212,6 +237,7 @@ module networking 'modules/01-network/network.bicep' = {
     subnetSpokeAppSvcAddressSpace: subnetSpokeAppSvcAddressSpace
     subnetSpokePrivateEndpointAddressSpace: subnetSpokePrivateEndpointAddressSpace
     subnetSpokeAppGwAddressSpace: subnetSpokeAppGwAddressSpace
+    subnetSpokePostgreSqlAddressSpace: subnetSpokePostgreSqlAddressSpace
     firewallInternalIp: firewallInternalIp
     hubVnetResourceId: vnetHubResourceId
     hubPeeringAllowForwardedTraffic: hubPeeringAllowForwardedTraffic
@@ -226,6 +252,7 @@ module networking 'modules/01-network/network.bicep' = {
     hubRemotePeeringDoNotVerifyRemoteGateways: hubRemotePeeringDoNotVerifyRemoteGateways
     hubRemotePeeringUseRemoteGateways: hubRemotePeeringUseRemoteGateways
     networkingOption: networkingOption
+    deployPostgreSqlPrivateAccess: postgreSqlPrivateAccessEnabled
     logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
     dnsServers: dnsServers
     ddosProtectionPlanResourceId: ddosProtectionPlanResourceId
@@ -997,6 +1024,59 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
   }
 }
 
+// ======================== //
+// PostgreSQL               //
+// ======================== //
+
+module postgreSqlAdminGroup 'modules/09-directory/entra-group.bicep' = if (deployPostgreSql) {
+  name: '${uniqueString(deployment().name, location)}-postgresql-admin-group'
+  scope: tenant()
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: postgresqlAdminGroupConfig.workloadDescription
+    location: location
+    groupDescription: postgresqlAdminGroupConfig.?description ?? ''
+    memberObjectIds: postgresqlAdminGroupConfig.members
+    ownerObjectIds: postgresqlAdminGroupConfig.?owners ?? []
+  }
+}
+
+module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deployPostgreSql) {
+  name: '${uniqueString(deployment().name, location)}-postgresql'
+  scope: spokeResourceGroup
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: postgresqlConfig.workloadDescription
+    location: location
+    administratorGroupObjectId: postgreSqlAdminGroup.outputs.objectId
+    administratorGroupDisplayName: postgreSqlAdminGroup.outputs.name
+    skuName: postgresqlConfig.skuName
+    tier: postgresqlConfig.tier
+    availabilityZone: postgresqlConfig.availabilityZone
+    highAvailabilityZone: postgresqlConfig.?highAvailabilityZone ?? -1
+    highAvailability: postgresqlConfig.?highAvailability ?? 'Disabled'
+    backupRetentionDays: postgresqlConfig.?backupRetentionDays ?? 7
+    geoRedundantBackup: postgresqlConfig.?geoRedundantBackup ?? 'Disabled'
+    storageSizeGB: postgresqlConfig.?storageSizeGB ?? 32
+    autoGrow: postgresqlConfig.?autoGrow ?? 'Enabled'
+    version: postgresqlConfig.?version ?? '18'
+    publicNetworkAccess: postgresqlConfig.publicNetworkAccess
+    privateAccessMode: postgresqlConfig.privateAccessMode
+    delegatedSubnetResourceId: networking.outputs.snetPostgreSqlResourceId
+    privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneVirtualNetworkLinks
+    databases: postgresqlConfig.databases
+    configurations: postgresqlConfig.configurations
+    diagnosticSettings: postgresqlConfig.diagnosticSettings
+    lock: postgresqlConfig.?lock
+    roleAssignments: postgresqlConfig.roleAssignments
+    tags: tags
+  }
+}
+
 // ================ //
 // Outputs          //
 // ================ //
@@ -1045,3 +1125,21 @@ output logAnalyticsWorkspaceUsedResourceId string = resolvedLogAnalyticsWorkspac
 
 @description('The name of the Log Analytics workspace created by this deployment, if one was created.')
 output logAnalyticsWorkspaceCreatedName string = logAnalyticsWorkspace.?outputs.?name ?? ''
+
+@description('The object ID of the Microsoft Entra group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupObjectId string = postgreSqlAdminGroup.?outputs.?objectId ?? ''
+
+@description('The display name of the Microsoft Entra group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupName string = postgreSqlAdminGroup.?outputs.?name ?? ''
+
+@description('The name of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
+output postgreSqlServerName string = postgreSql.?outputs.?name ?? ''
+
+@description('The resource ID of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
+output postgreSqlServerResourceId string = postgreSql.?outputs.?resourceId ?? ''
+
+@description('The FQDN of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
+output postgreSqlServerFqdn string = postgreSql.?outputs.?fqdn ?? ''
+
+@description('The name of the PostgreSQL private DNS zone. Empty when PostgreSQL private access is not enabled.')
+output postgreSqlPrivateDnsZoneName string = postgreSql.?outputs.?privateDnsZoneName ?? ''

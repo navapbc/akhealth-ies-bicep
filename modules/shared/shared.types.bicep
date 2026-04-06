@@ -86,6 +86,9 @@ type spokeNetworkConfigType = {
   @description('Required. CIDR of the Application Gateway subnet. Use an empty string when ingressOption is not "applicationGateway".')
   appGwSubnetAddressSpace: string
 
+  @description('Required. CIDR of the PostgreSQL delegated subnet. Use an empty string when PostgreSQL private access is not intended.')
+  postgresSubnetAddressSpace: string
+
   @description('Required. Resource ID of an existing hub VNet to peer with. Use an empty string when no peering is required.')
   hubVnetResourceId: string
 
@@ -1006,4 +1009,112 @@ type aseConfigType = {
 
   @description('Required. Diagnostic settings for the ASE.')
   diagnosticSettings: diagnosticSettingLogsOnlyType[]
+}
+
+// ======================== //
+// Directory Config         //
+// ======================== //
+
+@export()
+@description('Configuration for a Microsoft Entra group created and populated by the template set.')
+type entraGroupConfigType = {
+  @description('Required. Workload descriptor used by the owning module to derive the group name.')
+  workloadDescription: string
+
+  @description('Optional. Human-readable description for the group.')
+  description: string?
+
+  @description('Required. Object IDs of Microsoft Entra users, groups, or service principals that should be members of the group.')
+  members: string[]
+
+  @description('Optional. Object IDs of Microsoft Entra principals that should own the group.')
+  owners: string[]?
+}
+
+// ======================== //
+// PostgreSQL Config        //
+// ======================== //
+
+@export()
+@description('Configuration for a PostgreSQL database created on the flexible server.')
+type postgresqlDatabaseConfigType = {
+  @description('Required. Database name.')
+  name: string
+
+  @description('Optional. Database collation.')
+  collation: string?
+
+  @description('Optional. Database charset.')
+  charset: string?
+}
+
+@export()
+@description('Configuration for a PostgreSQL flexible server setting.')
+type postgresqlServerConfigurationType = {
+  @description('Required. Server configuration name.')
+  name: string
+
+  @description('Optional. Configuration source.')
+  source: string?
+
+  @description('Optional. Configuration value.')
+  value: string?
+}
+
+@export()
+@description('Configuration for Azure Database for PostgreSQL Flexible Server.')
+type postgresqlConfigType = {
+  @description('Required. Workload descriptor used by the owning module to derive the server name.')
+  workloadDescription: string
+
+  @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" for private access or "none" when private access is not intended.')
+  privateAccessMode: ('delegatedSubnet' | 'none')
+
+  @description('Required. The SKU name for the PostgreSQL flexible server, for example "Standard_D2s_v3".')
+  skuName: string
+
+  @description('Required. The pricing tier that aligns with the SKU name.')
+  tier: ('Burstable' | 'GeneralPurpose' | 'MemoryOptimized')
+
+  @description('Required. Availability zone. Use -1 when no explicit zone is intended.')
+  availabilityZone: (-1 | 1 | 2 | 3)
+
+  @description('Optional. Standby availability zone. Use -1 when no explicit zone is intended.')
+  highAvailabilityZone: (-1 | 1 | 2 | 3)?
+
+  @description('Optional. High availability mode.')
+  highAvailability: ('Disabled' | 'SameZone' | 'ZoneRedundant')?
+
+  @description('Optional. Backup retention in days.')
+  backupRetentionDays: int?
+
+  @description('Optional. Whether geo-redundant backup is enabled.')
+  geoRedundantBackup: ('Disabled' | 'Enabled')?
+
+  @description('Optional. Maximum storage size in GB.')
+  storageSizeGB: int?
+
+  @description('Optional. Storage autogrow setting.')
+  autoGrow: ('Disabled' | 'Enabled')?
+
+  @description('Optional. PostgreSQL engine version.')
+  version: ('11' | '12' | '13' | '14' | '15' | '16' | '17' | '18')?
+
+  @description('Required. Public network access setting for the server.')
+  publicNetworkAccess: ('Disabled' | 'Enabled')
+
+  @description('Required. Databases to create on the server.')
+  databases: postgresqlDatabaseConfigType[]
+
+  @description('Required. Server configurations to apply.')
+  configurations: postgresqlServerConfigurationType[]
+
+  @description('Optional. Resource lock for the server.')
+  lock: lockType?
+
+  @description('Required. Role assignments for the server.')
+  roleAssignments: roleAssignmentType[]
+
+  @description('Required. Diagnostic settings for the server.')
+  diagnosticSettings: diagnosticSettingFullType[]
 }

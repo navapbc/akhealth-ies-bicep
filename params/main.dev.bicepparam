@@ -13,6 +13,7 @@ param workloadDescription = ''
 
 param deployPrivateNetworking = false
 param deployFrontDoor = false
+param deployPostgreSql = false
 
 param tags = {
   environment: 'dev'
@@ -26,6 +27,7 @@ param spokeNetworkConfig = {
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
   appGwSubnetAddressSpace: ''
+  postgresSubnetAddressSpace: ''
   hubVnetResourceId: ''
   hubPeeringAllowForwardedTraffic: false
   hubPeeringAllowGatewayTransit: false
@@ -243,6 +245,37 @@ param appInsightsConfig = {
   disableIpMasking: true
   forceCustomerStorageForProfiler: false
   kind: 'web'
+  roleAssignments: []
+  diagnosticSettings: []
+}
+
+param postgresqlAdminGroupConfig = {
+  workloadDescription: 'postgresqladmin'
+  description: 'Administrators for the workload PostgreSQL flexible server.'
+  members: []
+  owners: []
+}
+
+param postgresqlConfig = {
+  workloadDescription: 'postgresql'
+  privateAccessMode: 'delegatedSubnet'
+  skuName: 'Standard_B1ms'
+  tier: 'Burstable'
+  availabilityZone: -1
+  highAvailabilityZone: -1
+  highAvailability: 'Disabled'
+  backupRetentionDays: 7
+  geoRedundantBackup: 'Disabled'
+  storageSizeGB: 32
+  autoGrow: 'Enabled'
+  version: '18'
+  publicNetworkAccess: 'Disabled'
+  databases: [
+    {
+      name: 'appdb'
+    }
+  ]
+  configurations: []
   roleAssignments: []
   diagnosticSettings: []
 }
