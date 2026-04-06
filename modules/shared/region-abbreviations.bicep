@@ -1,0 +1,12 @@
+@export()
+var regionAbbreviations object = {
+  eastus: 'eus'
+  eastus2: 'eus2'
+  westus: 'wus'
+  westus2: 'wus2'
+  westus3: 'wus3'
+  centralus: 'cus'
+  northcentralus: 'ncus'
+  southcentralus: 'scus'
+  westcentralus: 'wcus'
+}
