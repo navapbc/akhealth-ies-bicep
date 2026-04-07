@@ -10,6 +10,10 @@ import {
   lockType
   roleAssignmentType
 } from '../shared/avm-common-types.bicep'
+import {
+  configurationType
+  databaseType
+} from './postgresql-flexible-server-server.bicep'
 
 @description('Required. Abbreviation for the owning system.')
 param systemAbbreviation string
@@ -23,8 +27,8 @@ param instanceNumber string
 @description('Required. Workload descriptor used to derive the PostgreSQL server name.')
 param workloadDescription string
 
-@description('Optional. Location for all resources.')
-param location string = resourceGroup().location
+@description('Required. Location for all resources.')
+param location string
 
 @description('Required. Object ID of the Microsoft Entra group that will administer the PostgreSQL server.')
 param administratorGroupObjectId string
@@ -119,14 +123,14 @@ param privateAccessMode string
 @description('Conditional. Delegated subnet resource ID used for PostgreSQL private access. Pass null when privateAccessMode is none.')
 param delegatedSubnetResourceId string?
 
-@description('Optional. Virtual network links for the module-owned PostgreSQL private DNS zone.')
-param privateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[] = []
+@description('Required. Virtual network links for the module-owned PostgreSQL private DNS zone.')
+param privateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[]
 
 @description('Required. Databases to create on the server.')
-param databases array = []
+param databases databaseType[]
 
 @description('Required. Server configurations to apply.')
-param configurations array = []
+param configurations configurationType[]
 
 @description('Optional. Resource lock for the server.')
 param lock lockType?
@@ -137,19 +141,28 @@ param roleAssignments roleAssignmentType[] = []
 @description('Required. Diagnostic settings for the server.')
 param diagnosticSettings diagnosticSettingFullType[] = []
 
-@description('Optional. Tags for the server and companion resources.')
-param tags object = {}
+@description('Required. Tags for the server and companion resources.')
+param tags object
 
 var resourceAbbreviation = 'psql'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
 var privateAccessEnabled = privateAccessMode == 'delegatedSubnet'
+var privateAccessInputsAreValid = privateAccessEnabled
+  ? (delegatedSubnetResourceId != null
+      ? (!empty(privateDnsZoneVirtualNetworkLinks)
+          ? true
+          : fail('PostgreSQL private access requires privateDnsZoneVirtualNetworkLinks to be declared explicitly.'))
+      : fail('PostgreSQL private access requires delegatedSubnetResourceId when privateAccessMode is delegatedSubnet.'))
+  : (delegatedSubnetResourceId == null
+      ? true
+      : fail('PostgreSQL public access must not provide delegatedSubnetResourceId when privateAccessMode is none.'))
 var privateDnsZoneLabel = take('pdz-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
 // Azure recommends private DNS zones that end with .postgres.database.azure.com for Flexible Server private access.
 // Ref: https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-networking-private
 var derivedPrivateDnsZoneName = '${privateDnsZoneLabel}.postgres.database.azure.com'
 
-module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (privateAccessEnabled) {
+module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (privateAccessInputsAreValid && privateAccessEnabled) {
     name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
   params: {
     name: derivedPrivateDnsZoneName
@@ -159,7 +172,7 @@ module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (pri
   }
 }
 
-module flexibleServerPrivate '../../../pgsql-modules/db-for-postgre-sql/flexible-server/main.bicep' = if (privateAccessEnabled) {
+module flexibleServerPrivate './postgresql-flexible-server-server.bicep' = if (privateAccessInputsAreValid && privateAccessEnabled) {
   name: '${uniqueString(deployment().name, location)}-postgresql-private'
   params: {
     name: derivedName
@@ -198,7 +211,7 @@ module flexibleServerPrivate '../../../pgsql-modules/db-for-postgre-sql/flexible
   }
 }
 
-module flexibleServerPublic '../../../pgsql-modules/db-for-postgre-sql/flexible-server/main.bicep' = if (!privateAccessEnabled) {
+module flexibleServerPublic './postgresql-flexible-server-server.bicep' = if (privateAccessInputsAreValid && !privateAccessEnabled) {
   name: '${uniqueString(deployment().name, location)}-postgresql-public'
   params: {
     name: derivedName
