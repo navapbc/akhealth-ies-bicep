@@ -404,9 +404,23 @@ output afdEndpointResourceIds string[] = [
   for (afdEndpoint, index) in resolvedAfdEndpoints: profile_afdEndpoints[index].outputs.resourceId
 ]
 
+@description('The list of AFD endpoint domain associations for Front Door security policy.')
+output afdEndpointSecurityPolicyDomains array = [
+  for (afdEndpoint, index) in resolvedAfdEndpoints: {
+    id: profile_afdEndpoints[index].outputs.resourceId
+  }
+]
+
 @description('The list of custom domain resource IDs.')
 output customDomainResourceIds string[] = [
   for (customDomain, index) in (customDomains ?? []): profile_customDomains[index].outputs.resourceId
+]
+
+@description('The list of custom domain associations for Front Door security policy.')
+output customDomainSecurityPolicyDomains array = [
+  for (customDomain, index) in (customDomains ?? []): {
+    id: profile_customDomains[index].outputs.resourceId
+  }
 ]
 
 // =============== //

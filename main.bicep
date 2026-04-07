@@ -777,9 +777,9 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoo
 }
 
 #disable-next-line BCP318
-var frontDoorSecurityPolicyDomainResourceId = !empty(frontDoorSettings.customDomains)
-  ? afd.outputs.customDomainResourceIds[0]
-  : afd.outputs.afdEndpointResourceIds[0]
+var frontDoorSecurityPolicyDomains = !empty(frontDoorSettings.customDomains)
+  ? afd.outputs.customDomainSecurityPolicyDomains
+  : afd.outputs.afdEndpointSecurityPolicyDomains
 
 module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (shouldDeployFrontDoor) {
   name: '${uniqueString(deployment().name, location)}-afd-security-policy'
@@ -794,11 +794,7 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
     wafPolicyResourceId: frontDoorWaf.outputs.resourceId
     associations: [
       {
-        domains: [
-          {
-            id: frontDoorSecurityPolicyDomainResourceId
-          }
-        ]
+        domains: frontDoorSecurityPolicyDomains
         patternsToMatch: frontDoorSettings.securityPatternsToMatch
       }
     ]
