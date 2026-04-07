@@ -84,9 +84,6 @@ param appGatewayConfig appGatewayConfigType
 @description('Required. Configuration for Azure Front Door. Declare the intended state explicitly even when this ingress path is not selected.')
 param frontDoorConfig frontDoorConfigType
 
-@description('Optional. Controls whether Azure Front Door resources are deployed when spokeNetworkConfig.ingressOption is "frontDoor".')
-param deployFrontDoor bool = true
-
 @description('Optional. Controls whether private endpoint subnets, private DNS zones, private endpoints, and related private-link helpers are deployed. Set to false for a simpler public-only deployment.')
 param deployPrivateNetworking bool = true
 
@@ -667,7 +664,8 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
 // Front Door               //
 // ======================== //
 
-var shouldDeployFrontDoor = deployFrontDoor
+var frontDoorSelected = networkingOption == 'frontDoor'
+var shouldDeployFrontDoor = frontDoorSelected
 var frontDoorSettings = frontDoorConfig
 var autoApproveAfdPrivateEndpoint = frontDoorSettings.autoApprovePrivateEndpoint
 var afdPeAutoApproverIsolationScope = frontDoorSettings.afdPeAutoApproverIsolationScope

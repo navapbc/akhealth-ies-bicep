@@ -1,5 +1,9 @@
 # README
 
+
+TODO:
+- Add staged/layered testing to test modules in layers, and respective layers by module, to enable
+
 This folder contains a local and reorganized  version of the App Service LZA template set with only the dependencies it needs.
 (from here https://github.com/Azure/bicep-registry-modules/tree/main/avm/ptn/app-service-lza/hosting-environment)
 
