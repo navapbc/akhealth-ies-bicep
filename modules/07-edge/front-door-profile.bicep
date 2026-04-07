@@ -53,90 +53,15 @@ param ruleSets ruleSetType[]?
 @description('Optional. Array of AFD endpoint objects.')
 param afdEndpoints afdEndpointType[]?
 
-@description('Optional. Enabled state for the module-owned default endpoint.')
-param defaultEndpointEnabledState string = 'Enabled'
-
-@description('Optional. Route patterns for the module-owned default route.')
-param defaultRoutePatternsToMatch string[] = []
-
-@description('Optional. Forwarding protocol for the module-owned default route.')
-param defaultRouteForwardingProtocol string = 'MatchRequest'
-
-@description('Optional. Link-to-default-domain setting for the module-owned default route.')
-param defaultRouteLinkToDefaultDomain string = 'Enabled'
-
-@description('Optional. HTTPS redirect setting for the module-owned default route.')
-param defaultRouteHttpsRedirect string = 'Enabled'
-
-@description('Optional. Enabled state for the module-owned default route.')
-param defaultRouteEnabledState string = 'Enabled'
-
-@description('Optional. Default origin hostname for the workload origin.')
-param defaultOriginHostName string = ''
-
-@description('Optional. Default origin resource ID for shared private link association.')
-param defaultOriginResourceId string = ''
-
-@description('Optional. Default origin resource location for shared private link association.')
-param defaultOriginLocation string = ''
-
-@description('Optional. Health probe path for the module-owned default origin group.')
-param defaultHealthProbePath string = '/'
-
-@description('Optional. Health probe interval in seconds for the module-owned default origin group.')
-param defaultHealthProbeIntervalInSeconds int = 120
-
-@description('Optional. Health probe request type for the module-owned default origin group.')
-param defaultHealthProbeRequestType string = 'HEAD'
-
-@description('Optional. Health probe protocol for the module-owned default origin group.')
-param defaultHealthProbeProtocol string = 'Https'
-
-@description('Optional. Load balancing sample size for the module-owned default origin group.')
-param defaultLoadBalancingSampleSize int = 4
-
-@description('Optional. Successful samples required for the module-owned default origin group.')
-param defaultLoadBalancingSuccessfulSamplesRequired int = 3
-
-@description('Optional. Additional latency in milliseconds for the module-owned default origin group.')
-param defaultLoadBalancingAdditionalLatencyInMilliseconds int = 50
-
-@description('Optional. Session affinity state for the module-owned default origin group.')
-param defaultSessionAffinityState string = 'Disabled'
-
-@description('Optional. Traffic restoration time in minutes for the module-owned default origin group.')
-param defaultTrafficRestorationTimeToHealedOrNewEndpointsInMinutes int = 10
-
-@description('Optional. Default origin HTTP port.')
-param defaultOriginHttpPort int = 80
-
-@description('Optional. Default origin HTTPS port.')
-param defaultOriginHttpsPort int = 443
-
-@description('Optional. Default origin priority.')
-param defaultOriginPriority int = 1
-
-@description('Optional. Default origin weight.')
-param defaultOriginWeight int = 1000
-
-@description('Optional. Default origin enabled state.')
-param defaultOriginEnabledState string = 'Enabled'
-
-@description('Optional. Default origin certificate name check behavior.')
-param defaultOriginEnforceCertificateNameCheck bool = true
-
-@description('Optional. Shared private link request message for the module-owned default origin.')
-param defaultSharedPrivateLinkRequestMessage string = ''
-
-@description('Optional. Shared private link group ID for the module-owned default origin.')
-param defaultSharedPrivateLinkGroupId string = ''
+@description('Optional. Explicit workload flow for a single-origin Front Door deployment. When provided, the module derives child names internally and creates the origin group and endpoint flow from this declared intent.')
+param defaultWorkloadFlow defaultWorkloadFlowType?
 
 @description('Optional. Endpoint tags.')
 param tags resourceInput<'Microsoft.Cdn/profiles@2025-06-01'>.tags?
 
-import { managedIdentityAllType } from '../shared/avm-common-types.bicep'
+import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
 @description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityAllType?
+param managedIdentities managedIdentityOnlySysAssignedType?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
@@ -159,70 +84,64 @@ var derivedName = take(
   260
 )
 var resolvedName = derivedName
+var hasDefaultWorkloadFlow = defaultWorkloadFlow != null
+var declaredDefaultWorkloadFlow = defaultWorkloadFlow!
 var resolvedDefaultEndpointName = take('fde-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 50)
 var resolvedDefaultOriginGroupName = take('fdog-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
 var resolvedDefaultRouteName = take('route-${resolvedDefaultEndpointName}', 90)
 var resolvedDefaultOriginName = take('origin-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
-var shouldBuildDefaultWorkloadFlow = empty(afdEndpoints ?? []) && empty(originGroups ?? []) && !empty(defaultOriginHostName)
-var resolvedOriginGroups = shouldBuildDefaultWorkloadFlow
+var resolvedOriginGroups = hasDefaultWorkloadFlow
   ? [
       {
         name: resolvedDefaultOriginGroupName
         loadBalancingSettings: {
-          sampleSize: defaultLoadBalancingSampleSize
-          successfulSamplesRequired: defaultLoadBalancingSuccessfulSamplesRequired
-          additionalLatencyInMilliseconds: defaultLoadBalancingAdditionalLatencyInMilliseconds
+          sampleSize: declaredDefaultWorkloadFlow.loadBalancingSampleSize
+          successfulSamplesRequired: declaredDefaultWorkloadFlow.loadBalancingSuccessfulSamplesRequired
+          additionalLatencyInMilliseconds: declaredDefaultWorkloadFlow.loadBalancingAdditionalLatencyInMilliseconds
         }
         healthProbeSettings: {
-          probePath: defaultHealthProbePath
-          probeRequestType: any(defaultHealthProbeRequestType)
-          probeProtocol: any(defaultHealthProbeProtocol)
-          probeIntervalInSeconds: defaultHealthProbeIntervalInSeconds
+          probePath: declaredDefaultWorkloadFlow.healthProbePath
+          probeRequestType: any(declaredDefaultWorkloadFlow.healthProbeRequestType)
+          probeProtocol: any(declaredDefaultWorkloadFlow.healthProbeProtocol)
+          probeIntervalInSeconds: declaredDefaultWorkloadFlow.healthProbeIntervalInSeconds
         }
-        sessionAffinityState: any(defaultSessionAffinityState)
-        trafficRestorationTimeToHealedOrNewEndpointsInMinutes: defaultTrafficRestorationTimeToHealedOrNewEndpointsInMinutes
+        sessionAffinityState: any(declaredDefaultWorkloadFlow.sessionAffinityState)
+        trafficRestorationTimeToHealedOrNewEndpointsInMinutes: declaredDefaultWorkloadFlow.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
         origins: [
           {
             name: resolvedDefaultOriginName
-            hostName: defaultOriginHostName
-            httpPort: defaultOriginHttpPort
-            httpsPort: defaultOriginHttpsPort
-            priority: defaultOriginPriority
-            weight: defaultOriginWeight
-            enabledState: any(defaultOriginEnabledState)
-            enforceCertificateNameCheck: defaultOriginEnforceCertificateNameCheck
-            sharedPrivateLinkResource: !empty(defaultOriginResourceId)
-              ? {
-                  privateLink: {
-                    id: defaultOriginResourceId
-                  }
-                  privateLinkLocation: defaultOriginLocation
-                  requestMessage: defaultSharedPrivateLinkRequestMessage
-                  groupId: defaultSharedPrivateLinkGroupId
-                }
-              : null
+            hostName: declaredDefaultWorkloadFlow.origin.hostName
+            httpPort: declaredDefaultWorkloadFlow.origin.httpPort
+            httpsPort: declaredDefaultWorkloadFlow.origin.httpsPort
+            priority: declaredDefaultWorkloadFlow.origin.priority
+            weight: declaredDefaultWorkloadFlow.origin.weight
+            enabledState: any(declaredDefaultWorkloadFlow.origin.enabledState)
+            enforceCertificateNameCheck: declaredDefaultWorkloadFlow.origin.enforceCertificateNameCheck
+            originHostHeader: declaredDefaultWorkloadFlow.origin.originHostHeader
+            sharedPrivateLinkResource: declaredDefaultWorkloadFlow.origin.?sharedPrivateLinkResource
           }
         ]
       }
     ]
   : (originGroups ?? [])
-var resolvedAfdEndpoints = shouldBuildDefaultWorkloadFlow
+var resolvedAfdEndpoints = hasDefaultWorkloadFlow
   ? [
       {
         name: resolvedDefaultEndpointName
-        enabledState: any(defaultEndpointEnabledState)
+        enabledState: any(declaredDefaultWorkloadFlow.endpointEnabledState)
+        autoGeneratedDomainNameLabelScope: declaredDefaultWorkloadFlow.autoGeneratedDomainNameLabelScope
         routes: [
           {
             name: resolvedDefaultRouteName
             originGroupName: resolvedDefaultOriginGroupName
-            patternsToMatch: defaultRoutePatternsToMatch
-            forwardingProtocol: any(defaultRouteForwardingProtocol)
-            linkToDefaultDomain: any(defaultRouteLinkToDefaultDomain)
-            httpsRedirect: any(defaultRouteHttpsRedirect)
-            enabledState: any(defaultRouteEnabledState)
+            patternsToMatch: declaredDefaultWorkloadFlow.routePatternsToMatch
+            forwardingProtocol: any(declaredDefaultWorkloadFlow.routeForwardingProtocol)
+            linkToDefaultDomain: any(declaredDefaultWorkloadFlow.routeLinkToDefaultDomain)
+            httpsRedirect: any(declaredDefaultWorkloadFlow.routeHttpsRedirect)
+            enabledState: any(declaredDefaultWorkloadFlow.routeEnabledState)
           }
         ]
-        tags: tags
+        tags: declaredDefaultWorkloadFlow.?tags
       }
     ]
   : (afdEndpoints ?? [])
@@ -258,10 +177,7 @@ var builtInRoleNames = {
 }
 
 var roleAssignmentsToApply = roleAssignments ?? []
-var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
-var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
-var hasUserAssignedIdentities = !empty(userAssignedIdentityEntries)
 var formattedRoleAssignments = [
   for (roleAssignment, index) in roleAssignmentsToApply: union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -272,17 +188,9 @@ var formattedRoleAssignments = [
       : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
   })
 ]
-var formattedUserAssignedIdentities = hasUserAssignedIdentities
-  ? reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
-  : {}
-var identityType = hasSystemAssignedIdentity
-  ? (hasUserAssignedIdentities ? 'SystemAssigned,UserAssigned' : 'SystemAssigned')
-  : (hasUserAssignedIdentities ? 'UserAssigned' : 'None')
-
-var identity = !empty(managedIdentities)
+var identity = hasSystemAssignedIdentity
   ? {
-      type: identityType
-      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : null
+      type: 'SystemAssigned'
     }
   : null
 
@@ -413,8 +321,8 @@ module profile_originGroups './front-door-origin-group.bicep' = [
       authentication: origingroup.?authentication
       loadBalancingSettings: origingroup.loadBalancingSettings
       healthProbeSettings: origingroup.?healthProbeSettings
-      sessionAffinityState: origingroup.?sessionAffinityState
-      trafficRestorationTimeToHealedOrNewEndpointsInMinutes: origingroup.?trafficRestorationTimeToHealedOrNewEndpointsInMinutes
+      sessionAffinityState: origingroup.sessionAffinityState
+      trafficRestorationTimeToHealedOrNewEndpointsInMinutes: origingroup.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
       origins: origingroup.origins
     }
   }
@@ -446,8 +354,8 @@ module profile_afdEndpoints './front-door-afd-endpoint.bicep' = [
       name: afdEndpoint.name
       location: location
       profileName: profile.name
-      autoGeneratedDomainNameLabelScope: afdEndpoint.?autoGeneratedDomainNameLabelScope
-      enabledState: afdEndpoint.?enabledState
+      autoGeneratedDomainNameLabelScope: afdEndpoint.autoGeneratedDomainNameLabelScope
+      enabledState: afdEndpoint.enabledState
       routes: afdEndpoint.?routes
       tags: afdEndpoint.?tags ?? tags
     }
@@ -526,10 +434,10 @@ type originGroupType = {
   loadBalancingSettings: resourceInput<'Microsoft.Cdn/profiles/originGroups@2025-06-01'>.properties.loadBalancingSettings
 
   @description('Optional. Whether to allow session affinity on this host.')
-  sessionAffinityState: 'Enabled' | 'Disabled' | null
+  sessionAffinityState: 'Enabled' | 'Disabled'
 
   @description('Optional. Time in minutes to shift the traffic to the endpoint gradually when an unhealthy endpoint comes healthy or a new endpoint is added. Default is 10 mins.')
-  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: int?
+  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: int
 
   @description('Required. The list of origins within the origin group.')
   origins: originType[]
@@ -558,10 +466,10 @@ type afdEndpointType = {
   tags: resourceInput<'Microsoft.Cdn/profiles/endpoints@2025-06-01'>.tags?
 
   @description('Optional. The scope of the auto-generated domain name label.')
-  autoGeneratedDomainNameLabelScope: 'NoReuse' | 'ResourceGroupReuse' | 'SubscriptionReuse' | 'TenantReuse' | null
+  autoGeneratedDomainNameLabelScope: 'NoReuse' | 'ResourceGroupReuse' | 'SubscriptionReuse' | 'TenantReuse'
 
   @description('Optional. The state of the AFD Endpoint.')
-  enabledState: 'Enabled' | 'Disabled' | null
+  enabledState: 'Enabled' | 'Disabled'
 }
 
 @export()
@@ -632,4 +540,88 @@ type secretType = {
 
   @description('Optional. Indicates whether to use the latest version of the secret.')
   useLatestVersion: bool?
+}
+
+@description('The type of an explicit default workload flow for Front Door.')
+type defaultWorkloadFlowType = {
+  @description('Required. Enabled state for the AFD endpoint.')
+  endpointEnabledState: 'Enabled' | 'Disabled'
+
+  @description('Required. Auto-generated domain name label scope for the endpoint.')
+  autoGeneratedDomainNameLabelScope: 'NoReuse' | 'ResourceGroupReuse' | 'SubscriptionReuse' | 'TenantReuse'
+
+  @description('Required. Route patterns to match.')
+  routePatternsToMatch: string[]
+
+  @description('Required. Route forwarding protocol.')
+  routeForwardingProtocol: 'HttpOnly' | 'HttpsOnly' | 'MatchRequest'
+
+  @description('Required. Link-to-default-domain setting for the route.')
+  routeLinkToDefaultDomain: 'Enabled' | 'Disabled'
+
+  @description('Required. HTTPS redirect setting for the route.')
+  routeHttpsRedirect: 'Enabled' | 'Disabled'
+
+  @description('Required. Enabled state for the route.')
+  routeEnabledState: 'Enabled' | 'Disabled'
+
+  @description('Required. Health probe path for the origin group.')
+  healthProbePath: string
+
+  @description('Required. Health probe interval in seconds.')
+  healthProbeIntervalInSeconds: int
+
+  @description('Required. Health probe request type.')
+  healthProbeRequestType: 'GET' | 'HEAD' | 'NotSet'
+
+  @description('Required. Health probe protocol.')
+  healthProbeProtocol: 'Http' | 'Https' | 'NotSet'
+
+  @description('Required. Load balancing sample size.')
+  loadBalancingSampleSize: int
+
+  @description('Required. Successful samples required.')
+  loadBalancingSuccessfulSamplesRequired: int
+
+  @description('Required. Additional latency in milliseconds.')
+  loadBalancingAdditionalLatencyInMilliseconds: int
+
+  @description('Required. Session affinity state.')
+  sessionAffinityState: 'Enabled' | 'Disabled'
+
+  @description('Required. Traffic restoration time for healed or new endpoints.')
+  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: int
+
+  @description('Required. Tags for the AFD endpoint.')
+  tags: resourceInput<'Microsoft.Cdn/profiles/endpoints@2025-06-01'>.tags?
+
+  @description('Required. Workload origin definition.')
+  origin: {
+    @description('Required. The address of the origin.')
+    hostName: string
+
+    @description('Required. Whether the origin is enabled.')
+    enabledState: 'Enabled' | 'Disabled'
+
+    @description('Required. Whether to enforce certificate name checks.')
+    enforceCertificateNameCheck: bool
+
+    @description('Required. HTTP port.')
+    httpPort: int
+
+    @description('Required. HTTPS port.')
+    httpsPort: int
+
+    @description('Required. Host header value sent to the origin.')
+    originHostHeader: string
+
+    @description('Required. Priority of the origin.')
+    priority: int
+
+    @description('Required. Weight of the origin.')
+    weight: int
+
+    @description('Optional. Shared private link resource configuration.')
+    sharedPrivateLinkResource: resourceInput<'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01'>.properties.sharedPrivateLinkResource?
+  }
 }

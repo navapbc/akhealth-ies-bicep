@@ -56,9 +56,9 @@ param clientAffinityPartitioningEnabled bool
 @description('Optional. The resource ID of the app service environment to use for this resource.')
 param appServiceEnvironmentResourceId string?
 
-import { managedIdentityAllType } from '../shared/avm-common-types.bicep'
+import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
 @description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityAllType?
+param managedIdentities managedIdentityOnlySysAssignedType?
 
 @description('Optional. The resource ID of the assigned identity to be used to access a key vault with.')
 param keyVaultAccessIdentityResourceId string?
@@ -204,18 +204,10 @@ var managedEnvironmentSupportedKinds = [
   'functionapp,linux,container,azurecontainerapps'
 ]
 
-var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
-var hasUserAssignedIdentities = !empty(userAssignedIdentityResourceIds)
-var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
-var formattedUserAssignedIdentities = reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
-var identityType = hasSystemAssignedIdentity
-  ? (hasUserAssignedIdentities ? 'SystemAssigned, UserAssigned' : 'SystemAssigned')
-  : (hasUserAssignedIdentities ? 'UserAssigned' : 'None')
-var identity = !empty(managedIdentities)
+var identity = hasSystemAssignedIdentity
   ? {
-      type: identityType
-      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : null
+      type: 'SystemAssigned'
     }
   : null
 
@@ -303,9 +295,8 @@ module app_config './web-site-config.bicep' = [
     params: {
       appName: app.name
       name: config.name
-      applicationInsightResourceId: config.?applicationInsightResourceId
-      storageAccountResourceId: config.?storageAccountResourceId
-      storageAccountUseIdentityAuthentication: config.?storageAccountUseIdentityAuthentication
+      applicationInsightsReference: config.?applicationInsights
+      storageAccountReference: config.?storageAccount
       properties: config.?properties
       currentAppSettings: config.?retainCurrentAppSettings ?? true && config.name == 'appsettings'
         ? list('${app.id}/config/appsettings', '2023-12-01').properties
@@ -511,6 +502,11 @@ resource app_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
 var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {
+        resourceGroupResourceId: resourceGroup().id
+        name: defaultPrivateEndpointName
+        location: location
+        privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
+        service: 'sites'
         subnetResourceId: defaultPrivateEndpointSubnetResourceId
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
@@ -536,13 +532,13 @@ module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (sh
 
 var resolvedPrivateEndpoints = [
   for (privateEndpoint, index) in moduleOwnedPrivateEndpoints: {
-    resourceGroupResourceId: privateEndpoint.?resourceGroupResourceId ?? resourceGroup().id
-    name: privateEndpoint.?name ?? defaultPrivateEndpointName
-    service: privateEndpoint.?service ?? 'sites'
+    resourceGroupResourceId: privateEndpoint.resourceGroupResourceId
+    name: privateEndpoint.name
+    service: privateEndpoint.service
     isManualConnection: privateEndpoint.?isManualConnection == true
-    privateLinkServiceConnectionName: privateEndpoint.?privateLinkServiceConnectionName ?? defaultPrivateLinkServiceConnectionName
+    privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
     subnetResourceId: privateEndpoint.subnetResourceId
-    location: privateEndpoint.?location
+    location: privateEndpoint.location
     lock: privateEndpoint.?lock ?? lock
     privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
     roleAssignments: privateEndpoint.?roleAssignments
@@ -551,7 +547,7 @@ var resolvedPrivateEndpoints = [
     ipConfigurations: privateEndpoint.?ipConfigurations
     applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
     customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage ?? 'Manual approval required.'
+    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage
   }
 ]
 
@@ -593,11 +589,7 @@ module app_privateEndpoints '../01-network/private-endpoint.bicep' = [
           ]
         : null
       subnetResourceId: privateEndpoint.subnetResourceId
-      location: privateEndpoint.location ?? reference(
-        split(privateEndpoint.subnetResourceId, '/subnets/')[0],
-        '2020-06-01',
-        'Full'
-      ).location
+      location: privateEndpoint.location
       lock: privateEndpoint.lock
       privateDnsZoneGroup: privateEndpoint.privateDnsZoneGroup
       roleAssignments: privateEndpoint.roleAssignments
@@ -775,7 +767,7 @@ type slotType = {
   appServiceEnvironmentResourceId: string?
 
   @description('Optional. The managed identity definition for this resource.')
-  managedIdentities: managedIdentityAllType?
+  managedIdentities: managedIdentityOnlySysAssignedType?
 
   @description('Optional. The resource ID of the assigned identity to be used to access a key vault with.')
   keyVaultAccessIdentityResourceId: string?

@@ -22,7 +22,7 @@ resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
   properties: {
     privateDnsZoneConfigs: [
       for privateDnsZoneConfig in privateDnsZoneConfigs: {
-        name: privateDnsZoneConfig.?name ?? last(split(privateDnsZoneConfig.privateDnsZoneResourceId, '/'))
+        name: privateDnsZoneConfig.name
         properties: {
           privateDnsZoneId: privateDnsZoneConfig.privateDnsZoneResourceId
         }
@@ -47,8 +47,8 @@ output resourceGroupName string = resourceGroup().name
 @export()
 @description('The type of a private DNS zone group configuration.')
 type privateDnsZoneGroupConfigType = {
-  @description('Optional. The name of the private DNS zone group config.')
-  name: string?
+  @description('Required. The name of the private DNS zone group config.')
+  name: string
 
   @description('Required. The resource id of the private DNS zone.')
   privateDnsZoneResourceId: string

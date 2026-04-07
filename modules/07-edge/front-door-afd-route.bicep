@@ -22,28 +22,28 @@ param customDomainNames string[]?
   'MatchRequest'
 ])
 @description('Optional. The protocol this rule will use when forwarding traffic to backends.')
-param forwardingProtocol string = 'MatchRequest'
+param forwardingProtocol string
 
 @allowed([
   'Disabled'
   'Enabled'
 ])
 @description('Optional. Whether this route is enabled.')
-param enabledState string = 'Enabled'
+param enabledState string
 
 @allowed([
   'Disabled'
   'Enabled'
 ])
 @description('Optional. Whether to automatically redirect HTTP traffic to HTTPS traffic.')
-param httpsRedirect string = 'Enabled'
+param httpsRedirect string
 
 @allowed([
   'Disabled'
   'Enabled'
 ])
 @description('Optional. Whether this route will be linked to the default endpoint domain.')
-param linkToDefaultDomain string = 'Enabled'
+param linkToDefaultDomain string
 
 @description('Required. The name of the origin group. The origin group must be defined in the profile originGroups.')
 param originGroupName string

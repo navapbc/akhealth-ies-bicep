@@ -13,21 +13,27 @@ param profileName string
   'ManagedCertificate'
   'UrlSigningKey'
 ])
-@description('Optional. The type of the secret.')
-param type string = 'AzureFirstPartyManagedCertificate'
+@description('Required. The type of the secret.')
+param type string
 
 @description('Conditional. The resource ID of the secret source. Required if the `type` is "CustomerCertificate".')
 #disable-next-line secure-secrets-in-params
-param secretSourceResourceId string = ''
+param secretSourceResourceId string?
 
 @description('Optional. The version of the secret.')
-param secretVersion string = ''
+param secretVersion string?
 
 @description('Optional. The subject alternative names of the secret.')
-param subjectAlternativeNames string[] = []
+param subjectAlternativeNames string[]?
 
 @description('Optional. Indicates whether to use the latest version of the secret.')
-param useLatestVersion bool = false
+param useLatestVersion bool?
+
+var resolvedSecretSourceResourceId = type == 'CustomerCertificate'
+  ? (secretSourceResourceId != null
+      ? secretSourceResourceId
+      : fail('Front Door CustomerCertificate secrets require secretSourceResourceId to be declared explicitly.'))
+  : null
 
 resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
   name: profileName
@@ -43,10 +49,10 @@ resource secret 'Microsoft.Cdn/profiles/secrets@2025-04-15' = {
       ? {
           type: type
           secretSource: {
-            id: secretSourceResourceId
+            id: resolvedSecretSourceResourceId
           }
           secretVersion: secretVersion
-          subjectAlternativeNames: subjectAlternativeNames
+          subjectAlternativeNames: subjectAlternativeNames ?? []
           useLatestVersion: useLatestVersion
         }
       : null

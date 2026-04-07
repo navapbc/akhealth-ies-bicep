@@ -96,7 +96,7 @@ param aseConfig aseConfigType
 @description('Optional. Controls whether PostgreSQL Flexible Server resources are deployed.')
 param deployPostgreSql bool = false
 
-@description('Required. Configuration for the Microsoft Entra group used as the PostgreSQL administrator. Declare the intended state explicitly even when deployPostgreSql is false.')
+@description('Required. Configuration for the existing Microsoft Entra security group used as the PostgreSQL administrator. Declare the intended state explicitly even when deployPostgreSql is false.')
 param postgresqlAdminGroupConfig entraGroupConfigType
 
 @description('Required. Configuration for Azure Database for PostgreSQL Flexible Server. Declare the intended state explicitly even when deployPostgreSql is false.')
@@ -132,7 +132,23 @@ var firewallInternalIp = spokeNetworkConfig.firewallInternalIp
 var networkingOption = spokeNetworkConfig.ingressOption
 var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
-var postgreSqlPrivateAccessEnabled = deployPostgreSql && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
+var postgreSqlEnabled = deployPostgreSql
+var postgreSqlPrivateNetworkingRequired = postgreSqlEnabled && deployPrivateNetworking
+var postgreSqlConfigIsValidForPrivateMode = postgresqlConfig.privateAccessMode == 'delegatedSubnet' && postgresqlConfig.publicNetworkAccess == 'Disabled'
+var postgreSqlConfigIsValidForPublicMode = postgresqlConfig.privateAccessMode == 'none' && postgresqlConfig.publicNetworkAccess == 'Enabled'
+var resolvedPostgreSqlPrivateAccessMode = !postgreSqlEnabled
+  ? 'none'
+  : (postgreSqlPrivateNetworkingRequired
+      ? (postgreSqlConfigIsValidForPrivateMode
+          ? 'delegatedSubnet'
+          : fail('When deployPrivateNetworking is true, PostgreSQL must use delegatedSubnet private access and Disabled public network access.'))
+      : (postgreSqlConfigIsValidForPublicMode
+          ? 'none'
+          : fail('When deployPrivateNetworking is false, PostgreSQL must use none private access mode and Enabled public network access.')))
+var resolvedPostgreSqlPublicNetworkAccess = !postgreSqlEnabled
+  ? 'Disabled'
+  : (postgreSqlPrivateNetworkingRequired ? 'Disabled' : 'Enabled')
+var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && resolvedPostgreSqlPrivateAccessMode == 'delegatedSubnet'
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
 var dnsServers = spokeNetworkConfig.dnsServers
 var ddosProtectionPlanResourceId = spokeNetworkConfig.ddosProtectionPlanResourceId
@@ -154,6 +170,9 @@ var logAnalyticsWorkspaceEnableLogAccessUsingOnlyResourcePermissions = logAnalyt
 var logAnalyticsWorkspaceDisableLocalAuth = logAnalyticsConfig.disableLocalAuth
 var logAnalyticsWorkspacePublicNetworkAccessForIngestion = logAnalyticsConfig.publicNetworkAccessForIngestion
 var logAnalyticsWorkspacePublicNetworkAccessForQuery = logAnalyticsConfig.publicNetworkAccessForQuery
+var logAnalyticsWorkspaceLock = logAnalyticsConfig.?lock
+var logAnalyticsWorkspaceRoleAssignments = logAnalyticsConfig.roleAssignments
+var logAnalyticsWorkspaceDiagnosticSettings = logAnalyticsConfig.diagnosticSettings
 
 // ======================== //
 // Naming & Resource Names  //
@@ -210,6 +229,9 @@ module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bice
     disableLocalAuth: logAnalyticsWorkspaceDisableLocalAuth
     publicNetworkAccessForIngestion: logAnalyticsWorkspacePublicNetworkAccessForIngestion
     publicNetworkAccessForQuery: logAnalyticsWorkspacePublicNetworkAccessForQuery
+    lock: logAnalyticsWorkspaceLock
+    roleAssignments: logAnalyticsWorkspaceRoleAssignments
+    diagnosticSettings: logAnalyticsWorkspaceDiagnosticSettings
   }
 }
 
@@ -315,6 +337,7 @@ var hostNameSslStates = appServiceConfig.?hostNameSslStates
 var e2eEncryptionEnabled = appServiceConfig.?e2eEncryptionEnabled
 var keyVaultAccessIdentityResourceId = appServiceConfig.?keyVaultAccessIdentityResourceId
 var appServiceManagedIdentities = appServiceConfig.managedIdentities
+var appServiceSystemAssignedIdentityEnabled = appServiceManagedIdentities.?systemAssigned ?? false
 var webAppExtensions = appServiceConfig.?extensions
 var webAppEnabled = appServiceConfig.enabled
 var cloningInfo = appServiceConfig.?cloningInfo
@@ -379,7 +402,6 @@ var aseCustomDnsSuffix = aseConfig.customDnsSuffix
 var aseIpsslAddressCount = aseConfig.ipsslAddressCount
 var aseMultiSize = aseConfig.multiSize
 var aseCustomDnsSuffixCertificateUrl = aseConfig.customDnsSuffixCertificateUrl
-var aseCustomDnsSuffixKeyVaultReferenceIdentity = aseConfig.customDnsSuffixKeyVaultReferenceIdentity
 var aseDedicatedHostCount = aseConfig.dedicatedHostCount
 var aseDnsSuffix = aseConfig.dnsSuffix
 var aseFrontEndScaleFactor = aseConfig.frontEndScaleFactor
@@ -405,6 +427,7 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
     location: location
     tags: tags
     subnetResourceId: networking.outputs.snetAppSvcResourceId
+    subnetName: networking.outputs.snetAppSvcName
     clusterSettings: aseClusterSettings
     dedicatedHostCount: aseDedicatedHostCount != 0 ? aseDedicatedHostCount : null
     frontEndScaleFactor: aseFrontEndScaleFactor
@@ -419,7 +442,6 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
       }
     }
     customDnsSuffixCertificateUrl: aseCustomDnsSuffixCertificateUrl
-    customDnsSuffixKeyVaultReferenceIdentity: aseCustomDnsSuffixKeyVaultReferenceIdentity
     customDnsSuffix: aseCustomDnsSuffix
     dnsSuffix: !empty(aseDnsSuffix) ? aseDnsSuffix : null
     upgradePreference: aseUpgradePreference
@@ -649,6 +671,43 @@ var shouldDeployFrontDoor = deployFrontDoor
 var frontDoorSettings = frontDoorConfig
 var autoApproveAfdPrivateEndpoint = frontDoorSettings.autoApprovePrivateEndpoint
 var afdPeAutoApproverIsolationScope = frontDoorSettings.afdPeAutoApproverIsolationScope
+var frontDoorDefaultWorkloadFlow = {
+  endpointEnabledState: any(frontDoorSettings.endpointEnabledState)
+  autoGeneratedDomainNameLabelScope: 'TenantReuse'
+  routePatternsToMatch: frontDoorSettings.routePatternsToMatch
+  routeForwardingProtocol: any(frontDoorSettings.routeForwardingProtocol)
+  routeLinkToDefaultDomain: any(frontDoorSettings.routeLinkToDefaultDomain)
+  routeHttpsRedirect: any(frontDoorSettings.routeHttpsRedirect)
+  routeEnabledState: any(frontDoorSettings.routeEnabledState)
+  healthProbePath: frontDoorSettings.healthProbePath
+  healthProbeIntervalInSeconds: frontDoorSettings.healthProbeIntervalInSeconds
+  healthProbeRequestType: any(frontDoorSettings.healthProbeRequestType)
+  healthProbeProtocol: any(frontDoorSettings.healthProbeProtocol)
+  loadBalancingSampleSize: frontDoorSettings.loadBalancingSampleSize
+  loadBalancingSuccessfulSamplesRequired: frontDoorSettings.loadBalancingSuccessfulSamplesRequired
+  loadBalancingAdditionalLatencyInMilliseconds: frontDoorSettings.loadBalancingAdditionalLatencyInMilliseconds
+  sessionAffinityState: any(frontDoorSettings.sessionAffinityState)
+  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: frontDoorSettings.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
+  tags: tags
+  origin: {
+    hostName: webAppSite.outputs.defaultHostname
+    httpPort: frontDoorSettings.originHttpPort
+    httpsPort: frontDoorSettings.originHttpsPort
+    priority: frontDoorSettings.originPriority
+    weight: frontDoorSettings.originWeight
+    enabledState: any(frontDoorSettings.originEnabledState)
+    enforceCertificateNameCheck: frontDoorSettings.originEnforceCertificateNameCheck
+    originHostHeader: webAppSite.outputs.defaultHostname
+    sharedPrivateLinkResource: {
+      privateLink: {
+        id: webAppSite.outputs.resourceId
+      }
+      privateLinkLocation: webAppSite.outputs.location
+      requestMessage: frontDoorSettings.sharedPrivateLinkRequestMessage
+      groupId: frontDoorSettings.sharedPrivateLinkGroupId
+    }
+  }
+}
 var frontDoorWafCustomRules = frontDoorSettings.enableDefaultWafMethodBlock
   ? {
       rules: [
@@ -714,32 +773,7 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoo
     customDomains: frontDoorSettings.customDomains
     ruleSets: frontDoorSettings.ruleSets
     secrets: frontDoorSettings.secrets
-    defaultEndpointEnabledState: frontDoorSettings.endpointEnabledState
-    defaultRoutePatternsToMatch: frontDoorSettings.routePatternsToMatch
-    defaultRouteForwardingProtocol: frontDoorSettings.routeForwardingProtocol
-    defaultRouteLinkToDefaultDomain: frontDoorSettings.routeLinkToDefaultDomain
-    defaultRouteHttpsRedirect: frontDoorSettings.routeHttpsRedirect
-    defaultRouteEnabledState: frontDoorSettings.routeEnabledState
-    defaultOriginHostName: webAppSite.outputs.defaultHostname
-    defaultOriginResourceId: webAppSite.outputs.resourceId
-    defaultOriginLocation: webAppSite.outputs.location
-    defaultHealthProbePath: frontDoorSettings.healthProbePath
-    defaultHealthProbeIntervalInSeconds: frontDoorSettings.healthProbeIntervalInSeconds
-    defaultHealthProbeRequestType: frontDoorSettings.healthProbeRequestType
-    defaultHealthProbeProtocol: frontDoorSettings.healthProbeProtocol
-    defaultLoadBalancingSampleSize: frontDoorSettings.loadBalancingSampleSize
-    defaultLoadBalancingSuccessfulSamplesRequired: frontDoorSettings.loadBalancingSuccessfulSamplesRequired
-    defaultLoadBalancingAdditionalLatencyInMilliseconds: frontDoorSettings.loadBalancingAdditionalLatencyInMilliseconds
-    defaultSessionAffinityState: frontDoorSettings.sessionAffinityState
-    defaultTrafficRestorationTimeToHealedOrNewEndpointsInMinutes: frontDoorSettings.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
-    defaultOriginHttpPort: frontDoorSettings.originHttpPort
-    defaultOriginHttpsPort: frontDoorSettings.originHttpsPort
-    defaultOriginPriority: frontDoorSettings.originPriority
-    defaultOriginWeight: frontDoorSettings.originWeight
-    defaultOriginEnabledState: frontDoorSettings.originEnabledState
-    defaultOriginEnforceCertificateNameCheck: frontDoorSettings.originEnforceCertificateNameCheck
-    defaultSharedPrivateLinkRequestMessage: frontDoorSettings.sharedPrivateLinkRequestMessage
-    defaultSharedPrivateLinkGroupId: frontDoorSettings.sharedPrivateLinkGroupId
+    defaultWorkloadFlow: frontDoorDefaultWorkloadFlow
     tags: tags
   }
 }
@@ -863,24 +897,27 @@ var appGatewayEnableFips = appGatewaySettings.enableFips
 var appGatewayEnableHttp2 = appGatewaySettings.enableHttp2
 var appGatewayEnableRequestBuffering = appGatewaySettings.enableRequestBuffering
 var appGatewayEnableResponseBuffering = appGatewaySettings.enableResponseBuffering
-var appGatewayHealthProbePath = appGatewaySettings.healthProbePath
 var appGatewayLoadDistributionPolicies = appGatewaySettings.loadDistributionPolicies
 var appGatewayPrivateEndpoints = appGatewaySettings.privateEndpoints
 var appGatewayPrivateLinkConfigurations = appGatewaySettings.privateLinkConfigurations
 var appGatewayRedirectConfigurations = appGatewaySettings.redirectConfigurations
 var appGatewayRewriteRuleSets = appGatewaySettings.rewriteRuleSets
+var appGatewayGatewayIPConfigurations = appGatewaySettings.gatewayIPConfigurations
+var appGatewayFrontendIPConfigurations = appGatewaySettings.frontendIPConfigurations
+var appGatewayFrontendPorts = appGatewaySettings.frontendPorts
+var appGatewayBackendAddressPools = appGatewaySettings.backendAddressPools
+var appGatewayBackendHttpSettingsCollection = appGatewaySettings.backendHttpSettingsCollection
+var appGatewayProbes = appGatewaySettings.probes
+var appGatewayHttpListeners = appGatewaySettings.httpListeners
 var appGatewaySslProfiles = appGatewaySettings.sslProfiles
 var appGatewayTrustedClientCertificates = appGatewaySettings.trustedClientCertificates
 var appGatewayUrlPathMaps = appGatewaySettings.urlPathMaps
 var appGatewayBackendSettingsCollection = appGatewaySettings.backendSettingsCollection
 var appGatewayListeners = appGatewaySettings.listeners
 var appGatewayRoutingRules = appGatewaySettings.routingRules
+var appGatewayRequestRoutingRules = appGatewaySettings.requestRoutingRules
 var appGatewayLock = appGatewaySettings.?lock
 var appGatewayDiagnosticSettings = appGatewaySettings.diagnosticSettings
-var appGatewayBackendRequestTimeout = appGatewaySettings.backendRequestTimeout
-var appGatewayProbeInterval = appGatewaySettings.probeInterval
-var appGatewayProbeTimeout = appGatewaySettings.probeTimeout
-var appGatewayProbeUnhealthyThreshold = appGatewaySettings.probeUnhealthyThreshold
 var appGatewayWafPolicySettings = appGatewaySettings.wafPolicySettings
 var appGatewayWafManagedRuleSets = appGatewaySettings.wafManagedRuleSets
 
@@ -934,6 +971,13 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption 
     authenticationCertificates: appGatewayAuthenticationCertificates
     customErrorConfigurations: appGatewayCustomErrorConfigurations
     loadDistributionPolicies: appGatewayLoadDistributionPolicies
+    gatewayIPConfigurations: appGatewayGatewayIPConfigurations
+    frontendIPConfigurations: appGatewayFrontendIPConfigurations
+    frontendPorts: appGatewayFrontendPorts
+    backendAddressPools: appGatewayBackendAddressPools
+    backendHttpSettingsCollection: appGatewayBackendHttpSettingsCollection
+    probes: appGatewayProbes
+    httpListeners: appGatewayHttpListeners
     privateEndpoints: appGatewayPrivateEndpoints
     privateLinkConfigurations: appGatewayPrivateLinkConfigurations
     redirectConfigurations: appGatewayRedirectConfigurations
@@ -944,13 +988,7 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption 
     backendSettingsCollection: appGatewayBackendSettingsCollection
     listeners: appGatewayListeners
     routingRules: appGatewayRoutingRules
-    appGatewaySubnetResourceId: networking.outputs.snetAppGwResourceId
-    defaultBackendHostName: webAppSite.outputs.defaultHostname
-    defaultBackendRequestTimeout: appGatewayBackendRequestTimeout
-    defaultHealthProbePath: appGatewayHealthProbePath
-    defaultProbeInterval: appGatewayProbeInterval
-    defaultProbeTimeout: appGatewayProbeTimeout
-    defaultProbeUnhealthyThreshold: appGatewayProbeUnhealthyThreshold
+    requestRoutingRules: appGatewayRequestRoutingRules
   }
 }
 
@@ -1028,20 +1066,21 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
 // PostgreSQL               //
 // ======================== //
 
-module postgreSqlAdminGroup 'modules/09-directory/entra-group.bicep' = if (deployPostgreSql) {
-  name: '${uniqueString(deployment().name, location)}-postgresql-admin-group'
-  scope: tenant()
-  params: {
-    systemAbbreviation: systemAbbreviation
-    environmentAbbreviation: environmentAbbreviation
-    instanceNumber: instanceNumber
-    workloadDescription: postgresqlAdminGroupConfig.workloadDescription
-    location: location
-    groupDescription: postgresqlAdminGroupConfig.?description ?? ''
-    memberObjectIds: postgresqlAdminGroupConfig.members
-    ownerObjectIds: postgresqlAdminGroupConfig.?owners ?? []
-  }
-}
+var postgreSqlRoleAssignments = concat(
+  postgresqlConfig.roleAssignments,
+  postgresqlConfig.grantAppServiceIdentityReaderRole
+    ? [
+        {
+          roleDefinitionIdOrName: 'Reader'
+          principalId: appServiceSystemAssignedIdentityEnabled
+            ? webAppSite.outputs.systemAssignedMIPrincipalId
+            : fail('postgresqlConfig.grantAppServiceIdentityReaderRole requires appServiceConfig.managedIdentities.systemAssigned to be true.')
+          principalType: 'ServicePrincipal'
+          description: 'Allows the web app system-assigned identity to read PostgreSQL flexible server resource metadata.'
+        }
+      ]
+    : []
+)
 
 module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deployPostgreSql) {
   name: '${uniqueString(deployment().name, location)}-postgresql'
@@ -1052,27 +1091,27 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     instanceNumber: instanceNumber
     workloadDescription: postgresqlConfig.workloadDescription
     location: location
-    administratorGroupObjectId: postgreSqlAdminGroup.outputs.objectId
-    administratorGroupDisplayName: postgreSqlAdminGroup.outputs.name
+    administratorGroupObjectId: postgresqlAdminGroupConfig.objectId
+    administratorGroupDisplayName: postgresqlAdminGroupConfig.displayName
     skuName: postgresqlConfig.skuName
     tier: postgresqlConfig.tier
     availabilityZone: postgresqlConfig.availabilityZone
-    highAvailabilityZone: postgresqlConfig.?highAvailabilityZone ?? -1
-    highAvailability: postgresqlConfig.?highAvailability ?? 'Disabled'
-    backupRetentionDays: postgresqlConfig.?backupRetentionDays ?? 7
-    geoRedundantBackup: postgresqlConfig.?geoRedundantBackup ?? 'Disabled'
-    storageSizeGB: postgresqlConfig.?storageSizeGB ?? 32
-    autoGrow: postgresqlConfig.?autoGrow ?? 'Enabled'
-    version: postgresqlConfig.?version ?? '18'
-    publicNetworkAccess: postgresqlConfig.publicNetworkAccess
-    privateAccessMode: postgresqlConfig.privateAccessMode
-    delegatedSubnetResourceId: networking.outputs.snetPostgreSqlResourceId
+    highAvailabilityZone: postgresqlConfig.highAvailabilityZone
+    highAvailability: postgresqlConfig.highAvailability
+    backupRetentionDays: postgresqlConfig.backupRetentionDays
+    geoRedundantBackup: postgresqlConfig.geoRedundantBackup
+    storageSizeGB: postgresqlConfig.storageSizeGB
+    autoGrow: postgresqlConfig.autoGrow
+    version: postgresqlConfig.version
+    publicNetworkAccess: resolvedPostgreSqlPublicNetworkAccess
+    privateAccessMode: resolvedPostgreSqlPrivateAccessMode
+    delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.snetPostgreSqlResourceId : null
     privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneVirtualNetworkLinks
     databases: postgresqlConfig.databases
     configurations: postgresqlConfig.configurations
     diagnosticSettings: postgresqlConfig.diagnosticSettings
     lock: postgresqlConfig.?lock
-    roleAssignments: postgresqlConfig.roleAssignments
+    roleAssignments: postgreSqlRoleAssignments
     tags: tags
   }
 }
@@ -1126,20 +1165,20 @@ output logAnalyticsWorkspaceUsedResourceId string = resolvedLogAnalyticsWorkspac
 @description('The name of the Log Analytics workspace created by this deployment, if one was created.')
 output logAnalyticsWorkspaceCreatedName string = logAnalyticsWorkspace.?outputs.?name ?? ''
 
-@description('The object ID of the Microsoft Entra group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
-output postgreSqlAdminGroupObjectId string = postgreSqlAdminGroup.?outputs.?objectId ?? ''
+@description('The object ID of the Microsoft Entra security group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupObjectId string = deployPostgreSql ? postgresqlAdminGroupConfig.objectId : ''
 
-@description('The display name of the Microsoft Entra group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
-output postgreSqlAdminGroupName string = postgreSqlAdminGroup.?outputs.?name ?? ''
+@description('The display name of the Microsoft Entra security group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupName string = deployPostgreSql ? postgresqlAdminGroupConfig.displayName : ''
 
 @description('The name of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
 output postgreSqlServerName string = postgreSql.?outputs.?name ?? ''
 
 @description('The resource ID of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
-output postgreSqlServerResourceId string = postgreSql.?outputs.?resourceId ?? ''
+output postgreSqlServerResourceId string = deployPostgreSql ? postgreSql!.outputs.resourceId : ''
 
 @description('The FQDN of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
-output postgreSqlServerFqdn string = postgreSql.?outputs.?fqdn ?? ''
+output postgreSqlServerFqdn string = deployPostgreSql ? postgreSql!.outputs.fqdn : ''
 
 @description('The name of the PostgreSQL private DNS zone. Empty when PostgreSQL private access is not enabled.')
-output postgreSqlPrivateDnsZoneName string = postgreSql.?outputs.?privateDnsZoneName ?? ''
+output postgreSqlPrivateDnsZoneName string = postgreSqlPrivateAccessEnabled ? postgreSql!.outputs.privateDnsZoneName! : ''

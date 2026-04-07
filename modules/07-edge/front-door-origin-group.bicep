@@ -21,10 +21,10 @@ param authentication resourceInput<'Microsoft.Cdn/profiles/originGroups@2025-06-
   'Enabled'
 ])
 @description('Optional. Whether to allow session affinity on this host.')
-param sessionAffinityState string = 'Disabled'
+param sessionAffinityState string
 
 @description('Optional. Time in minutes to shift the traffic to the endpoint gradually when an unhealthy endpoint comes healthy or a new endpoint is added. Default is 10 mins.')
-param trafficRestorationTimeToHealedOrNewEndpointsInMinutes int = 10
+param trafficRestorationTimeToHealedOrNewEndpointsInMinutes int
 
 @description('Required. The list of origins within the origin group.')
 param origins originType[]
@@ -55,15 +55,13 @@ module originGroup_origins './front-door-origin-group-origin.bicep' = [
       profileName: profileName
       hostName: origin.hostName
       originGroupName: originGroup.name
-      enabledState: origin.?enabledState
-      enforceCertificateNameCheck: origin.?enforceCertificateNameCheck
-      httpPort: origin.?httpPort
-      httpsPort: origin.?httpsPort
-      originHostHeader: !empty(origin.?originHostHeader)
-        ? origin.?originHostHeader
-        : (origin.?originHostHeader == '' ? null : origin.hostName)
-      priority: origin.?priority
-      weight: origin.?weight
+      enabledState: origin.enabledState
+      enforceCertificateNameCheck: origin.enforceCertificateNameCheck
+      httpPort: origin.httpPort
+      httpsPort: origin.httpsPort
+      originHostHeader: origin.originHostHeader
+      priority: origin.priority
+      weight: origin.weight
       sharedPrivateLinkResource: origin.?sharedPrivateLinkResource    }
   }
 ]
@@ -123,25 +121,25 @@ type originType = {
   hostName: string
 
   @description('Optional. Whether to enable health probes to be made against backends defined under backendPools. Health probes can only be disabled if there is a single enabled backend in single enabled backend pool.')
-  enabledState: 'Enabled' | 'Disabled' | null
+  enabledState: 'Enabled' | 'Disabled'
 
   @description('Optional. Whether to enable certificate name check at origin level.')
-  enforceCertificateNameCheck: bool?
+  enforceCertificateNameCheck: bool
 
   @description('Optional. The value of the HTTP port. Must be between 1 and 65535.')
-  httpPort: int?
+  httpPort: int
 
   @description('Optional. The value of the HTTPS port. Must be between 1 and 65535.')
-  httpsPort: int?
+  httpsPort: int
 
   @description('Optional. The host header value sent to the origin with each request. If you leave this blank, the request hostname determines this value. Azure Front Door origins, such as Web Apps, Blob Storage, and Cloud Services require this host header value to match the origin hostname by default. This overrides the host header defined at Endpoint.')
-  originHostHeader: string?
+  originHostHeader: string
 
   @description('Optional. Priority of origin in given origin group for load balancing. Higher priorities will not be used for load balancing if any lower priority origin is healthy.Must be between 1 and 5.')
-  priority: int?
+  priority: int
 
   @description('Optional. Weight of the origin in given origin group for load balancing. Must be between 1 and 1000.')
-  weight: int?
+  weight: int
 
   @description('Optional. The properties of the private link resource for private origin.')
   sharedPrivateLinkResource: resourceInput<'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01'>.properties.sharedPrivateLinkResource?

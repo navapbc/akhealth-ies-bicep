@@ -24,14 +24,23 @@ param name string
 param properties object = {}
 
 // Parameters only relevant for the config type 'appsettings'
-@description('Optional. If the provided storage account requires Identity based authentication (\'allowSharedKeyAccess\' is set to false). When set to true, the minimum role assignment required for the App Service Managed Identity to the storage account is \'Storage Blob Data Owner\'.')
-param storageAccountUseIdentityAuthentication bool = false
+@description('Optional. Existing storage account reference used for function host storage.')
+param storageAccountReference {
+  @description('Required. Name of the storage account.')
+  name: string
 
-@description('Optional. Required if app of kind functionapp. Resource ID of the storage account to manage triggers and logging function executions.')
-param storageAccountResourceId string?
+  @description('Required. Resource group name of the storage account.')
+  resourceGroupName: string
+}?
 
-@description('Optional. Resource ID of the application insight to leverage for this resource.')
-param applicationInsightResourceId string?
+@description('Optional. Existing Application Insights reference used for monitoring settings.')
+param applicationInsightsReference {
+  @description('Required. Name of the Application Insights component.')
+  name: string
+
+  @description('Required. Resource group name of the Application Insights component.')
+  resourceGroupName: string
+}?
 
 
 @description('Optional. The current app settings.')
@@ -40,20 +49,20 @@ param currentAppSettings {
   *: string
 } = {}
 
-var azureWebJobsValues = !empty(storageAccountResourceId) && !storageAccountUseIdentityAuthentication
-  ? {
-      AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount!.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
-    }
-  : !empty(storageAccountResourceId) && storageAccountUseIdentityAuthentication
-      ? {
-          AzureWebJobsStorage__accountName: storageAccount.name
-          AzureWebJobsStorage__blobServiceUri: storageAccount!.properties.primaryEndpoints.blob
-          AzureWebJobsStorage__queueServiceUri: storageAccount!.properties.primaryEndpoints.queue
-          AzureWebJobsStorage__tableServiceUri: storageAccount!.properties.primaryEndpoints.table
-        }
-      : {}
+var hasStorageAccount = storageAccountReference != null
+var hasApplicationInsights = applicationInsightsReference != null
 
-var appInsightsValues = !empty(applicationInsightResourceId)
+var azureWebJobsValues = hasStorageAccount
+  ? {
+      AzureWebJobsStorage__accountName: storageAccountReference!.name
+      AzureWebJobsStorage__blobServiceUri: storageAccount!.properties.primaryEndpoints.blob
+      AzureWebJobsStorage__queueServiceUri: storageAccount!.properties.primaryEndpoints.queue
+      AzureWebJobsStorage__tableServiceUri: storageAccount!.properties.primaryEndpoints.table
+      AzureWebJobsStorage__credential: 'managedidentity'
+    }
+  : {}
+
+var appInsightsValues = hasApplicationInsights
   ? {
       APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights!.properties.ConnectionString
       ...(!contains(properties, 'ApplicationInsightsAgent_EXTENSION_VERSION')
@@ -79,14 +88,14 @@ var appInsightsValues = !empty(applicationInsightResourceId)
 
 var expandedProperties = union(currentAppSettings, properties, azureWebJobsValues, appInsightsValues)
 
-resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (!empty(applicationInsightResourceId)) {
-  name: last(split(applicationInsightResourceId!, '/'))
-  scope: resourceGroup(split(applicationInsightResourceId!, '/')[2], split(applicationInsightResourceId!, '/')[4])
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (hasApplicationInsights) {
+  name: applicationInsightsReference!.name
+  scope: resourceGroup(applicationInsightsReference!.resourceGroupName)
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' existing = if (!empty(storageAccountResourceId)) {
-  name: last(split(storageAccountResourceId!, '/'))
-  scope: resourceGroup(split(storageAccountResourceId!, '/')[2], split(storageAccountResourceId!, '/')[4])
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' existing = if (hasStorageAccount) {
+  name: storageAccountReference!.name
+  scope: resourceGroup(storageAccountReference!.resourceGroupName)
 }
 
 resource app 'Microsoft.Web/sites@2025-03-01' existing = {

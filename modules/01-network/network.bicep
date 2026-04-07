@@ -148,7 +148,9 @@ var appServiceSubnetName = take('snet-${sharedNamePrefix}-appservice-${instanceN
 var privateEndpointSubnetName = take('snet-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
 var postgreSqlSubnetName = take('snet-${sharedNamePrefix}-postgresql-${instanceNumber}', 80)
 var appGatewaySubnetName = take('snet-${sharedNamePrefix}-appgateway-${instanceNumber}', 80)
+var appServiceNsgName = take('nsg-${sharedNamePrefix}-appservice-${instanceNumber}', 80)
 var privateEndpointNsgName = take('nsg-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
+var postgreSqlNsgName = take('nsg-${sharedNamePrefix}-postgresql-${instanceNumber}', 80)
 var aseNsgName = take('nsg-${sharedNamePrefix}-ase-${instanceNumber}', 80)
 var appGatewayNsgName = take('nsg-${sharedNamePrefix}-appgateway-${instanceNumber}', 80)
 var routeTableName = take('rt-${sharedNamePrefix}${sharedNameSuffix}', 80)
@@ -157,11 +159,12 @@ var egressLockdownRouteName = take('route-${sharedNamePrefix}-egresslockdown-${i
 var resourceNames = {
   vnetSpoke: spokeVnetName
   snetAppSvc: appServiceSubnetName
-  snetDevOps: take('snet-${sharedNamePrefix}-devops-${instanceNumber}', 80)
   snetPe: privateEndpointSubnetName
   snetPostgreSql: postgreSqlSubnetName
   snetAppGw: appGatewaySubnetName
+  appSvcNsg: appServiceNsgName
   pepNsg: privateEndpointNsgName
+  postgreSqlNsg: postgreSqlNsgName
   aseNsg: aseNsgName
   appGwNsg: appGatewayNsgName
   routeTable: routeTableName
@@ -179,11 +182,13 @@ var udrRoutes = [
   }
 ]
 
+var spokeToHubPeeringName = take('peer-${sharedNamePrefix}-hub-${instanceNumber}', 80)
+var hubToSpokePeeringName = take('peer-${sharedNamePrefix}-spoke-${instanceNumber}', 80)
 var appServiceSubnetDelegation = deployAseV3 ? 'Microsoft.Web/hostingEnvironments' : 'Microsoft.Web/serverfarms'
 var appServiceSubnetPrivateEndpointPolicies = deployAseV3 ? 'Disabled' : 'Enabled'
 var appServiceSubnetNetworkSecurityGroupResourceId = deployAseV3
-  ? (nsgAse.?outputs.?resourceId ?? '')
-  : nsgPep.outputs.resourceId
+  ? nsgAse!.outputs.resourceId
+  : nsgAppSvc!.outputs.resourceId
 var appServiceSubnet = {
   name: resourceNames.snetAppSvc
   addressPrefix: subnetSpokeAppSvcAddressSpace
@@ -198,7 +203,7 @@ var privateEndpointSubnet = {
   name: resourceNames.snetPe
   addressPrefix: subnetSpokePrivateEndpointAddressSpace
   privateEndpointNetworkPolicies: 'Disabled'
-  networkSecurityGroupResourceId: nsgPep.outputs.resourceId
+  networkSecurityGroupResourceId: nsgPep!.outputs.resourceId
 }
 
 var shouldCreatePostgreSqlSubnet = deployPostgreSqlPrivateAccess
@@ -206,13 +211,14 @@ var postgreSqlSubnet = {
   name: resourceNames.snetPostgreSql
   addressPrefix: subnetSpokePostgreSqlAddressSpace
   delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
+  networkSecurityGroupResourceId: nsgPostgreSql!.outputs.resourceId
 }
 
 var shouldCreateAppGatewaySubnet = deployAppGw && !empty(subnetSpokeAppGwAddressSpace)
 var appGatewaySubnet = {
   name: resourceNames.snetAppGw
   addressPrefix: subnetSpokeAppGwAddressSpace
-  networkSecurityGroupResourceId: nsgAppGw.?outputs.?resourceId ?? ''
+  networkSecurityGroupResourceId: nsgAppGw!.outputs.resourceId
 }
 
 var baseSubnets = [
@@ -227,6 +233,7 @@ var appGatewaySubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0) + (s
 
 var shouldCreateHubPeering = !empty(hubVnetResourceId)
 var hubPeering = {
+  name: spokeToHubPeeringName
   remoteVirtualNetworkResourceId: hubVnetResourceId
   allowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
   allowForwardedTraffic: hubPeeringAllowForwardedTraffic
@@ -234,6 +241,7 @@ var hubPeering = {
   doNotVerifyRemoteGateways: hubPeeringDoNotVerifyRemoteGateways
   useRemoteGateways: hubPeeringUseRemoteGateways
   remotePeeringEnabled: hubRemotePeeringEnabled
+  remotePeeringName: hubToSpokePeeringName
   remotePeeringAllowForwardedTraffic: hubRemotePeeringAllowForwardedTraffic
   remotePeeringAllowGatewayTransit: hubRemotePeeringAllowGatewayTransit
   remotePeeringAllowVirtualNetworkAccess: hubRemotePeeringAllowVirtualNetworkAccess
@@ -277,11 +285,11 @@ module routeTableToFirewall './route-table.bicep' = if (!empty(firewallInternalI
   }
 }
 
-@description('NSG for the private endpoint subnet.')
-module nsgPep './network-security-group.bicep' = {
-  name: '${uniqueString(deployment().name, location)}-nsgpep'
+@description('NSG for the App Service subnet.')
+module nsgAppSvc './network-security-group.bicep' = if (!deployAseV3) {
+  name: '${uniqueString(deployment().name, location)}-nsgappsvc'
   params: {
-    name: resourceNames.pepNsg
+    name: resourceNames.appSvcNsg
     location: location
     tags: tags
     securityRules: [
@@ -302,6 +310,36 @@ module nsgPep './network-security-group.bicep' = {
         }
       }
     ]
+    diagnosticSettings: [
+      {
+        workspaceResourceId: logAnalyticsWorkspaceId
+      }
+    ]
+  }
+}
+
+@description('NSG for the private endpoint subnet.')
+module nsgPep './network-security-group.bicep' = if (shouldCreatePrivateEndpointSubnet) {
+  name: '${uniqueString(deployment().name, location)}-nsgpep'
+  params: {
+    name: resourceNames.pepNsg
+    location: location
+    tags: tags
+    diagnosticSettings: [
+      {
+        workspaceResourceId: logAnalyticsWorkspaceId
+      }
+    ]
+  }
+}
+
+@description('NSG for the PostgreSQL subnet.')
+module nsgPostgreSql './network-security-group.bicep' = if (shouldCreatePostgreSqlSubnet) {
+  name: '${uniqueString(deployment().name, location)}-nsgpostgresql'
+  params: {
+    name: resourceNames.postgreSqlNsg
+    location: location
+    tags: tags
     diagnosticSettings: [
       {
         workspaceResourceId: logAnalyticsWorkspaceId
@@ -417,6 +455,9 @@ output vnetSpokeName string = vnetSpoke.outputs.name
 
 @description('The resource ID of the App Service subnet.')
 output snetAppSvcResourceId string = vnetSpoke.outputs.subnetResourceIds[0]
+
+@description('The name of the App Service subnet.')
+output snetAppSvcName string = vnetSpoke.outputs.subnetNames[0]
 
 @description('The resource ID of the private endpoint subnet.')
 output snetPeResourceId string = deployPrivateNetworking ? vnetSpoke.outputs.subnetResourceIds[1] : ''

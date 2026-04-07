@@ -304,8 +304,8 @@ output location string = virtualNetwork.location
 
 @export()
 type peeringType = {
-  @description('Optional. The Name of VNET Peering resource. If not provided, default value will be peer-localVnetName-remoteVnetName.')
-  name: string?
+  @description('Required. The name of the VNet peering resource.')
+  name: string
 
   @description('Required. The Resource ID of the VNet that is this Local VNet is being peered to. Should be in the format of a Resource ID.')
   remoteVirtualNetworkResourceId: string
@@ -328,7 +328,7 @@ type peeringType = {
   @description('Optional. Deploy the outbound and the inbound peering.')
   remotePeeringEnabled: bool?
 
-  @description('Optional. The name of the VNET Peering resource in the remove Virtual Network. If not provided, default value will be peer-remoteVnetName-localVnetName.')
+  @description('Optional. The name of the VNet peering resource in the remote Virtual Network.')
   remotePeeringName: string?
 
   @description('Optional. Whether the forwarded traffic from the VMs in the local virtual network will be allowed/disallowed in remote virtual network. Default is true.')

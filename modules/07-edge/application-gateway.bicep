@@ -18,9 +18,9 @@ param workloadDescription string = ''
 @description('Optional. Location for all resources.')
 param location string = resourceGroup().location
 
-import { managedIdentityOnlyUserAssignedType } from '../shared/avm-common-types.bicep'
+import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
 @description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityOnlyUserAssignedType?
+param managedIdentities managedIdentityOnlySysAssignedType?
 
 @description('Optional. Authentication certificates of the application gateway resource.')
 param authenticationCertificates resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.authenticationCertificates = []
@@ -88,27 +88,6 @@ param redirectConfigurations resourceInput<'Microsoft.Network/applicationGateway
 
 @description('Optional. Request routing rules of the application gateway resource.')
 param requestRoutingRules resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.requestRoutingRules = []
-
-@description('Optional. Resource ID of the subnet used by the module-owned default gateway IP configuration.')
-param appGatewaySubnetResourceId string = ''
-
-@description('Optional. Backend hostname used by the module-owned default backend pool.')
-param defaultBackendHostName string = ''
-
-@description('Optional. Backend request timeout in seconds for the module-owned default backend HTTP settings.')
-param defaultBackendRequestTimeout int = 30
-
-@description('Optional. Health probe path for the module-owned default probe.')
-param defaultHealthProbePath string = '/health'
-
-@description('Optional. Health probe interval in seconds for the module-owned default probe.')
-param defaultProbeInterval int = 30
-
-@description('Optional. Health probe timeout in seconds for the module-owned default probe.')
-param defaultProbeTimeout int = 30
-
-@description('Optional. Health probe unhealthy threshold for the module-owned default probe.')
-param defaultProbeUnhealthyThreshold int = 3
 
 @description('Optional. Rewrite rules for the application gateway resource.')
 param rewriteRuleSets resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.rewriteRuleSets = []
@@ -187,18 +166,10 @@ import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 @description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingFullType[]?
 
-var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
-var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
-var hasUserAssignedIdentities = !empty(userAssignedIdentityEntries)
-var formattedUserAssignedIdentities = hasUserAssignedIdentities
-  ? reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
-  : {}
-var identityType = hasUserAssignedIdentities ? 'UserAssigned' : 'None'
-
-var identity = !empty(managedIdentities)
+var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
+var identity = hasSystemAssignedIdentity
   ? {
-      type: identityType
-      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : any(null)
+      type: 'SystemAssigned'
     }
   : null
 
@@ -230,17 +201,6 @@ var derivedName = take(
   80
 )
 var resolvedName = derivedName
-var resolvedPublicIpName = take('pip-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 80)
-var resolvedGatewayIpConfigurationName = take('gwipcfg-${resolvedName}', 80)
-var resolvedFrontendIpConfigurationName = take('feipcfg-${resolvedName}', 80)
-var resolvedFrontendHttpPortName = take('feport-http-${resolvedName}', 80)
-var resolvedFrontendHttpsPortName = take('feport-https-${resolvedName}', 80)
-var resolvedBackendPoolName = take('bepool-${resolvedName}', 80)
-var resolvedBackendHttpSettingsName = take('behttps-${resolvedName}', 80)
-var resolvedProbeName = take('probe-${resolvedName}', 80)
-var resolvedHttpListenerName = take('httplstn-${resolvedName}', 80)
-var resolvedRoutingRuleName = take('rule-${resolvedName}', 80)
-var shouldBuildDefaultGatewayComponents = empty(gatewayIPConfigurations) && !empty(appGatewaySubnetResourceId) && !empty(defaultBackendHostName)
 
 var builtInRoleNames = {
   Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
@@ -271,171 +231,6 @@ var formattedRoleAssignments = [
   })
 ]
 
-module applicationGateway_publicIp '../01-network/public-ip-address.bicep' = if (shouldBuildDefaultGatewayComponents) {
-  name: '${uniqueString(deployment().name, location)}-applicationGateway-pip'
-  params: {
-    name: resolvedPublicIpName
-    location: location
-    tags: tags
-    skuName: 'Standard'
-    publicIPAllocationMethod: 'Static'
-    availabilityZones: availabilityZones
-  }
-}
-
-var resolvedGatewayIpConfigurations = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedGatewayIpConfigurationName
-        properties: {
-          subnet: {
-            id: appGatewaySubnetResourceId
-          }
-        }
-      }
-    ]
-  : gatewayIPConfigurations
-var resolvedFrontendIPConfigurations = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedFrontendIpConfigurationName
-        properties: {
-          publicIPAddress: {
-            id: applicationGateway_publicIp.outputs.resourceId
-          }
-        }
-      }
-    ]
-  : frontendIPConfigurations
-var resolvedFrontendPorts = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedFrontendHttpPortName
-        properties: {
-          port: 80
-        }
-      }
-      {
-        name: resolvedFrontendHttpsPortName
-        properties: {
-          port: 443
-        }
-      }
-    ]
-  : frontendPorts
-var resolvedBackendAddressPools = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedBackendPoolName
-        properties: {
-          backendAddresses: [
-            {
-              fqdn: defaultBackendHostName
-            }
-          ]
-        }
-      }
-    ]
-  : backendAddressPools
-var resolvedProbes = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedProbeName
-        properties: {
-          protocol: 'Https'
-          path: defaultHealthProbePath
-          interval: defaultProbeInterval
-          timeout: defaultProbeTimeout
-          unhealthyThreshold: defaultProbeUnhealthyThreshold
-          pickHostNameFromBackendHttpSettings: true
-          minServers: 0
-          match: {
-            statusCodes: [
-              '200-399'
-            ]
-          }
-        }
-      }
-    ]
-  : probes
-var resolvedBackendHttpSettingsCollection = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedBackendHttpSettingsName
-        properties: {
-          port: 443
-          protocol: 'Https'
-          cookieBasedAffinity: 'Disabled'
-          pickHostNameFromBackendAddress: true
-          requestTimeout: defaultBackendRequestTimeout
-          probe: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/probes',
-              resolvedName,
-              resolvedProbeName
-            )
-          }
-        }
-      }
-    ]
-  : backendHttpSettingsCollection
-var resolvedHttpListeners = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedHttpListenerName
-        properties: {
-          frontendIPConfiguration: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/frontendIPConfigurations',
-              resolvedName,
-              resolvedFrontendIpConfigurationName
-            )
-          }
-          frontendPort: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/frontendPorts',
-              resolvedName,
-              resolvedFrontendHttpPortName
-            )
-          }
-          protocol: 'Http'
-        }
-      }
-    ]
-  : httpListeners
-var resolvedRequestRoutingRules = shouldBuildDefaultGatewayComponents
-  ? [
-      {
-        name: resolvedRoutingRuleName
-        properties: {
-          ruleType: 'Basic'
-          priority: 100
-          httpListener: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/httpListeners',
-              resolvedName,
-              resolvedHttpListenerName
-            )
-          }
-          backendAddressPool: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/backendAddressPools',
-              resolvedName,
-              resolvedBackendPoolName
-            )
-          }
-          backendHttpSettings: {
-            id: resourceId(
-              'Microsoft.Network/applicationGateways/backendHttpSettingsCollection',
-              resolvedName,
-              resolvedBackendHttpSettingsName
-            )
-          }
-        }
-      }
-    ]
-  : requestRoutingRules
-
 resource applicationGateway 'Microsoft.Network/applicationGateways@2025-05-01' = {
   name: resolvedName
   location: location
@@ -450,8 +245,8 @@ resource applicationGateway 'Microsoft.Network/applicationGateways@2025-05-01' =
             minCapacity: autoscaleMinCapacity
           }
         : null
-      backendAddressPools: resolvedBackendAddressPools
-      backendHttpSettingsCollection: resolvedBackendHttpSettingsCollection
+      backendAddressPools: backendAddressPools
+      backendHttpSettingsCollection: backendHttpSettingsCollection
       backendSettingsCollection: backendSettingsCollection
       customErrorConfigurations: customErrorConfigurations
       enableHttp2: enableHttp2
@@ -462,22 +257,22 @@ resource applicationGateway 'Microsoft.Network/applicationGateways@2025-05-01' =
           }
         : null
       forceFirewallPolicyAssociation: sku == 'WAF_v2' && !empty(firewallPolicyResourceId)
-      frontendIPConfigurations: resolvedFrontendIPConfigurations
-      frontendPorts: resolvedFrontendPorts
-      gatewayIPConfigurations: resolvedGatewayIpConfigurations
+      frontendIPConfigurations: frontendIPConfigurations
+      frontendPorts: frontendPorts
+      gatewayIPConfigurations: gatewayIPConfigurations
       globalConfiguration: endsWith(sku, 'v2')
         ? {
             enableRequestBuffering: enableRequestBuffering
             enableResponseBuffering: enableResponseBuffering
           }
         : null
-      httpListeners: resolvedHttpListeners
+      httpListeners: httpListeners
       loadDistributionPolicies: loadDistributionPolicies
       listeners: listeners
       privateLinkConfigurations: privateLinkConfigurations
-      probes: resolvedProbes
+      probes: probes
       redirectConfigurations: redirectConfigurations
-      requestRoutingRules: resolvedRequestRoutingRules
+      requestRoutingRules: requestRoutingRules
       routingRules: routingRules
       rewriteRuleSets: rewriteRuleSets
       sku: {
@@ -553,13 +348,13 @@ resource applicationGateway_diagnosticSettings 'Microsoft.Insights/diagnosticSet
 
 var resolvedApplicationGatewayPrivateEndpoints = [
   for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupResourceId: privateEndpoint.?resourceGroupResourceId ?? resourceGroup().id
-    name: privateEndpoint.?name ?? 'pep-${last(split(applicationGateway.id, '/'))}-${privateEndpoint.service}-${index}'
-    privateLinkServiceConnectionName: privateEndpoint.?privateLinkServiceConnectionName ?? '${last(split(applicationGateway.id, '/'))}-${privateEndpoint.service}-${index}'
+    resourceGroupResourceId: privateEndpoint.resourceGroupResourceId
+    name: privateEndpoint.name
+    privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
     isManualConnection: privateEndpoint.?isManualConnection == true
     service: privateEndpoint.service
     subnetResourceId: privateEndpoint.subnetResourceId
-    location: privateEndpoint.?location
+    location: privateEndpoint.location
     lock: privateEndpoint.?lock ?? lock
     privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
     roleAssignments: privateEndpoint.?roleAssignments
@@ -568,7 +363,7 @@ var resolvedApplicationGatewayPrivateEndpoints = [
     ipConfigurations: privateEndpoint.?ipConfigurations
     applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
     customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage ?? 'Manual approval required.'
+    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage
   }
 ]
 
@@ -609,11 +404,7 @@ module applicationGateway_privateEndpoints '../01-network/private-endpoint.bicep
           ]
         : null
       subnetResourceId: privateEndpoint.subnetResourceId
-      location: privateEndpoint.location ?? reference(
-        split(privateEndpoint.subnetResourceId, '/subnets/')[0],
-        '2020-06-01',
-        'Full'
-      ).location
+      location: privateEndpoint.location
       lock: privateEndpoint.lock
       privateDnsZoneGroup: privateEndpoint.privateDnsZoneGroup
       roleAssignments: privateEndpoint.roleAssignments

@@ -181,27 +181,10 @@ type lockType = {
 // ====================== //
 
 @export()
-@description('An AVM-aligned type for a managed identity configuration. To be used if both a system-assigned & user-assigned identities are supported by the resource provider.')
-type managedIdentityAllType = {
-  @description('Optional. Enables system assigned managed identity on the resource.')
-  systemAssigned: bool?
-
-  @description('Optional. The resource ID(s) to assign to the resource. Required if a user assigned identity is used for encryption.')
-  userAssignedResourceIds: string[]?
-}
-
-@export()
 @description('An AVM-aligned type for a managed identity configuration. To be used if only system-assigned identities are supported by the resource provider.')
 type managedIdentityOnlySysAssignedType = {
   @description('Optional. Enables system assigned managed identity on the resource.')
   systemAssigned: bool?
-}
-
-@export()
-@description('An AVM-aligned type for a managed identity configuration. To be used if only user-assigned identities are supported by the resource provider.')
-type managedIdentityOnlyUserAssignedType = {
-  @description('Optional. The resource ID(s) to assign to the resource. Required if a user assigned identity is used for encryption.')
-  userAssignedResourceIds: string[]?
 }
 
 // ===================== //
@@ -214,8 +197,8 @@ type privateEndpointPrivateDnsZoneGroupType = {
 
   @description('Required. The private DNS Zone Groups to associate the Private Endpoint. A DNS Zone Group can support up to 5 DNS zones.')
   privateDnsZoneGroupConfigs: {
-    @description('Optional. The name of the private DNS Zone Group config.')
-    name: string?
+    @description('Required. The name of the private DNS Zone Group config.')
+    name: string
 
     @description('Required. The resource id of the private DNS zone.')
     privateDnsZoneResourceId: string
@@ -250,23 +233,23 @@ type privateEndpointIpConfigurationType = {
 @export()
 @description('An AVM-aligned type for a private endpoint. To be used if the private endpoint\'s default service / groupId can be assumed (i.e., for services that only have one Private Endpoint type like \'vault\' for key vault).')
 type privateEndpointSingleServiceType = {
-  @description('Optional. The name of the Private Endpoint.')
-  name: string?
+  @description('Required. The name of the Private Endpoint.')
+  name: string
 
-  @description('Optional. The location to deploy the Private Endpoint to.')
-  location: string?
+  @description('Required. The location to deploy the Private Endpoint to.')
+  location: string
 
-  @description('Optional. The name of the private link connection to create.')
-  privateLinkServiceConnectionName: string?
+  @description('Required. The name of the private link connection to create.')
+  privateLinkServiceConnectionName: string
 
-  @description('Optional. The subresource to deploy the Private Endpoint for. For example "vault" for a Key Vault Private Endpoint.')
-  service: string?
+  @description('Required. The subresource to deploy the Private Endpoint for. For example "vault" for a Key Vault Private Endpoint.')
+  service: string
 
   @description('Required. Resource ID of the subnet where the endpoint needs to be created.')
   subnetResourceId: string
 
-  @description('Optional. The resource ID of the Resource Group the Private Endpoint will be created in. If not specified, the Resource Group of the provided Virtual Network Subnet is used.')
-  resourceGroupResourceId: string?
+  @description('Required. The resource ID of the Resource Group the Private Endpoint will be created in.')
+  resourceGroupResourceId: string
 
   @description('Optional. The private DNS Zone Group to configure for the Private Endpoint.')
   privateDnsZoneGroup: privateEndpointPrivateDnsZoneGroupType?
@@ -304,14 +287,14 @@ type privateEndpointSingleServiceType = {
 @export()
 @description('An AVM-aligned type for a private endpoint. To be used if the private endpoint\'s default service / groupId can NOT be assumed (i.e., for services that have more than one subresource, like Storage Account with Blob (blob, table, queue, file, ...).')
 type privateEndpointMultiServiceType = {
-  @description('Optional. The name of the private endpoint.')
-  name: string?
+  @description('Required. The name of the private endpoint.')
+  name: string
 
-  @description('Optional. The location to deploy the private endpoint to.')
-  location: string?
+  @description('Required. The location to deploy the private endpoint to.')
+  location: string
 
-  @description('Optional. The name of the private link connection to create.')
-  privateLinkServiceConnectionName: string?
+  @description('Required. The name of the private link connection to create.')
+  privateLinkServiceConnectionName: string
 
   @description('Required. The subresource to deploy the private endpoint for. For example "blob", "table", "queue" or "file" for a Storage Account\'s Private Endpoints.')
   service: string
@@ -319,8 +302,8 @@ type privateEndpointMultiServiceType = {
   @description('Required. Resource ID of the subnet where the endpoint needs to be created.')
   subnetResourceId: string
 
-  @description('Optional. The resource ID of the Resource Group the Private Endpoint will be created in. If not specified, the Resource Group of the provided Virtual Network Subnet is used.')
-  resourceGroupResourceId: string?
+  @description('Required. The resource ID of the Resource Group the Private Endpoint will be created in.')
+  resourceGroupResourceId: string
 
   @description('Optional. The private DNS zone group to configure for the private endpoint.')
   privateDnsZoneGroup: privateEndpointPrivateDnsZoneGroupType?
@@ -371,8 +354,6 @@ type customerManagedKeyType = {
   @description('Optional. The version of the customer managed key to reference for encryption. If not provided, the deployment will use the latest version available at deployment time.')
   keyVersion: string?
 
-  @description('Optional. User assigned identity to use when fetching the customer managed key. Required if no system assigned identity is available for use.')
-  userAssignedIdentityResourceId: string?
 }
 
 @export()
@@ -400,8 +381,6 @@ type customerManagedKeyWithAutoRotateType = {
   @description('Optional. Enable or disable auto-rotating to the latest key version. Default is `true`. If set to `false`, the latest key version at the time of the deployment is used.')
   autoRotationEnabled: bool?
 
-  @description('Optional. User assigned identity to use when fetching the customer managed key. Required if no system assigned identity is available for use.')
-  userAssignedIdentityResourceId: string?
 }
 
 // ================== //

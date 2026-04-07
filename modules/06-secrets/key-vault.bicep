@@ -59,9 +59,8 @@ param sku string
 @description('Optional. Rules governing the accessibility of the resource from specific network locations.')
 param networkAcls networkAclsType?
 
-@description('Optional. Whether or not public network access is allowed for this resource.')
+@description('Required. Whether or not public network access is allowed for this resource.')
 @allowed([
-  ''
   'Enabled'
   'Disabled'
 ])
@@ -75,10 +74,12 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-import { privateEndpointSingleServiceType } from '../shared/avm-common-types.bicep'
-import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
+import {
+  keyVaultPrivateEndpointType
+  virtualNetworkLinkType
+} from '../shared/shared.types.bicep'
 @description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
-param privateEndpoints privateEndpointSingleServiceType[]?
+param privateEndpoints keyVaultPrivateEndpointType[]?
 
 @description('Optional. When true and no explicit private endpoints are provided, the module creates the default private endpoint wiring for the vault.')
 param enableDefaultPrivateEndpoint bool = false
@@ -176,10 +177,8 @@ var formattedRoleAssignments = [
   })
 ]
 
-var hasNetworkAcls = !empty(networkAcls ?? {})
-var hasPrivateEndpoints = !empty(privateEndpoints ?? [])
 var resolvedEnablePurgeProtection = enablePurgeProtection ? enablePurgeProtection : null
-var resolvedKeyVaultNetworkAcls = hasNetworkAcls
+var resolvedKeyVaultNetworkAcls = !empty(networkAcls ?? {})
   ? {
       bypass: networkAcls.?bypass
       defaultAction: networkAcls.?defaultAction
@@ -187,9 +186,6 @@ var resolvedKeyVaultNetworkAcls = hasNetworkAcls
       ipRules: networkAcls.?ipRules ?? []
     }
   : null
-var resolvedPublicNetworkAccess = !empty(publicNetworkAccess)
-  ? publicNetworkAccess
-  : ((hasPrivateEndpoints && !hasNetworkAcls) ? 'Disabled' : null)
 var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint && empty(privateEndpoints ?? [])
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'keyvault'
@@ -198,7 +194,21 @@ var defaultPrivateLinkServiceConnectionName = 'plsc-${systemAbbreviation}-${regi
 var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {
+        name: defaultPrivateEndpointName
+        location: location
+        resourceGroupName: resourceGroup().name
+        privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
+        service: 'vault'
         subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        isManualConnection: false
+        manualConnectionRequestMessage: null
+        customDnsConfigs: null
+        ipConfigurations: null
+        applicationSecurityGroupResourceIds: null
+        customNetworkInterfaceName: null
+        lock: lock
+        roleAssignments: null
+        tags: tags
         privateDnsZoneGroup: {
           name: resolvedName
           privateDnsZoneGroupConfigs: [
@@ -222,24 +232,23 @@ module keyVault_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = i
   }
 }
 
-var resolvedPrivateEndpoints = [
-  for (privateEndpoint, index) in moduleOwnedPrivateEndpoints: {
-    name: privateEndpoint.?name ?? defaultPrivateEndpointName
-    scopeResourceGroupResourceId: privateEndpoint.?resourceGroupResourceId ?? resourceGroup().id
-    privateLinkServiceConnectionName: privateEndpoint.?privateLinkServiceConnectionName ?? defaultPrivateLinkServiceConnectionName
-    service: privateEndpoint.?service ?? 'vault'
-    isManualConnection: privateEndpoint.?isManualConnection == true
-    subnetResourceId: privateEndpoint.subnetResourceId
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage ?? 'Manual approval required.'
-    lock: privateEndpoint.?lock ?? lock
-    privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
-    roleAssignments: privateEndpoint.?roleAssignments
-    tags: privateEndpoint.?tags ?? tags
-    customDnsConfigs: privateEndpoint.?customDnsConfigs
-    ipConfigurations: privateEndpoint.?ipConfigurations
-    applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
-    customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    location: privateEndpoint.?location
+var resolvedPrivateEndpoints = moduleOwnedPrivateEndpoints
+var resolvedKeys = [
+  for key in (keys ?? []): {
+    name: key.name
+    attributes: key.?attributes
+    curveName: (key.?kty == 'EC' || key.?kty == 'EC-HSM')
+      ? (!empty(key.?curveName) ? key.curveName : fail('Key Vault EC and EC-HSM keys require curveName to be declared explicitly.'))
+      : null
+    keyOps: key.?keyOps
+    keySize: (key.?kty == 'RSA' || key.?kty == 'RSA-HSM')
+      ? (key.?keySize != null ? key.keySize : fail('Key Vault RSA and RSA-HSM keys require keySize to be declared explicitly.'))
+      : null
+    kty: !empty(key.?kty) ? key.kty : fail('Key Vault keys require kty to be declared explicitly.')
+    releasePolicy: key.?releasePolicy
+    rotationPolicy: key.?rotationPolicy
+    tags: key.?tags ?? tags
+    roleAssignments: key.?roleAssignments
   }
 ]
 
@@ -266,7 +275,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
       family: 'A'
     }
     networkAcls: resolvedKeyVaultNetworkAcls
-    publicNetworkAccess: resolvedPublicNetworkAccess
+    publicNetworkAccess: publicNetworkAccess
   }
 }
 
@@ -327,7 +336,7 @@ module keyVault_secrets './key-vault-secret.bicep' = [
 ]
 
 module keyVault_keys './key-vault-key.bicep' = [
-  for (key, index) in (keys ?? []): {
+  for (key, index) in resolvedKeys: {
     name: '${uniqueString(deployment().name, location)}-KeyVault-Key-${index}'
     params: {
       name: key.name
@@ -335,11 +344,11 @@ module keyVault_keys './key-vault-key.bicep' = [
       attributesEnabled: key.?attributes.?enabled
       attributesExp: key.?attributes.?exp
       attributesNbf: key.?attributes.?nbf
-      curveName: (key.?kty != 'RSA' && key.?kty != 'RSA-HSM') ? (key.?curveName ?? 'P-256') : null
+      curveName: key.curveName
       keyOps: key.?keyOps
-      keySize: (key.?kty == 'RSA' || key.?kty == 'RSA-HSM') ? (key.?keySize ?? 4096) : null
-      releasePolicy: key.?releasePolicy ?? {}
-      kty: key.?kty ?? 'EC'
+      keySize: key.keySize
+      releasePolicy: key.?releasePolicy
+      kty: key.kty
       tags: key.?tags ?? tags
       roleAssignments: key.?roleAssignments
       rotationPolicy: key.?rotationPolicy    }
@@ -350,10 +359,7 @@ module keyVault_privateEndpoints '../01-network/private-endpoint.bicep' = [
   for (privateEndpoint, index) in resolvedPrivateEndpoints: {
     name: '${uniqueString(deployment().name, location)}-keyVault-PrivateEndpoint-${index}'
     dependsOn: shouldCreateDefaultPrivateEndpoint ? [keyVault_defaultPrivateDnsZone] : []
-    scope: resourceGroup(
-      split(privateEndpoint.scopeResourceGroupResourceId, '/')[2],
-      split(privateEndpoint.scopeResourceGroupResourceId, '/')[4]
-    )
+    scope: resourceGroup(privateEndpoint.resourceGroupName)
     params: {
       name: privateEndpoint.name
       privateLinkServiceConnections: !privateEndpoint.isManualConnection
@@ -384,11 +390,7 @@ module keyVault_privateEndpoints '../01-network/private-endpoint.bicep' = [
           ]
         : null
       subnetResourceId: privateEndpoint.subnetResourceId
-      location: privateEndpoint.location ?? reference(
-        split(privateEndpoint.subnetResourceId, '/subnets/')[0],
-        '2020-06-01',
-        'Full'
-      ).location
+      location: privateEndpoint.location
       lock: privateEndpoint.lock
       privateDnsZoneGroup: privateEndpoint.privateDnsZoneGroup
       roleAssignments: privateEndpoint.roleAssignments
@@ -584,17 +586,17 @@ type keyType = {
     @description('Optional. If set, defines the date from which onwards the key becomes valid. Defined in seconds since 1970-01-01T00:00:00Z.')
     nbf: int?
   }?
-  @description('Optional. The elliptic curve name. Only works if "keySize" equals "EC" or "EC-HSM". Default is "P-256".')
+  @description('Optional. The elliptic curve name. Required when kty is "EC" or "EC-HSM".')
   curveName: ('P-256' | 'P-256K' | 'P-384' | 'P-521')?
 
   @description('Optional. The allowed operations on this key.')
   keyOps: ('decrypt' | 'encrypt' | 'import' | 'release' | 'sign' | 'unwrapKey' | 'verify' | 'wrapKey')[]?
 
-  @description('Optional. The key size in bits. Only works if "keySize" equals "RSA" or "RSA-HSM". Default is "4096".')
+  @description('Optional. The key size in bits. Required when kty is "RSA" or "RSA-HSM".')
   keySize: (2048 | 3072 | 4096)?
 
-  @description('Optional. The type of the key. Default is "EC".')
-  kty: ('EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM')?
+  @description('Required. The type of the key.')
+  kty: ('EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM')
 
   @description('Optional. Key release policy.')
   releasePolicy: {

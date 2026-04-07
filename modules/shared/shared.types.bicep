@@ -8,7 +8,7 @@ import {
   diagnosticSettingLogsOnlyType
   lockType
   roleAssignmentType
-  managedIdentityAllType
+  managedIdentityOnlySysAssignedType
   privateEndpointSingleServiceType
 } from './avm-common-types.bicep'
 
@@ -233,7 +233,7 @@ type servicePlanConfigType = {
   storageMounts: array
 
   @description('Required. Managed identities for the App Service Plan.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Optional. Resource lock for the App Service Plan.')
   lock: lockType?
@@ -318,7 +318,7 @@ type appServiceConfigType = {
   keyVaultAccessIdentityResourceId: string?
 
   @description('Required. Managed identities assigned to the web app.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Optional. Extensions configuration for the web app.')
   extensions: array?
@@ -435,7 +435,7 @@ type appServiceSlotConfigType = {
   appServiceEnvironmentResourceId: string?
 
   @description('Optional. The managed identity definition for this slot.')
-  managedIdentities: managedIdentityAllType?
+  managedIdentities: managedIdentityOnlySysAssignedType?
 
   @description('Optional. The resource ID of the assigned identity to be used to access a Key Vault.')
   keyVaultAccessIdentityResourceId: string?
@@ -563,6 +563,91 @@ type appServiceSlotConfigType = {
 // ======================== //
 
 @export()
+@description('Explicit private endpoint configuration for a Key Vault.')
+type keyVaultPrivateEndpointType = {
+  @description('Required. The name of the private endpoint.')
+  name: string
+
+  @description('Required. The location to deploy the private endpoint to.')
+  location: string
+
+  @description('Required. The resource group name where the private endpoint will be created.')
+  resourceGroupName: string
+
+  @description('Required. The name of the private link service connection to create.')
+  privateLinkServiceConnectionName: string
+
+  @description('Required. The Key Vault subresource to connect to.')
+  service: 'vault'
+
+  @description('Required. Resource ID of the subnet where the endpoint needs to be created.')
+  subnetResourceId: string
+
+  @description('Optional. The private DNS zone group to configure for the private endpoint.')
+  privateDnsZoneGroup: {
+    @description('Optional. The name of the private DNS zone group.')
+    name: string?
+
+    @description('Required. The private DNS zone group configs to associate with the private endpoint.')
+    privateDnsZoneGroupConfigs: {
+      @description('Required. The name of the private DNS zone group config.')
+      name: string
+
+      @description('Required. The resource ID of the private DNS zone.')
+      privateDnsZoneResourceId: string
+    }[]
+  }?
+
+  @description('Required. If manual private link connection approval is required.')
+  isManualConnection: bool
+
+  @description('Optional. A message passed to the owner of the remote resource with the manual connection request.')
+  manualConnectionRequestMessage: string?
+
+  @description('Optional. Custom DNS configurations.')
+  customDnsConfigs: {
+    @description('Optional. FQDN that resolves to private endpoint IP address.')
+    fqdn: string?
+
+    @description('Required. A list of private IP addresses of the private endpoint.')
+    ipAddresses: string[]
+  }[]?
+
+  @description('Optional. A list of IP configurations of the private endpoint.')
+  ipConfigurations: {
+    @description('Required. The name of the IP configuration.')
+    name: string
+
+    @description('Required. Properties of private endpoint IP configurations.')
+    properties: {
+      @description('Required. The ID of a group obtained from the remote resource that this private endpoint should connect to.')
+      groupId: string
+
+      @description('Required. The member name of a group obtained from the remote resource that this private endpoint should connect to.')
+      memberName: string
+
+      @description('Required. A private IP address obtained from the private endpoint subnet.')
+      privateIPAddress: string
+    }
+  }[]?
+
+  @description('Optional. Application security groups in which the private endpoint IP configuration is included.')
+  applicationSecurityGroupResourceIds: string[]?
+
+  @description('Optional. The custom name of the network interface attached to the private endpoint.')
+  customNetworkInterfaceName: string?
+
+  @description('Optional. Resource lock for the private endpoint.')
+  lock: lockType?
+
+  @description('Optional. Role assignments for the private endpoint.')
+  roleAssignments: roleAssignmentType[]?
+
+  @description('Optional. Tags for the private endpoint.')
+  tags: resourceInput<'Microsoft.Network/privateEndpoints@2024-07-01'>.tags?
+}
+
+@export()
 @description('Configuration for the Key Vault.')
 type keyVaultConfigType = {
   @description('Required. Enable purge protection.')
@@ -596,10 +681,10 @@ type keyVaultConfigType = {
   networkAcls: object
 
   @description('Required. Public network access for the Key Vault.')
-  publicNetworkAccess: ('Enabled' | 'Disabled' | '')
+  publicNetworkAccess: ('Enabled' | 'Disabled')
 
   @description('Required. Private endpoints for the Key Vault.')
-  privateEndpoints: privateEndpointSingleServiceType[]
+  privateEndpoints: keyVaultPrivateEndpointType[]
 
   @description('Optional. Resource lock for the Key Vault.')
   lock: lockType?
@@ -694,6 +779,15 @@ type logAnalyticsConfigType = {
 
   @description('Required. Public network access for query.')
   publicNetworkAccessForQuery: ('Enabled' | 'Disabled')
+
+  @description('Optional. Resource lock for the Log Analytics workspace.')
+  lock: lockType?
+
+  @description('Required. Role assignments for the Log Analytics workspace.')
+  roleAssignments: roleAssignmentType[]
+
+  @description('Required. Diagnostic settings for the Log Analytics workspace.')
+  diagnosticSettings: diagnosticSettingFullType[]
 }
 
 // ======================== //
@@ -718,14 +812,11 @@ type appGatewayConfigType = {
   @description('Required. Availability zones for the Application Gateway and its public IP.')
   availabilityZones: int[]
 
-  @description('Required. Health probe path for backend health checks.')
-  healthProbePath: string
-
   @description('Required. SSL certificates for HTTPS termination.')
   sslCertificates: array
 
   @description('Required. Managed identities for Key Vault-referenced SSL certificates.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Required. Trusted root certificates for end-to-end SSL.')
   trustedRootCertificates: array
@@ -778,6 +869,30 @@ type appGatewayConfigType = {
   @description('Required. Rewrite rule sets.')
   rewriteRuleSets: array
 
+  @description('Required. Gateway IP configurations.')
+  gatewayIPConfigurations: array
+
+  @description('Required. Frontend IP configurations.')
+  frontendIPConfigurations: array
+
+  @description('Required. Frontend ports.')
+  frontendPorts: array
+
+  @description('Required. Backend address pools.')
+  backendAddressPools: array
+
+  @description('Required. Backend HTTP settings collection.')
+  backendHttpSettingsCollection: array
+
+  @description('Required. Health probes.')
+  probes: array
+
+  @description('Required. HTTP listeners.')
+  httpListeners: array
+
+  @description('Required. Request routing rules.')
+  requestRoutingRules: array
+
   @description('Required. SSL profiles.')
   sslProfiles: array
 
@@ -802,18 +917,6 @@ type appGatewayConfigType = {
   @description('Required. Diagnostic settings for the Application Gateway.')
   diagnosticSettings: diagnosticSettingFullType[]
 
-  @description('Required. Backend request timeout in seconds.')
-  backendRequestTimeout: int
-
-  @description('Required. Probe interval in seconds.')
-  probeInterval: int
-
-  @description('Required. Probe timeout in seconds.')
-  probeTimeout: int
-
-  @description('Required. Probe unhealthy threshold.')
-  probeUnhealthyThreshold: int
-
   @description('Required. WAF policy settings for the Application Gateway.')
   wafPolicySettings: object
 
@@ -832,7 +935,7 @@ type frontDoorConfigType = {
   afdPeAutoApproverIsolationScope: ('None' | 'Regional')
 
   @description('Required. Managed identities for the Front Door profile.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Required. Deploy the default WAF rule that blocks non-GET/HEAD/OPTIONS methods.')
   enableDefaultWafMethodBlock: bool
@@ -968,9 +1071,6 @@ type aseConfigType = {
   @description('Required. Key Vault certificate URL for the custom DNS suffix. Use an empty string when not applicable.')
   customDnsSuffixCertificateUrl: string
 
-  @description('Required. User-assigned identity for resolving the ASE Key Vault certificate. Use an empty string when not applicable.')
-  customDnsSuffixKeyVaultReferenceIdentity: string
-
   @description('Required. Dedicated Host Count. Set to 0 when not applicable.')
   dedicatedHostCount: int
 
@@ -1016,19 +1116,13 @@ type aseConfigType = {
 // ======================== //
 
 @export()
-@description('Configuration for a Microsoft Entra group created and populated by the template set.')
+@description('Configuration for an existing Microsoft Entra security group used by the workload.')
 type entraGroupConfigType = {
-  @description('Required. Workload descriptor used by the owning module to derive the group name.')
-  workloadDescription: string
+  @description('Required. Object ID of the existing Microsoft Entra security group.')
+  objectId: string
 
-  @description('Optional. Human-readable description for the group.')
-  description: string?
-
-  @description('Required. Object IDs of Microsoft Entra users, groups, or service principals that should be members of the group.')
-  members: string[]
-
-  @description('Optional. Object IDs of Microsoft Entra principals that should own the group.')
-  owners: string[]?
+  @description('Required. Display name of the existing Microsoft Entra security group.')
+  displayName: string
 }
 
 // ======================== //
@@ -1067,7 +1161,7 @@ type postgresqlConfigType = {
   @description('Required. Workload descriptor used by the owning module to derive the server name.')
   workloadDescription: string
 
-  @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" for private access or "none" when private access is not intended.')
+  @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" when deployPrivateNetworking is true. Use "none" when deployPrivateNetworking is false.')
   privateAccessMode: ('delegatedSubnet' | 'none')
 
   @description('Required. The SKU name for the PostgreSQL flexible server, for example "Standard_D2s_v3".')
@@ -1079,29 +1173,32 @@ type postgresqlConfigType = {
   @description('Required. Availability zone. Use -1 when no explicit zone is intended.')
   availabilityZone: (-1 | 1 | 2 | 3)
 
-  @description('Optional. Standby availability zone. Use -1 when no explicit zone is intended.')
-  highAvailabilityZone: (-1 | 1 | 2 | 3)?
+  @description('Required. Standby availability zone. Use -1 when no explicit zone is intended.')
+  highAvailabilityZone: (-1 | 1 | 2 | 3)
 
-  @description('Optional. High availability mode.')
-  highAvailability: ('Disabled' | 'SameZone' | 'ZoneRedundant')?
+  @description('Required. High availability mode.')
+  highAvailability: ('Disabled' | 'SameZone' | 'ZoneRedundant')
 
-  @description('Optional. Backup retention in days.')
-  backupRetentionDays: int?
+  @description('Required. Backup retention in days.')
+  backupRetentionDays: int
 
-  @description('Optional. Whether geo-redundant backup is enabled.')
-  geoRedundantBackup: ('Disabled' | 'Enabled')?
+  @description('Required. Whether geo-redundant backup is enabled.')
+  geoRedundantBackup: ('Disabled' | 'Enabled')
 
-  @description('Optional. Maximum storage size in GB.')
-  storageSizeGB: int?
+  @description('Required. Maximum storage size in GB.')
+  storageSizeGB: int
 
-  @description('Optional. Storage autogrow setting.')
-  autoGrow: ('Disabled' | 'Enabled')?
+  @description('Required. Storage autogrow setting.')
+  autoGrow: ('Disabled' | 'Enabled')
 
-  @description('Optional. PostgreSQL engine version.')
-  version: ('11' | '12' | '13' | '14' | '15' | '16' | '17' | '18')?
+  @description('Required. PostgreSQL engine version. Region support varies by subscription and location.')
+  version: ('11' | '12' | '13' | '14' | '15' | '16' | '17' | '18')
 
-  @description('Required. Public network access setting for the server.')
+  @description('Required. Public network access setting for the server. Use "Disabled" when deployPrivateNetworking is true and "Enabled" when deployPrivateNetworking is false.')
   publicNetworkAccess: ('Disabled' | 'Enabled')
+
+  @description('Required. Set to true to assign the Azure Reader role on the PostgreSQL server resource to the Web App system-assigned identity.')
+  grantAppServiceIdentityReaderRole: bool
 
   @description('Required. Databases to create on the server.')
   databases: postgresqlDatabaseConfigType[]
@@ -1112,7 +1209,7 @@ type postgresqlConfigType = {
   @description('Optional. Resource lock for the server.')
   lock: lockType?
 
-  @description('Required. Role assignments for the server.')
+  @description('Required. Azure RBAC role assignments for the PostgreSQL server resource. These do not configure database principals or in-database grants.')
   roleAssignments: roleAssignmentType[]
 
   @description('Required. Diagnostic settings for the server.')

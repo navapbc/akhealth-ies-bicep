@@ -4,16 +4,16 @@ using '../main.bicep'
 // Add or override more configuration blocks here as needed.
 
 param workloadName = '456ERT'
-param location = 'eastus'
+param location = 'eastus2'
 param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
 param instanceNumber = '001'
 param workloadDescription = ''
 
-param deployPrivateNetworking = false
-param deployFrontDoor = false
-param deployPostgreSql = false
+param deployPrivateNetworking = true
+param deployFrontDoor = true
+param deployPostgreSql = true
 
 param tags = {
   environment: 'dev'
@@ -27,7 +27,7 @@ param spokeNetworkConfig = {
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
   appGwSubnetAddressSpace: ''
-  postgresSubnetAddressSpace: ''
+  postgresSubnetAddressSpace: '10.240.10.0/28'
   hubVnetResourceId: ''
   hubPeeringAllowForwardedTraffic: false
   hubPeeringAllowGatewayTransit: false
@@ -249,11 +249,11 @@ param appInsightsConfig = {
   diagnosticSettings: []
 }
 
+//the group defined here cant be deployed in this worload set of templates
+//as groups are a tenant scoped resource
 param postgresqlAdminGroupConfig = {
-  workloadDescription: 'postgresqladmin'
-  description: 'Administrators for the workload PostgreSQL flexible server.'
-  members: []
-  owners: []
+  objectId: 'b58ff011-4384-42b9-b25c-26c5dfc26b06'
+  displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
 }
 
 param postgresqlConfig = {
@@ -270,6 +270,7 @@ param postgresqlConfig = {
   autoGrow: 'Enabled'
   version: '18'
   publicNetworkAccess: 'Disabled'
+  grantAppServiceIdentityReaderRole: true
   databases: [
     {
       name: 'appdb'
@@ -305,8 +306,14 @@ param appGatewayConfig = {
   enableFips: false
   enableRequestBuffering: false
   enableResponseBuffering: false
-  healthProbePath: '/healthz'
   loadDistributionPolicies: []
+  gatewayIPConfigurations: []
+  frontendIPConfigurations: []
+  frontendPorts: []
+  backendAddressPools: []
+  backendHttpSettingsCollection: []
+  probes: []
+  httpListeners: []
   privateEndpoints: []
   privateLinkConfigurations: []
   redirectConfigurations: []
@@ -316,13 +323,10 @@ param appGatewayConfig = {
   urlPathMaps: []
   backendSettingsCollection: []
   listeners: []
+  requestRoutingRules: []
   routingRules: []
   roleAssignments: []
   diagnosticSettings: []
-  backendRequestTimeout: 120
-  probeInterval: 30
-  probeTimeout: 30
-  probeUnhealthyThreshold: 3
   wafPolicySettings: {
     mode: 'Prevention'
     state: 'Enabled'
@@ -417,7 +421,6 @@ param aseConfig = {
   ipsslAddressCount: 0
   multiSize: ''
   customDnsSuffixCertificateUrl: ''
-  customDnsSuffixKeyVaultReferenceIdentity: ''
   dedicatedHostCount: 0
   dnsSuffix: ''
   frontEndScaleFactor: 15
@@ -438,4 +441,6 @@ param logAnalyticsConfig = {
   disableLocalAuth: true
   publicNetworkAccessForIngestion: 'Enabled'
   publicNetworkAccessForQuery: 'Enabled'
+  roleAssignments: []
+  diagnosticSettings: []
 }

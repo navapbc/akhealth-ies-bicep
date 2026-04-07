@@ -52,44 +52,44 @@ param tier string
 ])
 param availabilityZone int
 
-@description('Optional. Standby availability zone. Use -1 when no explicit zone is intended.')
+@description('Required. Standby availability zone. Use -1 when no explicit zone is intended.')
 @allowed([
   -1
   1
   2
   3
 ])
-param highAvailabilityZone int = -1
+param highAvailabilityZone int
 
-@description('Optional. High availability mode.')
+@description('Required. High availability mode.')
 @allowed([
   'Disabled'
   'SameZone'
   'ZoneRedundant'
 ])
-param highAvailability string = 'Disabled'
+param highAvailability string
 
-@description('Optional. Backup retention days for the server.')
-param backupRetentionDays int = 7
+@description('Required. Backup retention days for the server.')
+param backupRetentionDays int
 
-@description('Optional. Whether geo-redundant backup is enabled.')
+@description('Required. Whether geo-redundant backup is enabled.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
-param geoRedundantBackup string = 'Disabled'
+param geoRedundantBackup string
 
-@description('Optional. Maximum storage size in GB.')
-param storageSizeGB int = 32
+@description('Required. Maximum storage size in GB.')
+param storageSizeGB int
 
-@description('Optional. Storage autogrow setting.')
+@description('Required. Storage autogrow setting.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
-param autoGrow string = 'Enabled'
+param autoGrow string
 
-@description('Optional. PostgreSQL engine version.')
+@description('Required. PostgreSQL engine version.')
 @allowed([
   '11'
   '12'
@@ -100,7 +100,7 @@ param autoGrow string = 'Enabled'
   '17'
   '18'
 ])
-param version string = '18'
+param version string
 
 @description('Required. Public network access setting for the server.')
 @allowed([
@@ -116,8 +116,8 @@ param publicNetworkAccess string
 ])
 param privateAccessMode string
 
-@description('Conditional. Delegated subnet resource ID used for PostgreSQL private access.')
-param delegatedSubnetResourceId string = ''
+@description('Conditional. Delegated subnet resource ID used for PostgreSQL private access. Pass null when privateAccessMode is none.')
+param delegatedSubnetResourceId string?
 
 @description('Optional. Virtual network links for the module-owned PostgreSQL private DNS zone.')
 param privateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[] = []
@@ -147,12 +147,12 @@ var privateAccessEnabled = privateAccessMode == 'delegatedSubnet'
 var privateDnsZoneLabel = take('pdz-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
 // Azure recommends private DNS zones that end with .postgres.database.azure.com for Flexible Server private access.
 // Ref: https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-networking-private
-var privateDnsZoneName = '${privateDnsZoneLabel}.postgres.database.azure.com'
+var derivedPrivateDnsZoneName = '${privateDnsZoneLabel}.postgres.database.azure.com'
 
 module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (privateAccessEnabled) {
-  name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
+    name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
   params: {
-    name: privateDnsZoneName
+    name: derivedPrivateDnsZoneName
     location: 'global'
     virtualNetworkLinks: privateDnsZoneVirtualNetworkLinks
     tags: tags
@@ -175,8 +175,8 @@ module flexibleServerPrivate '../../../pgsql-modules/db-for-postgre-sql/flexible
     autoGrow: autoGrow
     version: version
     publicNetworkAccess: publicNetworkAccess
-    delegatedSubnetResourceId: delegatedSubnetResourceId
-    privateDnsZoneArmResourceId: postgreSqlPrivateDnsZone.?outputs.?resourceId ?? ''
+    delegatedSubnetResourceId: delegatedSubnetResourceId!
+    privateDnsZoneArmResourceId: postgreSqlPrivateDnsZone!.outputs.resourceId
     administrators: [
       {
         objectId: administratorGroupObjectId
@@ -236,22 +236,22 @@ module flexibleServerPublic '../../../pgsql-modules/db-for-postgre-sql/flexible-
 }
 
 @description('The name of the PostgreSQL flexible server.')
-output name string = privateAccessEnabled ? (flexibleServerPrivate.?outputs.?name ?? '') : (flexibleServerPublic.?outputs.?name ?? '')
+output name string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?name! : flexibleServerPublic.?outputs.?name!
 
 @description('The resource ID of the PostgreSQL flexible server.')
-output resourceId string = privateAccessEnabled ? (flexibleServerPrivate.?outputs.?resourceId ?? '') : (flexibleServerPublic.?outputs.?resourceId ?? '')
+output resourceId string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceId! : flexibleServerPublic.?outputs.?resourceId!
 
 @description('The resource group the PostgreSQL flexible server was deployed into.')
-output resourceGroupName string = privateAccessEnabled ? (flexibleServerPrivate.?outputs.?resourceGroupName ?? '') : (flexibleServerPublic.?outputs.?resourceGroupName ?? '')
+output resourceGroupName string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceGroupName! : flexibleServerPublic.?outputs.?resourceGroupName!
 
 @description('The location of the PostgreSQL flexible server.')
-output serverLocation string = privateAccessEnabled ? (flexibleServerPrivate.?outputs.?location ?? '') : (flexibleServerPublic.?outputs.?location ?? '')
+output serverLocation string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?location! : flexibleServerPublic.?outputs.?location!
 
 @description('The fully qualified domain name of the PostgreSQL flexible server.')
-output fqdn string = privateAccessEnabled ? (flexibleServerPrivate.?outputs.?fqdn ?? '') : (flexibleServerPublic.?outputs.?fqdn ?? '')
+output fqdn string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?fqdn! : flexibleServerPublic.?outputs.?fqdn!
 
-@description('The module-owned PostgreSQL private DNS zone name. Empty when private access is not enabled.')
-output privateDnsZoneName string = privateAccessEnabled ? privateDnsZoneName : ''
+@description('The module-owned PostgreSQL private DNS zone name. Null when private access is not enabled.')
+output privateDnsZoneName string? = privateAccessEnabled ? derivedPrivateDnsZoneName : null
 
-@description('The resource ID of the module-owned PostgreSQL private DNS zone. Empty when private access is not enabled.')
-output privateDnsZoneResourceId string = privateAccessEnabled ? (postgreSqlPrivateDnsZone.?outputs.?resourceId ?? '') : ''
+@description('The resource ID of the module-owned PostgreSQL private DNS zone. Null when private access is not enabled.')
+output privateDnsZoneResourceId string? = privateAccessEnabled ? postgreSqlPrivateDnsZone.?outputs.?resourceId : null
