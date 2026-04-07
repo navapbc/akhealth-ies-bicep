@@ -23,9 +23,8 @@ param name string
 @description('Optional. The properties of the config. Note: This parameter is highly dependent on the config type, defined by its name.')
 param properties object = {}
 
-// Parameters only relevant for the config type 'appsettings'
-@description('Optional. Existing storage account reference used for function host storage.')
-param storageAccountReference {
+@description('Optional. Storage account resource reference used to derive function host storage app settings.')
+param functionHostStorageAccount {
   @description('Required. Name of the storage account.')
   name: string
 
@@ -33,8 +32,8 @@ param storageAccountReference {
   resourceGroupName: string
 }?
 
-@description('Optional. Existing Application Insights reference used for monitoring settings.')
-param applicationInsightsReference {
+@description('Optional. Application Insights component reference used to derive the application insights connection string app setting.')
+param applicationInsightsComponent {
   @description('Required. Name of the Application Insights component.')
   name: string
 
@@ -42,13 +41,8 @@ param applicationInsightsReference {
   resourceGroupName: string
 }?
 
-
-@description('Optional. The current app settings.')
-param currentAppSettings {
-  @description('Required. The key-values pairs of the current app settings.')
-  *: string
-} = {}
-
+var storageAccountReference = functionHostStorageAccount
+var applicationInsightsReference = applicationInsightsComponent
 var hasStorageAccount = storageAccountReference != null
 var hasApplicationInsights = applicationInsightsReference != null
 
@@ -65,28 +59,10 @@ var azureWebJobsValues = hasStorageAccount
 var appInsightsValues = hasApplicationInsights
   ? {
       APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights!.properties.ConnectionString
-      ...(!contains(properties, 'ApplicationInsightsAgent_EXTENSION_VERSION')
-        ? {
-            ApplicationInsightsAgent_EXTENSION_VERSION: contains(
-                [
-                  'functionapp,linux' // function app linux os
-                  'functionapp,workflowapp,linux' // logic app docker container
-                  'functionapp,linux,container' // function app linux container
-                  'functionapp,linux,container,azurecontainerapps' // function app linux container azure container apps
-                  'app,linux' // linux web app
-                  'linux,api' // linux api app
-                  'app,linux,container' // linux container app
-                ],
-                app.kind
-              )
-              ? '~3'
-              : '~2'
-          }
-        : {})
     }
   : {}
 
-var expandedProperties = union(currentAppSettings, properties, azureWebJobsValues, appInsightsValues)
+var expandedProperties = union(properties, azureWebJobsValues, appInsightsValues)
 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (hasApplicationInsights) {
   name: applicationInsightsReference!.name

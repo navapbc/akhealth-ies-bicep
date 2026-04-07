@@ -111,6 +111,15 @@ param defaultPrivateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[] = []
 @description('Optional. Configuration for deployment slots for an app.')
 param slots slotType[]?
 
+@description('Optional. Solution-managed Application Insights component used when app settings request the solution deployment path.')
+param solutionApplicationInsightsComponent {
+  @description('Required. Name of the Application Insights component.')
+  name: string
+
+  @description('Required. Resource group name of the Application Insights component.')
+  resourceGroupName: string
+}?
+
 @description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/sites@2025-03-01'>.tags?
 
@@ -291,16 +300,20 @@ resource app 'Microsoft.Web/sites@2025-03-01' = {
 
 module app_config './web-site-config.bicep' = [
   for (config, index) in (configs ?? []): {
-    name: '${uniqueString(deployment().name, location)}-Site-Config-${index}'
-    params: {
-      appName: app.name
-      name: config.name
-      applicationInsightsReference: config.?applicationInsights
-      storageAccountReference: config.?storageAccount
-      properties: config.?properties
-      currentAppSettings: config.?retainCurrentAppSettings ?? true && config.name == 'appsettings'
-        ? list('${app.id}/config/appsettings', '2023-12-01').properties
-        : {}    }
+      name: '${uniqueString(deployment().name, location)}-Site-Config-${index}'
+      params: {
+        appName: app.name
+        name: config.name
+        functionHostStorageAccount: config.?existingFunctionHostStorageAccount
+        applicationInsightsComponent: (config.?useSolutionApplicationInsights ?? false) && (config.?applicationInsights != null)
+          ? fail('An appsettings config cannot declare both useSolutionApplicationInsights and applicationInsights. Choose one Application Insights source.')
+          : ((config.?useSolutionApplicationInsights ?? false) && (solutionApplicationInsightsComponent == null)
+              ? fail('An appsettings config with useSolutionApplicationInsights requires solutionApplicationInsightsComponent to be provided to the site module.')
+              : ((config.?useSolutionApplicationInsights ?? false)
+                  ? solutionApplicationInsightsComponent
+                  : config.?applicationInsights))
+        properties: config.?properties
+      }
   }
 ]
 
@@ -388,13 +401,14 @@ module app_slots './web-site-slot.bicep' = [
       clientAffinityEnabled: slot.clientAffinityEnabled
       clientAffinityProxyEnabled: slot.clientAffinityProxyEnabled
       clientAffinityPartitioningEnabled: slot.clientAffinityPartitioningEnabled
-      managedIdentities: slot.managedIdentities
-      keyVaultAccessIdentityResourceId: slot.keyVaultAccessIdentityResourceId
-      storageAccountRequired: slot.storageAccountRequired
-      virtualNetworkSubnetResourceId: slot.virtualNetworkSubnetResourceId
-      siteConfig: slot.siteConfig
-      functionAppConfig: slot.functionAppConfig
-      configs: slot.configs
+    managedIdentities: slot.managedIdentities
+    keyVaultAccessIdentityResourceId: slot.keyVaultAccessIdentityResourceId
+    storageAccountRequired: slot.storageAccountRequired
+    solutionApplicationInsightsComponent: solutionApplicationInsightsComponent
+    virtualNetworkSubnetResourceId: slot.virtualNetworkSubnetResourceId
+    siteConfig: slot.siteConfig
+    functionAppConfig: slot.functionAppConfig
+    configs: slot.configs
       extensions: slot.extensions
       diagnosticSettings: slot.diagnosticSettings
       roleAssignments: slot.roleAssignments

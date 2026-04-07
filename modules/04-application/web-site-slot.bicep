@@ -67,6 +67,15 @@ param siteConfig resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.propertie
 @description('Optional. The Function App config object.')
 param functionAppConfig resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.functionAppConfig?
 
+@description('Optional. Solution-managed Application Insights component used when app settings request the solution deployment path.')
+param solutionApplicationInsightsComponent {
+  @description('Required. Name of the Application Insights component.')
+  name: string
+
+  @description('Required. Resource group name of the Application Insights component.')
+  resourceGroupName: string
+}?
+
 @description('Optional. The web site config.')
 param configs configType[]?
 
@@ -283,18 +292,21 @@ module slot_basicPublishingCredentialsPolicies './web-site-slot-basic-publishing
 ]
 module slot_config './web-site-slot-config.bicep' = [
   for (config, index) in (configs ?? []): {
-    name: '${uniqueString(deployment().name, location)}-Slot-Config-${index}'
-    params: {
-      appName: app.name
-      name: config.name
-      slotName: slot.name
-      applicationInsightsReference: config.?applicationInsights
-      properties: config.?properties
-      currentAppSettings: config.?retainCurrentAppSettings ?? true && config.name == 'appsettings'
-        ? list('${slot.id}/config/appsettings', '2023-12-01').properties
-        : {}
-      storageAccountReference: config.?storageAccount
-    }
+      name: '${uniqueString(deployment().name, location)}-Slot-Config-${index}'
+      params: {
+        appName: app.name
+        name: config.name
+        slotName: slot.name
+        functionHostStorageAccount: config.?existingFunctionHostStorageAccount
+        applicationInsightsComponent: (config.?useSolutionApplicationInsights ?? false) && (config.?applicationInsights != null)
+          ? fail('A slot appsettings config cannot declare both useSolutionApplicationInsights and applicationInsights. Choose one Application Insights source.')
+          : ((config.?useSolutionApplicationInsights ?? false) && (solutionApplicationInsightsComponent == null)
+              ? fail('A slot appsettings config with useSolutionApplicationInsights requires solutionApplicationInsightsComponent to be provided to the slot module.')
+              : ((config.?useSolutionApplicationInsights ?? false)
+                  ? solutionApplicationInsightsComponent
+                  : config.?applicationInsights))
+        properties: config.?properties
+      }
   }
 ]
 
@@ -492,16 +504,16 @@ type appSettingsConfigType = {
   @description('Required. The type of config.')
   name: 'appsettings'
 
-  @description('Optional. Existing storage account reference used for function host storage. This path assumes system-assigned managed identity access.')
-  storageAccount: existingStorageAccountReferenceType?
+  @description('Optional. Existing storage account reference used to derive the function host storage app settings. This path assumes system-assigned managed identity access.')
+  existingFunctionHostStorageAccount: storageAccountReferenceType?
 
-  @description('Optional. Existing Application Insights reference used for monitoring settings.')
-  applicationInsights: existingApplicationInsightsReferenceType?
+  @description('Optional. When true, derive the application insights connection string from the solution-managed Application Insights component passed into the module.')
+  useSolutionApplicationInsights: bool?
 
-  @description('Optional. The retain the current app settings. Defaults to true.')
-  retainCurrentAppSettings: bool?
+  @description('Optional. Application Insights component reference used to derive the application insights connection string app setting when not using the solution-managed component.')
+  applicationInsights: applicationInsightsComponentReferenceType?
 
-  @description('Optional. The app settings key-value pairs except for AzureWebJobsStorage, AzureWebJobsDashboard, APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING.')
+  @description('Optional. Explicit app settings to apply. Include any non-derived monitoring agent settings here when needed.')
   properties: {
     @description('Required. An app settings key-value pair.')
     *: string
@@ -509,7 +521,7 @@ type appSettingsConfigType = {
 }
 
 @export()
-type existingApplicationInsightsReferenceType = {
+type applicationInsightsComponentReferenceType = {
   @description('Required. Name of the Application Insights component.')
   name: string
 
@@ -518,7 +530,7 @@ type existingApplicationInsightsReferenceType = {
 }
 
 @export()
-type existingStorageAccountReferenceType = {
+type storageAccountReferenceType = {
   @description('Required. Name of the storage account.')
   name: string
 
