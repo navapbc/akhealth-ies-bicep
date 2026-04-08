@@ -257,25 +257,27 @@ var postgreSqlSubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0)
 var appGatewaySubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0) + (shouldCreatePostgreSqlSubnet ? 1 : 0)
 var shouldCreateHubPeering = hubPeeringConfig != null
 var reverseHubPeeringConfig = hubPeeringConfig.?reversePeeringConfig
-var hubPeering = {
-  name: spokeToHubPeeringName
-  remoteVirtualNetworkResourceId: hubPeeringConfig!.virtualNetworkResourceId
-  remoteVirtualNetworkName: hubPeeringConfig!.virtualNetworkName
-  remoteVirtualNetworkResourceGroupName: hubPeeringConfig!.resourceGroupName
-  remoteVirtualNetworkSubscriptionId: hubPeeringConfig!.subscriptionId
-  allowVirtualNetworkAccess: hubPeeringConfig!.allowVirtualNetworkAccess
-  allowForwardedTraffic: hubPeeringConfig!.allowForwardedTraffic
-  allowGatewayTransit: hubPeeringConfig!.allowGatewayTransit
-  doNotVerifyRemoteGateways: hubPeeringConfig!.doNotVerifyRemoteGateways
-  useRemoteGateways: hubPeeringConfig!.useRemoteGateways
-  remotePeeringEnabled: reverseHubPeeringConfig != null
-  remotePeeringName: hubToSpokePeeringName
-  remotePeeringAllowForwardedTraffic: reverseHubPeeringConfig.?allowForwardedTraffic
-  remotePeeringAllowGatewayTransit: reverseHubPeeringConfig.?allowGatewayTransit
-  remotePeeringAllowVirtualNetworkAccess: reverseHubPeeringConfig.?allowVirtualNetworkAccess
-  remotePeeringDoNotVerifyRemoteGateways: reverseHubPeeringConfig.?doNotVerifyRemoteGateways
-  remotePeeringUseRemoteGateways: reverseHubPeeringConfig.?useRemoteGateways
-}
+var hubPeering = shouldCreateHubPeering
+  ? {
+      name: spokeToHubPeeringName
+      remoteVirtualNetworkResourceId: hubPeeringConfig!.virtualNetworkResourceId
+      remoteVirtualNetworkName: hubPeeringConfig!.virtualNetworkName
+      remoteVirtualNetworkResourceGroupName: hubPeeringConfig!.resourceGroupName
+      remoteVirtualNetworkSubscriptionId: hubPeeringConfig!.subscriptionId
+      allowVirtualNetworkAccess: hubPeeringConfig!.allowVirtualNetworkAccess
+      allowForwardedTraffic: hubPeeringConfig!.allowForwardedTraffic
+      allowGatewayTransit: hubPeeringConfig!.allowGatewayTransit
+      doNotVerifyRemoteGateways: hubPeeringConfig!.doNotVerifyRemoteGateways
+      useRemoteGateways: hubPeeringConfig!.useRemoteGateways
+      remotePeeringEnabled: reverseHubPeeringConfig != null
+      remotePeeringName: hubToSpokePeeringName
+      remotePeeringAllowForwardedTraffic: reverseHubPeeringConfig.?allowForwardedTraffic
+      remotePeeringAllowGatewayTransit: reverseHubPeeringConfig.?allowGatewayTransit
+      remotePeeringAllowVirtualNetworkAccess: reverseHubPeeringConfig.?allowVirtualNetworkAccess
+      remotePeeringDoNotVerifyRemoteGateways: reverseHubPeeringConfig.?doNotVerifyRemoteGateways
+      remotePeeringUseRemoteGateways: reverseHubPeeringConfig.?useRemoteGateways
+    }
+  : null
 
 module vnetSpoke './virtual-network.bicep' = {
   name: '${uniqueString(deployment().name, location)}-spokevnet'
@@ -298,7 +300,7 @@ module vnetSpoke './virtual-network.bicep' = {
     enablePrivateEndpointVNetPolicies: enablePrivateEndpointVNetPolicies
     virtualNetworkBgpCommunity: virtualNetworkBgpCommunity
     subnets: subnets
-    peerings: shouldCreateHubPeering ? [hubPeering] : []
+    peerings: shouldCreateHubPeering ? [hubPeering!] : []
   }
 }
 
