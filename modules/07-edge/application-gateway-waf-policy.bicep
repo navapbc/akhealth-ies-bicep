@@ -39,7 +39,7 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-var resourceAbbreviation = 'waf'
+var resourceAbbreviation = 'agwfp'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(

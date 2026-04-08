@@ -192,9 +192,19 @@ var resourceNames = {
   routeEgressLockdown: egressLockdownRouteName
 }
 
-var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfig.?subnetAddressSpace
-var subnetSpokeAppGwAddressSpace = applicationGatewayConfig.?subnetAddressSpace
-var firewallInternalIp = egressFirewallConfig.?internalIp
+var applicationGatewayConfigIsValid = networkingOption != 'applicationGateway' || applicationGatewayConfig != null
+  ? true
+  : fail('When networkingOption is "applicationGateway", applicationGatewayConfig must be provided.')
+var postgreSqlPrivateAccessConfigIsValid = !deployPostgreSqlPrivateAccess || postgreSqlPrivateAccessConfig != null
+  ? true
+  : fail('When deployPostgreSqlPrivateAccess is true, postgreSqlPrivateAccessConfig must be provided.')
+var egressFirewallConfigIsValid = !enableEgressLockdown || egressFirewallConfig != null
+  ? true
+  : fail('When enableEgressLockdown is true, egressFirewallConfig must be provided.')
+
+var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfigIsValid ? postgreSqlPrivateAccessConfig.?subnetAddressSpace : null
+var subnetSpokeAppGwAddressSpace = applicationGatewayConfigIsValid ? applicationGatewayConfig.?subnetAddressSpace : null
+var firewallInternalIp = egressFirewallConfigIsValid ? egressFirewallConfig.?internalIp : null
 
 var udrRoutes = [
   {

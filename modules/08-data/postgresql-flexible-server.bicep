@@ -120,6 +120,9 @@ param publicNetworkAccess string
 ])
 param privateAccessMode string
 
+@description('Required. Top-level deployment flag that determines whether PostgreSQL should use private networking for this workload.')
+param deployPrivateNetworking bool
+
 @description('Conditional. Delegated subnet resource ID used for PostgreSQL private access. Pass null when privateAccessMode is none.')
 param delegatedSubnetResourceId string?
 
@@ -144,10 +147,19 @@ param diagnosticSettings diagnosticSettingFullType[] = []
 @description('Required. Tags for the server and companion resources.')
 param tags object
 
-var resourceAbbreviation = 'psql'
+var resourceAbbreviation = 'psqlfx'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
 var privateAccessEnabled = privateAccessMode == 'delegatedSubnet'
+var privateModeRequested = privateAccessMode == 'delegatedSubnet' && publicNetworkAccess == 'Disabled'
+var publicModeRequested = privateAccessMode == 'none' && publicNetworkAccess == 'Enabled'
+var networkingModeIsValid = deployPrivateNetworking
+  ? (privateModeRequested
+      ? true
+      : fail('When deployPrivateNetworking is true, PostgreSQL must use delegatedSubnet private access and Disabled public network access.'))
+  : (publicModeRequested
+      ? true
+      : fail('When deployPrivateNetworking is false, PostgreSQL must use none private access mode and Enabled public network access.'))
 var privateAccessInputsAreValid = privateAccessEnabled
   ? (delegatedSubnetResourceId != null
       ? (!empty(privateDnsZoneVirtualNetworkLinks)
@@ -162,7 +174,7 @@ var privateDnsZoneLabel = take('pdz-${systemAbbreviation}-${regionAbbreviation}-
 // Ref: https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-networking-private
 var derivedPrivateDnsZoneName = '${privateDnsZoneLabel}.postgres.database.azure.com'
 
-module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (privateAccessInputsAreValid && privateAccessEnabled) {
+module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (networkingModeIsValid && privateAccessInputsAreValid && privateAccessEnabled) {
     name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
   params: {
     name: derivedPrivateDnsZoneName
@@ -172,7 +184,7 @@ module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (pri
   }
 }
 
-module flexibleServerPrivate './postgresql-flexible-server-server.bicep' = if (privateAccessInputsAreValid && privateAccessEnabled) {
+module flexibleServerPrivate './postgresql-flexible-server-server.bicep' = if (networkingModeIsValid && privateAccessInputsAreValid && privateAccessEnabled) {
   name: '${uniqueString(deployment().name, location)}-postgresql-private'
   params: {
     name: derivedName
@@ -212,7 +224,7 @@ module flexibleServerPrivate './postgresql-flexible-server-server.bicep' = if (p
   }
 }
 
-module flexibleServerPublic './postgresql-flexible-server-server.bicep' = if (privateAccessInputsAreValid && !privateAccessEnabled) {
+module flexibleServerPublic './postgresql-flexible-server-server.bicep' = if (networkingModeIsValid && privateAccessInputsAreValid && !privateAccessEnabled) {
   name: '${uniqueString(deployment().name, location)}-postgresql-public'
   params: {
     name: derivedName

@@ -32,7 +32,6 @@ param enabledState string
 @description('Optional. The list of routes for this AFD Endpoint.')
 param routes routeType[]?
 
-
 resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
   name: profileName
 }

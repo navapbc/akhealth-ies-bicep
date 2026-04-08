@@ -98,7 +98,7 @@ param roleAssignments roleAssignmentType[]?
 // Variables   //
 // =========== //
 
-var resourceAbbreviation = 'dps'
+var resourceAbbreviation = 'script'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 90)
 

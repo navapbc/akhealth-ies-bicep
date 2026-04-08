@@ -112,44 +112,18 @@ var vnetSpokeAddressSpace = spokeNetworkConfig.vnetAddressSpace
 var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.appSvcSubnetAddressSpace
 var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointSubnetAddressSpace
 var networkingOption = spokeNetworkConfig.ingressOption
-var applicationGatewayNetworkConfig = networkingOption == 'applicationGateway'
-  ? (spokeNetworkConfig.?applicationGatewayConfig != null
-      ? spokeNetworkConfig.?applicationGatewayConfig!
-      : fail('When ingressOption is "applicationGateway", spokeNetworkConfig.applicationGatewayConfig must be provided.'))
-  : null
+var applicationGatewayConfig = spokeNetworkConfig.?applicationGatewayConfig
 var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
 var postgreSqlEnabled = deployPostgreSql
-var postgreSqlPrivateNetworkingRequired = postgreSqlEnabled && deployPrivateNetworking
-var postgreSqlConfigIsValidForPrivateMode = postgresqlConfig.privateAccessMode == 'delegatedSubnet' && postgresqlConfig.publicNetworkAccess == 'Disabled'
-var postgreSqlConfigIsValidForPublicMode = postgresqlConfig.privateAccessMode == 'none' && postgresqlConfig.publicNetworkAccess == 'Enabled'
-var resolvedPostgreSqlPrivateAccessMode = !postgreSqlEnabled
-  ? 'none'
-  : (postgreSqlPrivateNetworkingRequired
-      ? (postgreSqlConfigIsValidForPrivateMode
-          ? 'delegatedSubnet'
-          : fail('When deployPrivateNetworking is true, PostgreSQL must use delegatedSubnet private access and Disabled public network access.'))
-      : (postgreSqlConfigIsValidForPublicMode
-          ? 'none'
-          : fail('When deployPrivateNetworking is false, PostgreSQL must use none private access mode and Enabled public network access.')))
-var resolvedPostgreSqlPublicNetworkAccess = !postgreSqlEnabled
-  ? 'Disabled'
-  : (postgreSqlPrivateNetworkingRequired ? 'Disabled' : 'Enabled')
-var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && resolvedPostgreSqlPrivateAccessMode == 'delegatedSubnet'
-var postgreSqlPrivateAccessNetworkConfig = postgreSqlPrivateAccessEnabled
-  ? (spokeNetworkConfig.?postgreSqlPrivateAccessConfig != null
-      ? spokeNetworkConfig.?postgreSqlPrivateAccessConfig!
-      : fail('When PostgreSQL delegated subnet private access is required, spokeNetworkConfig.postgreSqlPrivateAccessConfig must be provided.'))
-  : spokeNetworkConfig.?postgreSqlPrivateAccessConfig
+var postgreSqlPrivateNetworkingEnabled = postgreSqlEnabled && deployPrivateNetworking
+var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
+var postgreSqlPrivateAccessConfig = spokeNetworkConfig.?postgreSqlPrivateAccessConfig
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
 var vnetHubResourceId = hubPeeringConfig.?virtualNetworkResourceId ?? ''
 var vnetHubName = hubPeeringConfig.?virtualNetworkName ?? ''
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
-var egressFirewallConfig = enableEgressLockdown
-  ? (spokeNetworkConfig.?egressFirewallConfig != null
-      ? spokeNetworkConfig.?egressFirewallConfig!
-      : fail('When enableEgressLockdown is true, spokeNetworkConfig.egressFirewallConfig must be provided.'))
-  : spokeNetworkConfig.?egressFirewallConfig
+var egressFirewallConfig = spokeNetworkConfig.?egressFirewallConfig
 var dnsServers = spokeNetworkConfig.dnsServers
 var ddosProtectionPlanResourceId = spokeNetworkConfig.?ddosProtectionPlanResourceId
 var disableBgpRoutePropagation = spokeNetworkConfig.disableBgpRoutePropagation
@@ -258,12 +232,12 @@ module networking 'modules/01-network/network.bicep' = {
     vnetSpokeAddressSpace: vnetSpokeAddressSpace
     subnetSpokeAppSvcAddressSpace: subnetSpokeAppSvcAddressSpace
     subnetSpokePrivateEndpointAddressSpace: subnetSpokePrivateEndpointAddressSpace
-    applicationGatewayConfig: applicationGatewayNetworkConfig
-    postgreSqlPrivateAccessConfig: postgreSqlPrivateAccessNetworkConfig
+    applicationGatewayConfig: applicationGatewayConfig
+    postgreSqlPrivateAccessConfig: postgreSqlPrivateAccessConfig
     egressFirewallConfig: egressFirewallConfig
     hubPeeringConfig: hubPeeringConfig
     networkingOption: networkingOption
-    deployPostgreSqlPrivateAccess: postgreSqlPrivateAccessEnabled
+    deployPostgreSqlPrivateAccess: postgreSqlPrivateNetworkingEnabled
     logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
     dnsServers: dnsServers
     ddosProtectionPlanResourceId: ddosProtectionPlanResourceId
@@ -1086,8 +1060,9 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     storageSizeGB: postgresqlConfig.storageSizeGB
     autoGrow: postgresqlConfig.autoGrow
     version: postgresqlConfig.version
-    publicNetworkAccess: resolvedPostgreSqlPublicNetworkAccess
-    privateAccessMode: resolvedPostgreSqlPrivateAccessMode
+    deployPrivateNetworking: postgreSqlPrivateNetworkingEnabled
+    publicNetworkAccess: postgresqlConfig.publicNetworkAccess
+    privateAccessMode: postgresqlConfig.privateAccessMode
     delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.snetPostgreSqlResourceId : null
     privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneVirtualNetworkLinks
     databases: postgresqlConfig.databases

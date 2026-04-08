@@ -60,3 +60,25 @@ This template should keep naming consistent globally, while keeping final name c
 - Resource specific naming schemes should be handled in the module for that resource.
 
 This keeps naming readable and predictable without adding an extra abstraction layer that users have to mentally work through.
+
+## Repo-Local Abbreviations
+
+Considerations: Use Microsoft CAF abbreviations where Microsoft publishes one. Microsoft mixes abbreviations for the Microsoft.CDN provider between cdnp, cdne, fde, and afd. They use fde to convery frontdoor product vs where i would prefer to be technically honest and convery the actual resource type (cdn). But, for end user legibility purposes, afd and fd are sufficiently communicative. 
+
+Official CAF abbreviations used in this repo where Microsoft publishes one:
+
+- `agwfp` for `Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies`
+- `psqlfx` for `Microsoft.DBforPostgreSQL/flexibleServers`
+- `script` for `Microsoft.Resources/deploymentScripts`
+- `fde` for `Microsoft.Cdn/profiles/afdEndpoints`
+
+For resource types that don't have an official CAF abbreviation, this repo uses the following local conventions:
+
+- `fdsecp` for `Microsoft.Cdn/profiles/securityPolicies`
+- `fder` for `Microsoft.Cdn/profiles/afdEndpoints/routes`
+- `fdog` for `Microsoft.Cdn/profiles/originGroups`
+- `fdorg` for `Microsoft.Cdn/profiles/originGroups/origins`
+- `fdrset` for `Microsoft.Cdn/profiles/ruleSets`
+- `fdrul` for `Microsoft.Cdn/profiles/ruleSets/rules`
+- `fdcdom` for `Microsoft.Cdn/profiles/customDomains`
+- `fdsecr` for `Microsoft.Cdn/profiles/secrets`

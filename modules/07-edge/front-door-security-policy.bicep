@@ -28,7 +28,7 @@ param wafPolicyResourceId string
 @description('Required. Waf associations (see https://learn.microsoft.com/en-us/azure/templates/microsoft.cdn/profiles/securitypolicies?pivots=deployment-language-bicep#securitypolicywebapplicationfirewallassociation for details).')
 param associations associationsType[]
 
-var resourceAbbreviation = 'secpol'
+var resourceAbbreviation = 'fdsecp'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
