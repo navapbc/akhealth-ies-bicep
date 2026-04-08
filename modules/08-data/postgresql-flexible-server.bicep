@@ -201,6 +201,7 @@ module flexibleServerPrivate './postgresql-flexible-server-server.bicep' = if (p
     authConfig: {
       activeDirectoryAuth: 'Enabled'
       passwordAuth: 'Disabled'
+      tenantId:tenant().tenantId
     }
     databases: databases
     configurations: configurations

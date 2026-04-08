@@ -12,7 +12,7 @@ param instanceNumber = '001'
 param workloadDescription = ''
 
 param deployPrivateNetworking = true
-param deployPostgreSql = false
+param deployPostgreSql = true
 
 param tags = {
   environment: 'dev'
@@ -21,7 +21,7 @@ param tags = {
 }
 
 param spokeNetworkConfig = {
-  ingressOption: 'none' //options are none, frontDoor, applicationGateway
+  ingressOption: 'frontDoor' //options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
