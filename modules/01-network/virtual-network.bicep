@@ -153,6 +153,11 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
 module virtualNetwork_subnets './virtual-network-subnet.bicep' = [
   for (subnet, index) in (subnets ?? []): {
     name: '${uniqueString(subscription().id, resourceGroup().id, location)}-subnet-${index}'
+    // The subnet module treats the VNet as an existing parent, so we need
+    // explicit ordering here to prevent ARM from racing the child deployments.
+    dependsOn: [
+      virtualNetwork
+    ]
     params: {
       virtualNetworkName: virtualNetwork.name
       name: subnet.name

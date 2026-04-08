@@ -643,7 +643,7 @@ output outboundIpAddresses string = app.properties.outboundIpAddresses
 
 @description('The private endpoints of the site.')
 output privateEndpoints privateEndpointOutputType[] = [
-  for (item, index) in (privateEndpoints ?? []): {
+  for (item, index) in resolvedPrivateEndpoints: {
     name: app_privateEndpoints[index].outputs.name
     resourceId: app_privateEndpoints[index].outputs.resourceId
     groupId: app_privateEndpoints[index].outputs.?groupId!

@@ -11,7 +11,7 @@ param environmentAbbreviation = 'dev'
 param instanceNumber = '001'
 param workloadDescription = ''
 
-param deployPrivateNetworking = false
+param deployPrivateNetworking = true
 param deployPostgreSql = false
 
 param tags = {
