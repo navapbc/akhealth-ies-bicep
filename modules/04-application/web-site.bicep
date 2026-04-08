@@ -87,11 +87,13 @@ param functionAppConfig resourceInput<'Microsoft.Web/sites@2025-03-01'>.properti
 @description('Optional. The extensions configuration.')
 param extensions extensionType[]?
 
-import { lockType } from '../shared/avm-common-types.bicep'
+import {
+  lockType
+  privateEndpointSingleServiceType
+} from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
 param lock lockType?
 
-import { privateEndpointSingleServiceType } from '../shared/avm-common-types.bicep'
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 @description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
 param privateEndpoints privateEndpointSingleServiceType[]?

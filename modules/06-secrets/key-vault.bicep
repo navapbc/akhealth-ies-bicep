@@ -231,7 +231,6 @@ module keyVault_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = i
     tags: tags
   }
 }
-
 var resolvedPrivateEndpoints = moduleOwnedPrivateEndpoints
 var resolvedKeys = [
   for key in (keys ?? []): {

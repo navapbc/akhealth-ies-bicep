@@ -184,7 +184,7 @@ param appServiceConfig = {
 }
 
 // Example Key Vault configuration. Leave commented out unless you want to
-// override the default Key Vault bconfigs
+// override the default Key Vault configs
 //
 // param keyVaultConfig = {
 //   sku: 'standard'
