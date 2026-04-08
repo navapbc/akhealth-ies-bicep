@@ -1,9 +1,6 @@
 # README
 
 
-TODO:
-- Add staged/layered testing to test modules in layers, and respective layers by module, to enable
-
 This folder contains a local and reorganized  version of the App Service LZA template set with only the dependencies it needs.
 (from here https://github.com/Azure/bicep-registry-modules/tree/main/avm/ptn/app-service-lza/hosting-environment)
 
@@ -20,7 +17,7 @@ Modules are organized by deployment area and deployment order to keep flow obvio
 
 Deployment Example:
 
-az deployment sub create --location eastus --template-file ./main.bicep --parameters ./main.dev.bicepparam
+az deployment sub create --location eastus --template-file ./main.bicep --parameters ./params/main.dev.bicepparam
 
 
 # Naming scheme
@@ -76,3 +73,7 @@ For resource types that don't have an official CAF abbreviation, this repo uses 
 - `fdrul` for `Microsoft.Cdn/profiles/ruleSets/rules`
 - `fdcdom` for `Microsoft.Cdn/profiles/customDomains`
 - `fdsecr` for `Microsoft.Cdn/profiles/secrets`
+
+
+TODO:
+- Add staged/layered testing to test modules in layers, and respective layers by module, to enable
