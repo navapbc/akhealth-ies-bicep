@@ -21,7 +21,7 @@ param tags = {
 }
 
 param spokeNetworkConfig = {
-  ingressOption: 'none'
+  ingressOption: 'none' //options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
