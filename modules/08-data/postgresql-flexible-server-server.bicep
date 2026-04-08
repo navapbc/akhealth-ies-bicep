@@ -18,7 +18,7 @@ param location string
 param administrators administratorType[]
 
 @description('Required. Authentication configuration for the server.')
-param authConfig resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview'>.properties.authConfig
+param authConfig resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.properties.authConfig
 
 @description('Required. The SKU name for the server.')
 param skuName string
@@ -133,7 +133,7 @@ param roleAssignments roleAssignmentType[]
 param diagnosticSettings diagnosticSettingFullType[]
 
 @description('Optional. Tags for the server.')
-param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview'>.tags?
+param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.tags?
 
 var privateAccessEnabled = delegatedSubnetResourceId != null
 var privateDnsZoneProvided = privateDnsZoneArmResourceId != null
@@ -160,7 +160,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview' = {
+resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01' = {
   name: name
   location: location
   tags: tags
