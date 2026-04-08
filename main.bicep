@@ -43,8 +43,8 @@ param environmentAbbreviation string = environmentName
 @description('Optional. Instance number used for deterministic naming. Example: "001".')
 param instanceNumber string = '001'
 
-@description('Optional. Additional workload descriptor to include in names when it adds value. When empty, the segment is omitted.')
-param workloadDescription string = ''
+@description('Required. Additional workload descriptor to include in names when it adds value. Use an empty string to omit the segment.')
+param workloadDescription string
 
 @description('Optional. Default is false. Set to true if you want to deploy ASE v3 instead of Multitenant App Service Plan.')
 param deployAseV3 bool = false
@@ -53,8 +53,8 @@ param deployAseV3 bool = false
 param tags object = {}
 
 
-@description('Optional. The resource ID of an existing Log Analytics workspace. If empty, this template creates one in the spoke resource group.')
-param logAnalyticsWorkspaceResourceId string = ''
+@description('Required. The resource ID of an existing Log Analytics workspace, or null to create one in the spoke resource group.')
+param existingLogAnalyticsID string?
 
 @description('Required. Configuration for the Log Analytics workspace when this template creates one.')
 param logAnalyticsConfig logAnalyticsConfigType
@@ -120,8 +120,6 @@ var postgreSqlPrivateNetworkingEnabled = postgreSqlEnabled && deployPrivateNetwo
 var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
 var postgreSqlPrivateAccessConfig = spokeNetworkConfig.?postgreSqlPrivateAccessConfig
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
-var vnetHubResourceId = hubPeeringConfig.?virtualNetworkResourceId ?? ''
-var vnetHubName = hubPeeringConfig.?virtualNetworkName ?? ''
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
 var egressFirewallConfig = spokeNetworkConfig.?egressFirewallConfig
 var dnsServers = spokeNetworkConfig.dnsServers
@@ -163,16 +161,19 @@ var virtualNetworkLinks = [
     registrationEnabled: false
   }
 ]
+var hubVirtualNetworkLink = hubPeeringConfig != null
+  ? {
+      name: hubPeeringConfig!.virtualNetworkName
+      virtualNetworkResourceId: hubPeeringConfig!.virtualNetworkResourceId
+      registrationEnabled: false
+    }
+  : null
 var postgreSqlPrivateDnsZoneVirtualNetworkLinks = concat(
   virtualNetworkLinks,
-  !empty(vnetHubResourceId)
+  hubVirtualNetworkLink != null
       ? [
-        {
-          name: vnetHubName
-          virtualNetworkResourceId: vnetHubResourceId
-          registrationEnabled: false
-        }
-      ]
+          hubVirtualNetworkLink
+        ]
     : []
 )
 
@@ -187,7 +188,7 @@ resource spokeResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
   properties: {}
 }
 
-module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bicep' = if (empty(logAnalyticsWorkspaceResourceId)) {
+module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bicep' = if (existingLogAnalyticsID == null) {
   name: '${uniqueString(deployment().name, location, systemAbbreviation, environmentAbbreviation, instanceNumber, 'law')}-law'
   scope: spokeResourceGroup
   params: {
@@ -209,10 +210,9 @@ module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bice
   }
 }
 
-#disable-next-line BCP318
-var resolvedLogAnalyticsWorkspaceResourceId = !empty(logAnalyticsWorkspaceResourceId)
-  ? logAnalyticsWorkspaceResourceId
-  : logAnalyticsWorkspace.outputs.resourceId
+var resolvedLogAnalyticsWorkspaceResourceId = existingLogAnalyticsID != null
+  ? existingLogAnalyticsID!
+  : logAnalyticsWorkspace!.outputs.resourceId
 
 // ======================== //
 // Networking               //
@@ -325,7 +325,6 @@ var webAppRoleAssignments = appServiceConfig.?roleAssignments
 var appserviceDiagnosticSettings = appServiceConfig.diagnosticSettings
 var configuredAppSlots = appServiceConfig.slots
 var appServiceConfigs = appServiceConfig.configs
-var webAppPrivateEndpoints = appServiceConfig.privateEndpoints
 
 var webAppDnsZoneName = 'privatelink.azurewebsites.net'
 var keyVaultPrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
@@ -620,7 +619,6 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     }
     configs: appServiceConfigs
     slots: configuredAppSlots
-    privateEndpoints: webAppPrivateEndpoints
     enableDefaultPrivateEndpoint: webAppPrivateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
     defaultPrivateDnsZoneName: webAppDnsZoneName
@@ -922,7 +920,7 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption 
     sslCertificates: appGatewaySslCertificates
     trustedRootCertificates: appGatewayTrustedRootCertificates
     sslPolicyType: appGatewaySslPolicyType
-    sslPolicyName: empty(appGatewaySslPolicyName ?? '') ? null : any(appGatewaySslPolicyName)
+    sslPolicyName: any(appGatewaySslPolicyName)
     sslPolicyMinProtocolVersion: appGatewaySslPolicyMinProtocolVersion
     sslPolicyCipherSuites: appGatewaySslPolicyCipherSuites
     authenticationCertificates: appGatewayAuthenticationCertificates
@@ -964,7 +962,6 @@ var keyVaultSku = keyVaultConfig.sku
 var keyVaultEnableVaultForDeployment = keyVaultConfig.enableVaultForDeployment
 var resolvedKeyVaultNetworkAcls = keyVaultConfig.networkAcls
 var resolvedKeyVaultPublicNetworkAccess = keyVaultConfig.publicNetworkAccess
-var keyVaultPrivateEndpoints = keyVaultConfig.privateEndpoints
 var keyVaultLock = keyVaultConfig.?lock
 var keyVaultRoleAssignments = keyVaultConfig.roleAssignments
 var keyVaultDiagnosticSettings = keyVaultConfig.diagnosticSettings
@@ -991,7 +988,6 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
     createMode: keyVaultCreateMode
     secrets: keyVaultSecrets
     keys: keyVaultKeys
-    privateEndpoints: keyVaultPrivateEndpoints
     enableDefaultPrivateEndpoint: privateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
     defaultPrivateDnsZoneName: keyVaultPrivateDnsZoneName
@@ -1003,13 +999,9 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
           registrationEnabled: false
         }
       ],
-      !empty(vnetHubResourceId)
+      hubVirtualNetworkLink != null
         ? [
-            {
-              name: vnetHubName
-              virtualNetworkResourceId: vnetHubResourceId
-              registrationEnabled: false
-            }
+            hubVirtualNetworkLink!
           ]
         : []
     )
@@ -1111,32 +1103,32 @@ output webAppManagedIdentityPrincipalId string = webAppSite.outputs.systemAssign
 @description('The resource ID of the App Service Plan used (either created or pre-existing).')
 output appServicePlanResourceId string = resolvedServerFarmResourceId
 
-@description('The Internal ingress IP of the ASE.')
-output internalInboundIpAddress string = aseLookup.?outputs.?internalInboundIpAddress ?? ''
+@description('The Internal ingress IP of the ASE. Null when ASE is not deployed.')
+output internalInboundIpAddress string? = aseLookup.?outputs.?internalInboundIpAddress
 
-@description('The name of the ASE.')
-output aseName string = aseEnvironment.?outputs.?name ?? ''
+@description('The name of the ASE. Null when ASE is not deployed.')
+output aseName string? = aseEnvironment.?outputs.?name
 
 @description('The resource ID of the Log Analytics workspace used by this deployment.')
 output logAnalyticsWorkspaceUsedResourceId string = resolvedLogAnalyticsWorkspaceResourceId
 
-@description('The name of the Log Analytics workspace created by this deployment, if one was created.')
-output logAnalyticsWorkspaceCreatedName string = logAnalyticsWorkspace.?outputs.?name ?? ''
+@description('The name of the Log Analytics workspace created by this deployment. Null when an existing workspace is used.')
+output logAnalyticsWorkspaceCreatedName string? = logAnalyticsWorkspace.?outputs.?name
 
-@description('The object ID of the Microsoft Entra security group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
-output postgreSqlAdminGroupObjectId string = deployPostgreSql ? postgresqlAdminGroupConfig.objectId : ''
+@description('The object ID of the Microsoft Entra security group used as the PostgreSQL administrator. Null when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupObjectId string? = deployPostgreSql ? postgresqlAdminGroupConfig.objectId : null
 
-@description('The display name of the Microsoft Entra security group used as the PostgreSQL administrator. Empty when PostgreSQL is not deployed.')
-output postgreSqlAdminGroupName string = deployPostgreSql ? postgresqlAdminGroupConfig.displayName : ''
+@description('The display name of the Microsoft Entra security group used as the PostgreSQL administrator. Null when PostgreSQL is not deployed.')
+output postgreSqlAdminGroupName string? = deployPostgreSql ? postgresqlAdminGroupConfig.displayName : null
 
-@description('The name of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
-output postgreSqlServerName string = postgreSql.?outputs.?name ?? ''
+@description('The name of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
+output postgreSqlServerName string? = postgreSql.?outputs.?name
 
-@description('The resource ID of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
-output postgreSqlServerResourceId string = deployPostgreSql ? postgreSql!.outputs.resourceId : ''
+@description('The resource ID of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
+output postgreSqlServerResourceId string? = deployPostgreSql ? postgreSql!.outputs.resourceId : null
 
-@description('The FQDN of the PostgreSQL flexible server. Empty when PostgreSQL is not deployed.')
-output postgreSqlServerFqdn string = deployPostgreSql ? postgreSql!.outputs.fqdn : ''
+@description('The FQDN of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
+output postgreSqlServerFqdn string? = deployPostgreSql ? postgreSql!.outputs.fqdn : null
 
-@description('The name of the PostgreSQL private DNS zone. Empty when PostgreSQL private access is not enabled.')
-output postgreSqlPrivateDnsZoneName string = postgreSqlPrivateAccessEnabled ? postgreSql!.outputs.privateDnsZoneName! : ''
+@description('The name of the PostgreSQL private DNS zone. Null when PostgreSQL private access is not enabled.')
+output postgreSqlPrivateDnsZoneName string? = postgreSqlPrivateAccessEnabled ? postgreSql!.outputs.privateDnsZoneName! : null

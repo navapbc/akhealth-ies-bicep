@@ -9,7 +9,6 @@ import {
   lockType
   roleAssignmentType
   managedIdentityOnlySysAssignedType
-  privateEndpointSingleServiceType
 } from './avm-common-types.bicep'
 
 // ======================== //
@@ -422,8 +421,6 @@ type appServiceConfigType = {
   @description('Required. Web app configuration resources to apply, such as app settings or storage account mounts.')
   configs: array
 
-  @description('Required. Private endpoints for the web app.')
-  privateEndpoints: privateEndpointSingleServiceType[]
 }
 
 @description('Configuration for an App Service deployment slot passed through the solution-level interface.')
@@ -481,9 +478,6 @@ type appServiceSlotConfigType = {
 
   @description('Optional. The lock settings of the service.')
   lock: lockType?
-
-  @description('Optional. Configuration details for private endpoints.')
-  privateEndpoints: privateEndpointSingleServiceType[]?
 
   @description('Optional. Tags of the resource.')
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
@@ -703,9 +697,6 @@ type keyVaultConfigType = {
 
   @description('Required. Public network access for the Key Vault.')
   publicNetworkAccess: ('Enabled' | 'Disabled')
-
-  @description('Required. Private endpoints for the Key Vault.')
-  privateEndpoints: keyVaultPrivateEndpointType[]
 
   @description('Optional. Resource lock for the Key Vault.')
   lock: lockType?

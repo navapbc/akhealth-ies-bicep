@@ -89,16 +89,12 @@ param extensions extensionType[]?
 
 import {
   lockType
-  privateEndpointSingleServiceType
 } from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
 param lock lockType?
-
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
-@description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
-param privateEndpoints privateEndpointSingleServiceType[]?
 
-@description('Optional. When true and no explicit private endpoints are provided, the module creates the default private endpoint wiring for the site.')
+@description('Optional. When true, the module creates the standard private endpoint wiring for the site.')
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
@@ -248,7 +244,7 @@ var resolvedHostingEnvironmentProfile = !empty(appServiceEnvironmentResourceId)
     }
   : null
 var resolvedSitePublicNetworkAccess = supportsServerFarmSettings ? publicNetworkAccess : null
-var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint && empty(privateEndpoints ?? [])
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'appservice'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -358,7 +354,9 @@ var resolvedSlots = [
     roleAssignments: slot.?roleAssignments
     basicPublishingCredentialsPolicies: slot.?basicPublishingCredentialsPolicies ?? basicPublishingCredentialsPolicies
     lock: slot.?lock ?? lock
-    privateEndpoints: slot.?privateEndpoints ?? []
+    enableDefaultPrivateEndpoint: shouldCreateDefaultPrivateEndpoint
+    defaultPrivateEndpointSubnetResourceId: defaultPrivateEndpointSubnetResourceId
+    defaultPrivateDnsZoneName: defaultPrivateDnsZoneName
     tags: slot.?tags ?? tags
     clientCertEnabled: slot.?clientCertEnabled
     clientCertExclusionPaths: slot.?clientCertExclusionPaths
@@ -391,6 +389,7 @@ var resolvedSlots = [
 module app_slots './web-site-slot.bicep' = [
   for (slot, index) in resolvedSlots: {
     name: '${uniqueString(deployment().name, location)}-Slot-${slot.name}'
+    dependsOn: shouldCreateDefaultPrivateEndpoint ? [app_defaultPrivateDnsZone] : []
     params: {
       name: slot.name
       appName: slot.appName
@@ -416,7 +415,9 @@ module app_slots './web-site-slot.bicep' = [
       roleAssignments: slot.roleAssignments
       basicPublishingCredentialsPolicies: slot.basicPublishingCredentialsPolicies
       lock: slot.lock
-      privateEndpoints: slot.privateEndpoints
+      enableDefaultPrivateEndpoint: slot.enableDefaultPrivateEndpoint
+      defaultPrivateEndpointSubnetResourceId: slot.defaultPrivateEndpointSubnetResourceId
+      defaultPrivateDnsZoneName: slot.defaultPrivateDnsZoneName
       tags: slot.tags
       clientCertEnabled: slot.clientCertEnabled
       clientCertExclusionPaths: slot.clientCertExclusionPaths
@@ -535,7 +536,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         }
       }
     ]
-  : (privateEndpoints ?? [])
+  : []
 
 module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-Site-DefaultPrivateDnsZone'
@@ -808,8 +809,14 @@ type slotType = {
   @description('Optional. The lock settings of the service.')
   lock: lockType?
 
-  @description('Optional. Configuration details for private endpoints.')
-  privateEndpoints: privateEndpointSingleServiceType[]?
+  @description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
+  enableDefaultPrivateEndpoint: bool?
+
+  @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
+  defaultPrivateEndpointSubnetResourceId: string?
+
+  @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
+  defaultPrivateDnsZoneName: string?
 
   @description('Optional. Tags of the resource.')
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?

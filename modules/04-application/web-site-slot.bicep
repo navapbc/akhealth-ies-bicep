@@ -86,9 +86,14 @@ import { lockType } from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
 param lock lockType?
 
-import { privateEndpointSingleServiceType } from '../shared/avm-common-types.bicep'
-@description('Optional. Configuration details for private endpoints.')
-param privateEndpoints privateEndpointSingleServiceType[]?
+@description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
+param enableDefaultPrivateEndpoint bool = false
+
+@description('Optional. Subnet resource ID for the module-owned default private endpoint.')
+param defaultPrivateEndpointSubnetResourceId string = ''
+
+@description('Optional. Private DNS zone name for the module-owned default private endpoint.')
+param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
 
 @description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
@@ -200,27 +205,44 @@ var formattedRoleAssignments = [
   })
 ]
 
-var resolvedSlotPrivateEndpoints = [
-  for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupName: privateEndpoint.resourceGroupName
-    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
-    name: privateEndpoint.name
-    service: privateEndpoint.service
-    isManualConnection: privateEndpoint.?isManualConnection == true
-    privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
-    subnetResourceId: privateEndpoint.subnetResourceId
-    location: privateEndpoint.location
-    lock: privateEndpoint.?lock ?? lock
-    privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
-    roleAssignments: privateEndpoint.?roleAssignments
-    tags: privateEndpoint.?tags ?? tags
-    customDnsConfigs: privateEndpoint.?customDnsConfigs
-    ipConfigurations: privateEndpoint.?ipConfigurations
-    applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
-    customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage
-  }
-]
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
+// App Service slots use the sites-<slot-name> subresource for Private Link.
+// Ref: https://learn.microsoft.com/en-us/azure/app-service/overview-private-endpoint
+var defaultPrivateEndpointService = 'sites-${name}'
+var defaultPrivateEndpointName = take('pep-${appName}-${name}', 80)
+var defaultPrivateLinkServiceConnectionName = take('plsc-${appName}-${name}', 80)
+var resolvedSlotPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
+  ? [
+      {
+        resourceGroupName: resourceGroup().name
+        resourceGroupSubscriptionId: subscription().subscriptionId
+        name: defaultPrivateEndpointName
+        service: defaultPrivateEndpointService
+        isManualConnection: false
+        privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
+        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        location: location
+        lock: lock
+        privateDnsZoneGroup: {
+          name: name
+          privateDnsZoneGroupConfigs: [
+            {
+              name: defaultPrivateDnsZoneName
+              privateDnsZoneResourceId: defaultPrivateDnsZoneResourceId
+            }
+          ]
+        }
+        roleAssignments: null
+        tags: tags
+        customDnsConfigs: null
+        ipConfigurations: null
+        applicationSecurityGroupResourceIds: null
+        customNetworkInterfaceName: null
+        manualConnectionRequestMessage: null
+      }
+    ]
+  : []
 
 resource app 'Microsoft.Web/sites@2025-03-01' existing = {
   name: appName

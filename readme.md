@@ -25,7 +25,7 @@ az deployment sub create --location eastus --template-file ./main.bicep --parame
 
 # Naming scheme
 
-Resource names should flow and be readable from broad identity to specific instance:
+Resource names should flow and be readable from broad resource type to specific instance:
 
 1. resource abbreviation
 2. system abbreviation
@@ -53,9 +53,9 @@ example for this template set: kv-iep-wus-dev-001, app-iep-eus-dev-tasks-001
 
 This template should keep naming consistent globally, while keeping final name creation close to the resource that owns the name.
 
-- Shared naming inputs should be declared explicitly in .bicepparams.
-- Shared naming inputs should flow through main into the modules that need them.
-- Resource abbreviations should stay local to the module that creates that resource.
+- Shared naming components should be declared explicitly in .bicepparams.
+- Shared naming components should flow through main into the modules that need them.
+- Resource abbreviations should stay local to the module that creates that specific resource.
 - Region abbreviation uses a shared map (because all resources are defined with a more fixed set of regions)
 - Resource specific naming schemes should be handled in the module for that resource.
 
@@ -65,12 +65,6 @@ This keeps naming readable and predictable without adding an extra abstraction l
 
 Considerations: Use Microsoft CAF abbreviations where Microsoft publishes one. Microsoft mixes abbreviations for the Microsoft.CDN provider between cdnp, cdne, fde, and afd. They use fde to convery frontdoor product vs where i would prefer to be technically honest and convery the actual resource type (cdn). But, for end user legibility purposes, afd and fd are sufficiently communicative. 
 
-Official CAF abbreviations used in this repo where Microsoft publishes one:
-
-- `agwfp` for `Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies`
-- `psqlfx` for `Microsoft.DBforPostgreSQL/flexibleServers`
-- `script` for `Microsoft.Resources/deploymentScripts`
-- `fde` for `Microsoft.Cdn/profiles/afdEndpoints`
 
 For resource types that don't have an official CAF abbreviation, this repo uses the following local conventions:
 

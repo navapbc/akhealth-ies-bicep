@@ -75,13 +75,9 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 import {
-  keyVaultPrivateEndpointType
   virtualNetworkLinkType
 } from '../shared/shared.types.bicep'
-@description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
-param privateEndpoints keyVaultPrivateEndpointType[]?
-
-@description('Optional. When true and no explicit private endpoints are provided, the module creates the default private endpoint wiring for the vault.')
+@description('Optional. When true, the module creates the standard private endpoint wiring for the vault.')
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
@@ -186,7 +182,7 @@ var resolvedKeyVaultNetworkAcls = !empty(networkAcls ?? {})
       ipRules: networkAcls.?ipRules ?? []
     }
   : null
-var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint && empty(privateEndpoints ?? [])
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'keyvault'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -220,7 +216,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         }
       }
     ]
-  : (privateEndpoints ?? [])
+  : []
 
 module keyVault_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-KeyVault-DefaultPrivateDnsZone'
