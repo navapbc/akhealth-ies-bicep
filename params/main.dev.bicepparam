@@ -4,16 +4,15 @@ using '../main.bicep'
 // Add or override more configuration blocks here as needed.
 
 param workloadName = '456ERT'
-param location = 'eastus'
+param location = 'eastus2'
 param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
 param instanceNumber = '001'
 param workloadDescription = ''
 
-param deployPrivateNetworking = false
-param deployFrontDoor = false
-param deployPostgreSql = false
+param deployPrivateNetworking = true
+param deployPostgreSql = true
 
 param tags = {
   environment: 'dev'
@@ -22,54 +21,53 @@ param tags = {
 }
 
 param spokeNetworkConfig = {
-  ingressOption: 'frontDoor'
+  ingressOption: 'frontDoor' //options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
-  appGwSubnetAddressSpace: ''
-  postgresSubnetAddressSpace: ''
-  hubVnetResourceId: ''
-  hubPeeringAllowForwardedTraffic: false
-  hubPeeringAllowGatewayTransit: false
-  hubPeeringAllowVirtualNetworkAccess: true
-  hubPeeringDoNotVerifyRemoteGateways: true
-  hubPeeringUseRemoteGateways: false
-  hubRemotePeeringEnabled: false
-  hubRemotePeeringAllowForwardedTraffic: true
-  hubRemotePeeringAllowGatewayTransit: false
-  hubRemotePeeringAllowVirtualNetworkAccess: true
-  hubRemotePeeringDoNotVerifyRemoteGateways: true
-  hubRemotePeeringUseRemoteGateways: false
-  firewallInternalIp: ''
+  postgreSqlPrivateAccessConfig: {
+    subnetAddressSpace: '10.240.10.0/28'
+  }
   enableEgressLockdown: false
   dnsServers: []
-  ddosProtectionPlanResourceId: ''
   disableBgpRoutePropagation: true
   encryption: false
   encryptionEnforcement: 'AllowUnencrypted'
   flowTimeoutInMinutes: 0
   enableVmProtection: false
   enablePrivateEndpointVNetPolicies: 'Disabled'
-  bgpCommunity: ''
   roleAssignments: []
   diagnosticSettings: []
 
   // Example hub peering configuration. Leave commented out unless you want to
   // override the default spoke-to-hub configs
   //
-  // hubVnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<hub-rg>/providers/Microsoft.Network/virtualNetworks/<hub-vnet>'
-  // hubPeeringAllowForwardedTraffic: false
-  // hubPeeringAllowGatewayTransit: false
-  // hubPeeringAllowVirtualNetworkAccess: true
-  // hubPeeringDoNotVerifyRemoteGateways: true
-  // hubPeeringUseRemoteGateways: false
+  // hubPeeringConfig: {
+  //   virtualNetworkResourceId: '/subscriptions/<subscription-id>/resourceGroups/<hub-rg>/providers/Microsoft.Network/virtualNetworks/<hub-vnet>'
+  //   virtualNetworkName: '<hub-vnet>'
+  //   resourceGroupName: '<hub-rg>'
+  //   subscriptionId: '<subscription-id>'
+  //   allowForwardedTraffic: false
+  //   allowGatewayTransit: false
+  //   allowVirtualNetworkAccess: true
+  //   doNotVerifyRemoteGateways: true
+  //   useRemoteGateways: false
+  //   reversePeeringConfig: {
+  //     allowForwardedTraffic: true
+  //     allowGatewayTransit: false
+  //     allowVirtualNetworkAccess: true
+  //     doNotVerifyRemoteGateways: true
+  //     useRemoteGateways: false
+  //   }
+  // }
   //
-  // hubRemotePeeringEnabled: true
-  // hubRemotePeeringAllowForwardedTraffic: true
-  // hubRemotePeeringAllowGatewayTransit: false
-  // hubRemotePeeringAllowVirtualNetworkAccess: true
-  // hubRemotePeeringDoNotVerifyRemoteGateways: true
-  // hubRemotePeeringUseRemoteGateways: false
+  // applicationGatewayConfig: {
+  //   subnetAddressSpace: '10.240.12.0/24'
+  // }
+  //
+  // egressFirewallConfig: {
+  //   internalIp: '10.0.0.4'
+  // }
   //
   // enablePrivateEndpointVNetPolicies: 'Basic'
 }
@@ -129,6 +127,29 @@ param appServiceConfig = {
   configs: []
   privateEndpoints: []
 
+  // Example app settings configuration. Keep final literal settings in
+  // `properties`. Use `useSolutionApplicationInsights` when you want this
+  // solution's App Insights component to provide
+  // `APPLICATIONINSIGHTS_CONNECTION_STRING`. Use `applicationInsights`
+  // when the upstream component already exists outside this deployment.
+  //
+  // configs: [
+  //   {
+  //     name: 'appsettings'
+  //     existingFunctionHostStorageAccount: {
+  //       name: 'stexample001'
+  //       resourceGroupName: 'rg-example'
+  //     }
+  //     applicationInsights: {
+  //       name: 'appi-example'
+  //       resourceGroupName: 'rg-example'
+  //     }
+  //     properties: {
+  //       ApplicationInsightsAgent_EXTENSION_VERSION: '~3'
+  //     }
+  //   }
+  // ]
+
   // Example slot configuration. Leave commented out unless you want to
   // override the default staging slot configs
   //
@@ -145,6 +166,8 @@ param appServiceConfig = {
   //     privateEndpoints: [
   //       {
   //         name: 'webApp-slot'
+  //         resourceGroupSubscriptionId: '<subscription-id>'
+  //         resourceGroupName: '<rg>'
   //         subnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>'
   //         privateDnsZoneGroup: {
   //           name: 'webApp-slot'
@@ -162,7 +185,7 @@ param appServiceConfig = {
 }
 
 // Example Key Vault configuration. Leave commented out unless you want to
-// override the default Key Vault bconfigs
+// override the default Key Vault configs
 //
 // param keyVaultConfig = {
 //   sku: 'standard'
@@ -249,11 +272,11 @@ param appInsightsConfig = {
   diagnosticSettings: []
 }
 
+//the group defined here cant be deployed in this worload set of templates
+//as groups are a tenant scoped resource
 param postgresqlAdminGroupConfig = {
-  workloadDescription: 'postgresqladmin'
-  description: 'Administrators for the workload PostgreSQL flexible server.'
-  members: []
-  owners: []
+  objectId: 'b58ff011-4384-42b9-b25c-26c5dfc26b06'
+  displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
 }
 
 param postgresqlConfig = {
@@ -270,6 +293,7 @@ param postgresqlConfig = {
   autoGrow: 'Enabled'
   version: '18'
   publicNetworkAccess: 'Disabled'
+  grantAppServiceIdentityReaderRole: true
   databases: [
     {
       name: 'appdb'
@@ -305,8 +329,14 @@ param appGatewayConfig = {
   enableFips: false
   enableRequestBuffering: false
   enableResponseBuffering: false
-  healthProbePath: '/healthz'
   loadDistributionPolicies: []
+  gatewayIPConfigurations: []
+  frontendIPConfigurations: []
+  frontendPorts: []
+  backendAddressPools: []
+  backendHttpSettingsCollection: []
+  probes: []
+  httpListeners: []
   privateEndpoints: []
   privateLinkConfigurations: []
   redirectConfigurations: []
@@ -316,13 +346,10 @@ param appGatewayConfig = {
   urlPathMaps: []
   backendSettingsCollection: []
   listeners: []
+  requestRoutingRules: []
   routingRules: []
   roleAssignments: []
   diagnosticSettings: []
-  backendRequestTimeout: 120
-  probeInterval: 30
-  probeTimeout: 30
-  probeUnhealthyThreshold: 3
   wafPolicySettings: {
     mode: 'Prevention'
     state: 'Enabled'
@@ -368,8 +395,6 @@ param frontDoorConfig = {
       ruleGroupOverrides: []
     }
   ]
-  healthProbePath: '/'
-  healthProbeIntervalInSeconds: 100
   customDomains: []
   ruleSets: []
   secrets: []
@@ -377,29 +402,63 @@ param frontDoorConfig = {
   originResponseTimeoutSeconds: 120
   autoApprovePrivateEndpoint: true
   afdPeAutoApproverIsolationScope: 'Regional'
-  endpointEnabledState: 'Enabled'
-  routePatternsToMatch: [
-    '/*'
+  originGroups: [
+    {
+      name: 'app-default'
+      healthProbeSettings: {
+        probePath: '/'
+        probeIntervalInSeconds: 100
+        probeRequestType: 'GET'
+        probeProtocol: 'Https'
+      }
+      loadBalancingSettings: {
+        sampleSize: 4
+        successfulSamplesRequired: 3
+        additionalLatencyInMilliseconds: 50
+      }
+      sessionAffinityState: 'Disabled'
+      trafficRestorationTimeToHealedOrNewEndpointsInMinutes: 10
+      origins: [
+        {
+          name: 'app-default'
+          httpPort: 80
+          httpsPort: 443
+          priority: 1
+          weight: 1000
+          enabledState: 'Enabled'
+          enforceCertificateNameCheck: true
+          sharedPrivateLink: {
+            requestMessage: 'frontdoor'
+            groupId: 'sites'
+          }
+        }
+      ]
+    }
   ]
-  routeForwardingProtocol: 'HttpsOnly'
-  routeLinkToDefaultDomain: 'Enabled'
-  routeHttpsRedirect: 'Enabled'
-  routeEnabledState: 'Enabled'
-  originHttpPort: 80
-  originHttpsPort: 443
-  originPriority: 1
-  originWeight: 1000
-  originEnabledState: 'Enabled'
-  originEnforceCertificateNameCheck: true
-  sharedPrivateLinkRequestMessage: 'frontdoor'
-  sharedPrivateLinkGroupId: 'sites'
-  loadBalancingSampleSize: 4
-  loadBalancingSuccessfulSamplesRequired: 3
-  loadBalancingAdditionalLatencyInMilliseconds: 50
-  healthProbeRequestType: 'GET'
-  healthProbeProtocol: 'Https'
-  sessionAffinityState: 'Disabled'
-  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: 10
+  afdEndpoints: [
+    {
+      name: 'default'
+      autoGeneratedDomainNameLabelScope: 'TenantReuse'
+      enabledState: 'Enabled'
+      routes: [
+        {
+          name: 'default'
+          originGroupName: 'app-default'
+          patternsToMatch: [
+            '/*'
+          ]
+          forwardingProtocol: 'HttpsOnly'
+          linkToDefaultDomain: 'Enabled'
+          httpsRedirect: 'Enabled'
+          enabledState: 'Enabled'
+          supportedProtocols: [
+            'Http'
+            'Https'
+          ]
+        }
+      ]
+    }
+  ]
   securityPatternsToMatch: [
     '/*'
   ]
@@ -417,7 +476,6 @@ param aseConfig = {
   ipsslAddressCount: 0
   multiSize: ''
   customDnsSuffixCertificateUrl: ''
-  customDnsSuffixKeyVaultReferenceIdentity: ''
   dedicatedHostCount: 0
   dnsSuffix: ''
   frontEndScaleFactor: 15
@@ -438,4 +496,6 @@ param logAnalyticsConfig = {
   disableLocalAuth: true
   publicNetworkAccessForIngestion: 'Enabled'
   publicNetworkAccessForQuery: 'Enabled'
+  roleAssignments: []
+  diagnosticSettings: []
 }

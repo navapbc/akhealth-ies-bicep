@@ -92,9 +92,9 @@ param registryAdapters resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.pro
 @description('Optional. A list of storage mounts for Managed Instance plans. Only applicable when isCustomMode is true.')
 param storageMounts resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.storageMounts?
 
-import { managedIdentityAllType } from '../shared/avm-common-types.bicep'
+import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
 @description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityAllType?
+param managedIdentities managedIdentityOnlySysAssignedType?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
@@ -117,18 +117,10 @@ var regionAbbreviation = regionAbbreviations[?location] ?? location
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 40)
 var resolvedName = derivedName
-var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
-var hasUserAssignedIdentities = !empty(userAssignedIdentityResourceIds)
-var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
-var formattedUserAssignedIdentities = reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
-var identityType = hasSystemAssignedIdentity
-  ? (hasUserAssignedIdentities ? 'SystemAssigned, UserAssigned' : 'SystemAssigned')
-  : (hasUserAssignedIdentities ? 'UserAssigned' : 'None')
-var identity = !empty(managedIdentities)
+var identity = hasSystemAssignedIdentity
   ? {
-      type: identityType
-      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : null
+      type: 'SystemAssigned'
     }
   : null
 

@@ -153,6 +153,11 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
 module virtualNetwork_subnets './virtual-network-subnet.bicep' = [
   for (subnet, index) in (subnets ?? []): {
     name: '${uniqueString(subscription().id, resourceGroup().id, location)}-subnet-${index}'
+    // The subnet module treats the VNet as an existing parent, so we need
+    // explicit ordering here to prevent ARM from racing the child deployments.
+    dependsOn: [
+      virtualNetwork
+    ]
     params: {
       virtualNetworkName: virtualNetwork.name
       name: subnet.name
@@ -205,12 +210,9 @@ module virtualNetwork_peering_remote './virtual-network-peering.bicep' = [
     dependsOn: [
       virtualNetwork_subnets
     ]
-    scope: resourceGroup(
-      split(peering.remoteVirtualNetworkResourceId, '/')[2],
-      split(peering.remoteVirtualNetworkResourceId, '/')[4]
-    )
+    scope: resourceGroup(peering.remoteVirtualNetworkSubscriptionId, peering.remoteVirtualNetworkResourceGroupName)
     params: {
-      localVnetName: last(split(peering.remoteVirtualNetworkResourceId, '/'))
+      localVnetName: peering.remoteVirtualNetworkName
       remoteVirtualNetworkResourceId: virtualNetwork.id
       name: peering.?remotePeeringName
       allowForwardedTraffic: peering.?remotePeeringAllowForwardedTraffic
@@ -304,11 +306,20 @@ output location string = virtualNetwork.location
 
 @export()
 type peeringType = {
-  @description('Optional. The Name of VNET Peering resource. If not provided, default value will be peer-localVnetName-remoteVnetName.')
-  name: string?
+  @description('Required. The name of the VNet peering resource.')
+  name: string
 
   @description('Required. The Resource ID of the VNet that is this Local VNet is being peered to. Should be in the format of a Resource ID.')
   remoteVirtualNetworkResourceId: string
+
+  @description('Required. The name of the remote virtual network.')
+  remoteVirtualNetworkName: string
+
+  @description('Required. The resource group name of the remote virtual network.')
+  remoteVirtualNetworkResourceGroupName: string
+
+  @description('Required. The subscription ID of the remote virtual network.')
+  remoteVirtualNetworkSubscriptionId: string
 
   @description('Optional. Whether the forwarded traffic from the VMs in the local virtual network will be allowed/disallowed in remote virtual network. Default is true.')
   allowForwardedTraffic: bool?
@@ -328,7 +339,7 @@ type peeringType = {
   @description('Optional. Deploy the outbound and the inbound peering.')
   remotePeeringEnabled: bool?
 
-  @description('Optional. The name of the VNET Peering resource in the remove Virtual Network. If not provided, default value will be peer-remoteVnetName-localVnetName.')
+  @description('Optional. The name of the VNet peering resource in the remote Virtual Network.')
   remotePeeringName: string?
 
   @description('Optional. Whether the forwarded traffic from the VMs in the local virtual network will be allowed/disallowed in remote virtual network. Default is true.')

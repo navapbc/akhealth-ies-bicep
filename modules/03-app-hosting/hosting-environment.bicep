@@ -39,14 +39,11 @@ param kind string = 'ASEv3'
 @description('Optional. Custom settings for changing the behavior of the App Service Environment.')
 param clusterSettings resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.properties.clusterSettings
 
-@description('Optional. Enable the default custom domain suffix to use for all sites deployed on the ASE. If provided, then customDnsSuffixCertificateUrl and customDnsSuffixKeyVaultReferenceIdentity are required.')
+@description('Optional. Enable the default custom domain suffix to use for all sites deployed on the ASE. If provided, then customDnsSuffixCertificateUrl is required.')
 param customDnsSuffix string?
 
 @description('Optional. The URL referencing the Azure Key Vault certificate secret that should be used as the default SSL/TLS certificate for sites with the custom domain suffix. Required if customDnsSuffix is not empty.')
 param customDnsSuffixCertificateUrl string?
-
-@description('Optional. The user-assigned identity to use for resolving the key vault certificate reference. Required if customDnsSuffix is not empty.')
-param customDnsSuffixKeyVaultReferenceIdentity string?
 
 @description('Optional. The Dedicated Host Count. If `zoneRedundant` is false, and you want physical hardware isolation enabled, set to 2. Otherwise 0.')
 param dedicatedHostCount int?
@@ -68,6 +65,9 @@ param upgradePreference resourceInput<'Microsoft.Web/hostingEnvironments@2025-03
 
 @description('Required. ResourceId for the subnet.')
 param subnetResourceId string
+
+@description('Required. Name of the subnet.')
+param subnetName string
 
 @description('Optional. Switch to make the App Service Environment zone redundant. If enabled, the minimum App Service plan instance count will be three, otherwise 1. If enabled, the `dedicatedHostCount` must be set to `-1`.')
 param zoneRedundant bool
@@ -137,7 +137,7 @@ resource appServiceEnvironment 'Microsoft.Web/hostingEnvironments@2025-03-01' = 
     networkingConfiguration: networkConfiguration
     virtualNetwork: {
       id: subnetResourceId
-      subnet: last(split(subnetResourceId, '/'))
+      subnet: subnetName
     }
     zoneRedundant: zoneRedundant
   }
@@ -147,9 +147,10 @@ module appServiceEnvironment_configurations_customDnsSuffix './hosting-environme
   name: '${uniqueString(deployment().name, location)}-AppServiceEnv-Configurations-CustomDnsSuffix'
   params: {
     hostingEnvironmentName: appServiceEnvironment.name
-    certificateUrl: customDnsSuffixCertificateUrl ?? ''
-    keyVaultReferenceIdentity: customDnsSuffixKeyVaultReferenceIdentity ?? ''
-    dnsSuffix: customDnsSuffix ?? ''
+    certificateUrl: !empty(customDnsSuffixCertificateUrl ?? '')
+      ? customDnsSuffixCertificateUrl!
+      : fail('When customDnsSuffix is set, customDnsSuffixCertificateUrl is required.')
+    dnsSuffix: customDnsSuffix!
   }
 }
 

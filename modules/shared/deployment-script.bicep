@@ -28,9 +28,8 @@ param location string = resourceGroup().location
 ])
 param kind string
 
-import { managedIdentityOnlyUserAssignedType } from './avm-common-types.bicep'
-@description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityOnlyUserAssignedType?
+@description('Optional. The user-assigned managed identity definition for this resource. This helper remains an explicit exception to the repo-wide system-assigned-only identity direction because Azure deployment scripts require this path for the current AFD auto-approval workflow.')
+param managedIdentities deploymentScriptManagedIdentityType?
 
 @description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.Resources/deploymentScripts@2021-12-01'>.tags?
@@ -79,8 +78,8 @@ param cleanupPreference string = 'Always'
 @description('Optional. Container group name, if not specified then the name will get auto-generated. Not specifying a \'containerGroupName\' indicates the system to generate a unique name which might end up flagging an Azure Policy as non-compliant. Use \'containerGroupName\' when you have an Azure Policy that expects a specific naming convention or when you want to fully control the name. \'containerGroupName\' property must be between 1 and 63 characters long, must contain only lowercase letters, numbers, and dashes and it cannot start or end with a dash and consecutive dashes are not allowed.')
 param containerGroupName string?
 
-@description('Optional. The resource ID of the storage account to use for this deployment script. If none is provided, the deployment script uses a temporary, managed storage account.')
-param storageAccountResourceId string = ''
+@description('Optional. Explicit reference to the storage account to use for this deployment script. If none is provided, the deployment script uses a temporary, managed storage account.')
+param storageAccountReference storageAccountReferenceType?
 
 @description('Optional. Maximum allowed script execution time specified in ISO 8601 format. Default value is PT1H - 1 hour; \'PT30M\' - 30 minutes; \'P5D\' - 5 days; \'P1Y\' 1 year.')
 param timeout string?
@@ -90,6 +89,7 @@ import { lockType } from './avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from './avm-common-types.bicep'
+import { builtInRoleNames } from './role-definitions.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
@@ -101,20 +101,6 @@ param roleAssignments roleAssignmentType[]?
 var resourceAbbreviation = 'dps'
 var regionAbbreviation = regionAbbreviations[?location] ?? location
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 90)
-
-var builtInRoleNames = {
-  Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-  Owner: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
-  Reader: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
-  'Role Based Access Control Administrator': subscriptionResourceId(
-    'Microsoft.Authorization/roleDefinitions',
-    'f58310d9-a9f6-439a-9e8d-f62e7b41a168'
-  )
-  'User Access Administrator': subscriptionResourceId(
-    'Microsoft.Authorization/roleDefinitions',
-    '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'
-  )
-}
 
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
@@ -149,25 +135,21 @@ var identity = !empty(managedIdentities)
     }
   : null
 
-var hasStorageAccountResourceId = !empty(storageAccountResourceId)
-var storageAccountResourceIdSegments = split(storageAccountResourceId, '/')
-var storageAccountSubscriptionId = hasStorageAccountResourceId ? storageAccountResourceIdSegments[2] : ''
-var storageAccountResourceGroupName = hasStorageAccountResourceId ? storageAccountResourceIdSegments[4] : ''
-var storageAccountName = hasStorageAccountResourceId ? last(storageAccountResourceIdSegments) : ''
+var hasStorageAccountReference = storageAccountReference != null
 var deploymentScriptContainerSettings = !empty(containerSettings) ? containerSettings : null
 var deploymentScriptAzPowerShellVersion = kind == 'AzurePowerShell' ? azPowerShellVersion : null
 var deploymentScriptAzCliVersion = kind == 'AzureCLI' ? azCliVersion : null
 var forceUpdateTag = runOnce ? resourceGroup().name : baseTime
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccountResourceId) {
-  name: storageAccountName
-  scope: resourceGroup(storageAccountSubscriptionId, storageAccountResourceGroupName)
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccountReference) {
+  name: storageAccountReference!.name
+  scope: resourceGroup(storageAccountReference!.subscriptionId, storageAccountReference!.resourceGroupName)
 }
 
-var deploymentScriptStorageAccountSettings = hasStorageAccountResourceId
+var deploymentScriptStorageAccountSettings = hasStorageAccountReference
   ? {
       storageAccountKey: empty(subnetResourceIds) ? storageAccount!.listKeys().keys[0].value : null
-      storageAccountName: storageAccountName
+      storageAccountName: storageAccountReference!.name
     }
   : null
 
@@ -267,3 +249,19 @@ type environmentVariableType = {
   @description('Conditional. The value of the environment variable. Required if `secureValue` is null.')
   value: string?
 }
+
+type deploymentScriptManagedIdentityType = {
+  @description('Required. The resource ID(s) of the user-assigned managed identities to assign to the deployment script.')
+  userAssignedResourceIds: string[]
+}?
+
+type storageAccountReferenceType = {
+  @description('Required. The subscription ID that owns the storage account.')
+  subscriptionId: string
+
+  @description('Required. The resource group name that owns the storage account.')
+  resourceGroupName: string
+
+  @description('Required. The storage account name.')
+  name: string
+}?

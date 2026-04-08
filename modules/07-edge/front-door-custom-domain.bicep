@@ -11,13 +11,13 @@ param profileName string
 param hostName string
 
 @description('Optonal. Resource reference to the Azure DNS zone.')
-param azureDnsZoneResourceId string = ''
+param azureDnsZoneResourceId string?
 
 @description('Optional. Key-Value pair representing migration properties for domains.')
 param extendedProperties resourceInput<'Microsoft.Cdn/profiles/customDomains@2025-06-01'>.properties.extendedProperties?
 
 @description('Optional. Resource reference to the Azure resource where custom domain ownership was prevalidated.')
-param preValidatedCustomDomainResourceId string = ''
+param preValidatedCustomDomainResourceId string?
 
 @allowed([
   'AzureFirstPartyManagedCertificate'
@@ -33,10 +33,10 @@ param certificateType string
   'TLS13'
 ])
 @description('Optional. The minimum TLS version required for the custom domain. Default value: TLS12.')
-param minimumTlsVersion string = 'TLS12'
+param minimumTlsVersion string?
 
 @description('Optional. The name of the secret. ie. subs/rg/profile/secret.')
-param secretName string = ''
+param secretName string?
 
 @description('Optional. The cipher suite set type that will be used for Https.')
 param cipherSuiteSetType string?
@@ -44,12 +44,18 @@ param cipherSuiteSetType string?
 @description('Optional. The customized cipher suite set that will be used for Https. Required if cipherSuiteSetType is Customized.')
 param customizedCipherSuiteSet resourceInput<'Microsoft.Cdn/profiles/customDomains@2025-06-01'>.properties.tlsSettings.customizedCipherSuiteSet?
 
+var resolvedSecretName = certificateType == 'CustomerCertificate'
+  ? (secretName != null
+      ? secretName
+      : fail('Front Door custom domains using CustomerCertificate require secretName to be declared explicitly.'))
+  : secretName
+
 
 resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
   name: profileName
 
-  resource secret 'secrets@2025-04-15' existing = if (!empty(secretName)) {
-    name: secretName
+  resource secret 'secrets@2025-04-15' existing = if (resolvedSecretName != null) {
+    name: resolvedSecretName!
   }
 }
 
@@ -57,14 +63,14 @@ resource customDomain 'Microsoft.Cdn/profiles/customDomains@2025-06-01' = {
   name: name
   parent: profile
   properties: {
-    azureDnsZone: !empty(azureDnsZoneResourceId)
+    azureDnsZone: azureDnsZoneResourceId != null
       ? {
           id: azureDnsZoneResourceId
         }
       : null
     extendedProperties: extendedProperties
     hostName: hostName
-    preValidatedCustomDomainResourceId: !empty(preValidatedCustomDomainResourceId)
+    preValidatedCustomDomainResourceId: preValidatedCustomDomainResourceId != null
       ? {
           id: preValidatedCustomDomainResourceId
         }
@@ -74,7 +80,7 @@ resource customDomain 'Microsoft.Cdn/profiles/customDomains@2025-06-01' = {
       cipherSuiteSetType: cipherSuiteSetType
       customizedCipherSuiteSet: customizedCipherSuiteSet
       minimumTlsVersion: minimumTlsVersion
-      secret: !(empty(secretName))
+      secret: resolvedSecretName != null
         ? {
             id: profile::secret.id
           }

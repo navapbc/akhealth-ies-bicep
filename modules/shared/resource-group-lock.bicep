@@ -1,3 +1,5 @@
+import { lockType } from './avm-common-types.bicep'
+
 @description('Optional. The lock settings of the service.')
 param lock lockType
 
@@ -11,15 +13,3 @@ resource resourceGroup_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!em
     notes: lock.?kind == 'CanNotDelete' ? 'Cannot delete resource or child resources.' : 'Cannot delete or modify the resource or child resources.'
   }
 }
-
-// =============== //
-//   Definitions   //
-// =============== //
-
-type lockType = {
-  @description('Optional. Specify the name of lock.')
-  name: string?
-
-  @description('Optional. Specify the type of lock.')
-  kind: ('CanNotDelete' | 'ReadOnly' | 'None')?
-}?

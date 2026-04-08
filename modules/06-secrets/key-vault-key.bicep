@@ -11,7 +11,7 @@ param name string
 param tags resourceInput<'Microsoft.KeyVault/vaults/keys@2024-11-01'>.tags?
 
 @description('Optional. Determines whether the object is enabled.')
-param attributesEnabled bool = true
+param attributesEnabled bool?
 
 @description('Optional. Expiry date in seconds since 1970-01-01T00:00:00Z. For security reasons, it is recommended to set an expiration date whenever possible.')
 param attributesExp int?
@@ -20,13 +20,7 @@ param attributesExp int?
 param attributesNbf int?
 
 @description('Optional. The elliptic curve name.')
-@allowed([
-  'P-256'
-  'P-256K'
-  'P-384'
-  'P-521'
-])
-param curveName string = 'P-256'
+param curveName ('P-256' | 'P-256K' | 'P-384' | 'P-521')?
 
 @description('Optional. Array of JsonWebKeyOperation.')
 @allowed([
@@ -43,14 +37,8 @@ param keyOps string[]?
 @description('Optional. The key size in bits. For example: 2048, 3072, or 4096 for RSA.')
 param keySize int?
 
-@description('Optional. The type of the key.')
-@allowed([
-  'EC'
-  'EC-HSM'
-  'RSA'
-  'RSA-HSM'
-])
-param kty string = 'EC'
+@description('Required. The type of the key.')
+param kty ('EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM')
 
 @description('Optional. Key release policy.')
 param releasePolicy object?
@@ -126,11 +114,23 @@ resource key 'Microsoft.KeyVault/vaults/keys@2024-11-01' = {
       exp: attributesExp
       nbf: attributesNbf
     }
-    curveName: curveName
     keyOps: keyOps
-    keySize: keySize
     kty: kty
-    release_policy: releasePolicy ?? {}
+    ...(!empty(curveName)
+      ? {
+          curveName: curveName
+        }
+      : {})
+    ...(keySize != null
+      ? {
+          keySize: keySize
+        }
+      : {})
+    ...(!empty(releasePolicy ?? {})
+      ? {
+          release_policy: releasePolicy
+        }
+      : {})
     ...(!empty(rotationPolicy)
       ? {
           rotationPolicy: rotationPolicy

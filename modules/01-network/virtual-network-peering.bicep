@@ -1,8 +1,8 @@
 metadata name = 'Virtual Network Peerings'
 metadata description = 'This module deploys a Virtual Network Peering.'
 
-@description('Optional. The Name of VNET Peering resource. If not provided, default value will be localVnetName-remoteVnetName.')
-param name string = 'peer-${localVnetName}-${last(split(remoteVirtualNetworkResourceId, '/'))}'
+@description('Required. The name of the VNet peering resource.')
+param name string
 
 @description('Conditional. The name of the parent Virtual Network to add the peering to. Required if the template is used in a standalone deployment.')
 param localVnetName string

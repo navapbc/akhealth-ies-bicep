@@ -48,9 +48,9 @@ param clientAffinityPartitioningEnabled bool
 @description('Optional. The resource ID of the app service environment to use for this resource.')
 param appServiceEnvironmentResourceId string?
 
-import { managedIdentityAllType } from '../shared/avm-common-types.bicep'
+import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
 @description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityAllType?
+param managedIdentities managedIdentityOnlySysAssignedType?
 
 @description('Optional. The resource ID of the assigned identity to be used to access a key vault with.')
 param keyVaultAccessIdentityResourceId string?
@@ -66,6 +66,15 @@ param siteConfig resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.propertie
 
 @description('Optional. The Function App config object.')
 param functionAppConfig resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.functionAppConfig?
+
+@description('Optional. Solution-managed Application Insights component used when app settings request the solution deployment path.')
+param solutionApplicationInsightsComponent {
+  @description('Required. Name of the Application Insights component.')
+  name: string
+
+  @description('Required. Resource group name of the Application Insights component.')
+  resourceGroupName: string
+}?
 
 @description('Optional. The web site config.')
 param configs configType[]?
@@ -168,20 +177,10 @@ param scmSiteAlsoStopped bool
 @description('Optional. End to End Encryption Setting.')
 param e2eEncryptionEnabled bool?
 
-
-
-var userAssignedIdentityResourceIds = managedIdentities.?userAssignedResourceIds ?? []
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
-var hasUserAssignedIdentities = !empty(userAssignedIdentityResourceIds)
-var userAssignedIdentityEntries = [for id in userAssignedIdentityResourceIds: { '${id}': {} }]
-var formattedUserAssignedIdentities = reduce(userAssignedIdentityEntries, {}, (cur, next) => union(cur, next))
-var identityType = hasSystemAssignedIdentity
-  ? (hasUserAssignedIdentities ? 'SystemAssigned, UserAssigned' : 'SystemAssigned')
-  : (hasUserAssignedIdentities ? 'UserAssigned' : null)
-var identity = !empty(managedIdentities)
+var identity = hasSystemAssignedIdentity
   ? {
-      type: identityType
-      userAssignedIdentities: hasUserAssignedIdentities ? formattedUserAssignedIdentities : null
+      type: 'SystemAssigned'
     }
   : null
 
@@ -203,13 +202,14 @@ var formattedRoleAssignments = [
 
 var resolvedSlotPrivateEndpoints = [
   for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupResourceId: privateEndpoint.?resourceGroupResourceId ?? resourceGroup().id
-    name: privateEndpoint.?name ?? 'pep-${last(split(app.id, '/'))}-${privateEndpoint.?service ?? 'sites-${slot.name}'}-${index}'
-    service: privateEndpoint.?service ?? 'sites-${slot.name}'
+    resourceGroupName: privateEndpoint.resourceGroupName
+    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
+    name: privateEndpoint.name
+    service: privateEndpoint.service
     isManualConnection: privateEndpoint.?isManualConnection == true
-    privateLinkServiceConnectionName: privateEndpoint.?privateLinkServiceConnectionName ?? '${last(split(app.id, '/'))}-${privateEndpoint.?service ?? 'sites-${slot.name}'}-${index}'
+    privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
     subnetResourceId: privateEndpoint.subnetResourceId
-    location: privateEndpoint.?location
+    location: privateEndpoint.location
     lock: privateEndpoint.?lock ?? lock
     privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
     roleAssignments: privateEndpoint.?roleAssignments
@@ -218,7 +218,7 @@ var resolvedSlotPrivateEndpoints = [
     ipConfigurations: privateEndpoint.?ipConfigurations
     applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
     customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage ?? 'Manual approval required.'
+    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage
   }
 ]
 
@@ -293,19 +293,21 @@ module slot_basicPublishingCredentialsPolicies './web-site-slot-basic-publishing
 ]
 module slot_config './web-site-slot-config.bicep' = [
   for (config, index) in (configs ?? []): {
-    name: '${uniqueString(deployment().name, location)}-Slot-Config-${index}'
-    params: {
-      appName: app.name
-      name: config.name
-      slotName: slot.name
-      applicationInsightResourceId: config.?applicationInsightResourceId
-      properties: config.?properties
-      currentAppSettings: config.?retainCurrentAppSettings ?? true && config.name == 'appsettings'
-        ? list('${slot.id}/config/appsettings', '2023-12-01').properties
-        : {}
-      storageAccountResourceId: config.?storageAccountResourceId
-      storageAccountUseIdentityAuthentication: config.?storageAccountUseIdentityAuthentication
-    }
+      name: '${uniqueString(deployment().name, location)}-Slot-Config-${index}'
+      params: {
+        appName: app.name
+        name: config.name
+        slotName: slot.name
+        functionHostStorageAccount: config.?existingFunctionHostStorageAccount
+        applicationInsightsComponent: (config.?useSolutionApplicationInsights ?? false) && (config.?applicationInsights != null)
+          ? fail('A slot appsettings config cannot declare both useSolutionApplicationInsights and applicationInsights. Choose one Application Insights source.')
+          : ((config.?useSolutionApplicationInsights ?? false) && (solutionApplicationInsightsComponent == null)
+              ? fail('A slot appsettings config with useSolutionApplicationInsights requires solutionApplicationInsightsComponent to be provided to the slot module.')
+              : ((config.?useSolutionApplicationInsights ?? false)
+                  ? solutionApplicationInsightsComponent
+                  : config.?applicationInsights))
+        properties: config.?properties
+      }
   }
 ]
 
@@ -382,10 +384,7 @@ resource slot_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-0
 module slot_privateEndpoints '../01-network/private-endpoint.bicep' = [
   for (privateEndpoint, index) in resolvedSlotPrivateEndpoints: {
     name: '${uniqueString(deployment().name, location)}-slot-PrivateEndpoint-${index}'
-    scope: resourceGroup(
-      split(privateEndpoint.resourceGroupResourceId, '/')[2],
-      split(privateEndpoint.resourceGroupResourceId, '/')[4]
-    )
+    scope: resourceGroup(privateEndpoint.resourceGroupSubscriptionId, privateEndpoint.resourceGroupName)
     params: {
       name: privateEndpoint.name
       privateLinkServiceConnections: !privateEndpoint.isManualConnection
@@ -416,11 +415,7 @@ module slot_privateEndpoints '../01-network/private-endpoint.bicep' = [
           ]
         : null
       subnetResourceId: privateEndpoint.subnetResourceId
-      location: privateEndpoint.location ?? reference(
-        split(privateEndpoint.subnetResourceId, '/subnets/')[0],
-        '2020-06-01',
-        'Full'
-      ).location
+      location: privateEndpoint.location
       lock: privateEndpoint.lock
       privateDnsZoneGroup: privateEndpoint.privateDnsZoneGroup
       roleAssignments: privateEndpoint.roleAssignments
@@ -507,23 +502,38 @@ type appSettingsConfigType = {
   @description('Required. The type of config.')
   name: 'appsettings'
 
-  @description('Optional. If the provided storage account requires Identity based authentication (\'allowSharedKeyAccess\' is set to false). When set to true, the minimum role assignment required for the App Service Managed Identity to the storage account is \'Storage Blob Data Owner\'.')
-  storageAccountUseIdentityAuthentication: bool?
+  @description('Optional. Existing storage account reference used to derive the function host storage app settings. This path assumes system-assigned managed identity access.')
+  existingFunctionHostStorageAccount: storageAccountReferenceType?
 
-  @description('Optional. Required if app of kind functionapp. Resource ID of the storage account to manage triggers and logging function executions.')
-  storageAccountResourceId: string?
+  @description('Optional. When true, derive the application insights connection string from the solution-managed Application Insights component passed into the module.')
+  useSolutionApplicationInsights: bool?
 
-  @description('Optional. Resource ID of the application insight to leverage for this resource.')
-  applicationInsightResourceId: string?
+  @description('Optional. Application Insights component reference used to derive the application insights connection string app setting when not using the solution-managed component.')
+  applicationInsights: applicationInsightsComponentReferenceType?
 
-  @description('Optional. The retain the current app settings. Defaults to true.')
-  retainCurrentAppSettings: bool?
-
-  @description('Optional. The app settings key-value pairs except for AzureWebJobsStorage, AzureWebJobsDashboard, APPINSIGHTS_INSTRUMENTATIONKEY and APPLICATIONINSIGHTS_CONNECTION_STRING.')
+  @description('Optional. Explicit app settings to apply. Include any non-derived monitoring agent settings here when needed.')
   properties: {
     @description('Required. An app settings key-value pair.')
     *: string
   }?
+}
+
+@export()
+type applicationInsightsComponentReferenceType = {
+  @description('Required. Name of the Application Insights component.')
+  name: string
+
+  @description('Required. Resource group name of the Application Insights component.')
+  resourceGroupName: string
+}
+
+@export()
+type storageAccountReferenceType = {
+  @description('Required. Name of the storage account.')
+  name: string
+
+  @description('Required. Resource group name of the storage account.')
+  resourceGroupName: string
 }
 
 @export()

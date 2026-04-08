@@ -10,9 +10,6 @@ param dnsSuffix string
 @description('Required. The URL referencing the Azure Key Vault certificate secret that should be used as the default SSL/TLS certificate for sites with the custom domain suffix.')
 param certificateUrl string
 
-@description('Required. The user-assigned identity to use for resolving the key vault certificate reference.')
-param keyVaultReferenceIdentity string
-
 resource appServiceEnvironment 'Microsoft.Web/hostingEnvironments@2025-03-01' existing = {
   name: hostingEnvironmentName
 }
@@ -22,7 +19,9 @@ resource configuration 'Microsoft.Web/hostingEnvironments/configurations@2025-03
   parent: appServiceEnvironment
   properties: {
     certificateUrl: certificateUrl
-    keyVaultReferenceIdentity: keyVaultReferenceIdentity
+    // Microsoft documents the literal "systemassigned" for ASE custom DNS suffix Key Vault references.
+    // https://learn.microsoft.com/en-us/azure/app-service/environment/how-to-custom-domain-suffix
+    keyVaultReferenceIdentity: 'systemassigned'
     dnsSuffix: dnsSuffix
   }
 }

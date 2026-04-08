@@ -13,7 +13,7 @@ param name string
 param tags resourceInput<'Microsoft.KeyVault/vaults/secrets@2024-11-01'>.tags?
 
 @description('Optional. Determines whether the object is enabled.')
-param attributesEnabled bool = true
+param attributesEnabled bool?
 
 @description('Optional. Expiry date in seconds since 1970-01-01T00:00:00Z. For security reasons, it is recommended to set an expiration date whenever possible.')
 param attributesExp int?

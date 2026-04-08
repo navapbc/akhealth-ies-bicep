@@ -8,7 +8,7 @@ import {
   diagnosticSettingLogsOnlyType
   lockType
   roleAssignmentType
-  managedIdentityAllType
+  managedIdentityOnlySysAssignedType
   privateEndpointSingleServiceType
 } from './avm-common-types.bicep'
 
@@ -83,50 +83,71 @@ type spokeNetworkConfigType = {
   @description('Required. CIDR of the private endpoint subnet.')
   privateEndpointSubnetAddressSpace: string
 
-  @description('Required. CIDR of the Application Gateway subnet. Use an empty string when ingressOption is not "applicationGateway".')
-  appGwSubnetAddressSpace: string
+  @description('Optional. Application Gateway network configuration. Omit this object when ingressOption is not "applicationGateway".')
+  applicationGatewayConfig: {
+    @description('Required. CIDR of the Application Gateway subnet.')
+    subnetAddressSpace: string
+  }?
 
-  @description('Required. CIDR of the PostgreSQL delegated subnet. Use an empty string when PostgreSQL private access is not intended.')
-  postgresSubnetAddressSpace: string
+  @description('Optional. PostgreSQL private access network configuration. Omit this object when PostgreSQL delegated subnet access is not intended.')
+  postgreSqlPrivateAccessConfig: {
+    @description('Required. CIDR of the PostgreSQL delegated subnet.')
+    subnetAddressSpace: string
+  }?
 
-  @description('Required. Resource ID of an existing hub VNet to peer with. Use an empty string when no peering is required.')
-  hubVnetResourceId: string
+  @description('Optional. Existing hub VNet peering configuration. Omit this object when no hub peering is required.')
+  hubPeeringConfig: {
+    @description('Required. Resource ID of the existing hub VNet.')
+    virtualNetworkResourceId: string
 
-  @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
-  hubPeeringAllowForwardedTraffic: bool
+    @description('Required. Name of the existing hub VNet.')
+    virtualNetworkName: string
 
-  @description('Required. Allow gateway transit on the spoke-to-hub peering.')
-  hubPeeringAllowGatewayTransit: bool
+    @description('Required. Resource group name of the existing hub VNet.')
+    resourceGroupName: string
 
-  @description('Required. Allow virtual network access on the spoke-to-hub peering.')
-  hubPeeringAllowVirtualNetworkAccess: bool
+    @description('Required. Subscription ID of the existing hub VNet.')
+    subscriptionId: string
 
-  @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
-  hubPeeringDoNotVerifyRemoteGateways: bool
+    @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
+    allowForwardedTraffic: bool
 
-  @description('Required. Use remote gateways on the spoke-to-hub peering.')
-  hubPeeringUseRemoteGateways: bool
+    @description('Required. Allow gateway transit on the spoke-to-hub peering.')
+    allowGatewayTransit: bool
 
-  @description('Required. Create the reverse hub-to-spoke peering as well.')
-  hubRemotePeeringEnabled: bool
+    @description('Required. Allow virtual network access on the spoke-to-hub peering.')
+    allowVirtualNetworkAccess: bool
 
-  @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
-  hubRemotePeeringAllowForwardedTraffic: bool
+    @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
+    doNotVerifyRemoteGateways: bool
 
-  @description('Required. Allow gateway transit on the hub-to-spoke peering.')
-  hubRemotePeeringAllowGatewayTransit: bool
+    @description('Required. Use remote gateways on the spoke-to-hub peering.')
+    useRemoteGateways: bool
 
-  @description('Required. Allow virtual network access on the hub-to-spoke peering.')
-  hubRemotePeeringAllowVirtualNetworkAccess: bool
+    @description('Optional. Reverse hub-to-spoke peering settings. Omit this object when the reverse peering should not be created.')
+    reversePeeringConfig: {
+      @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
+      allowForwardedTraffic: bool
 
-  @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
-  hubRemotePeeringDoNotVerifyRemoteGateways: bool
+      @description('Required. Allow gateway transit on the hub-to-spoke peering.')
+      allowGatewayTransit: bool
 
-  @description('Required. Use remote gateways on the hub-to-spoke peering.')
-  hubRemotePeeringUseRemoteGateways: bool
+      @description('Required. Allow virtual network access on the hub-to-spoke peering.')
+      allowVirtualNetworkAccess: bool
 
-  @description('Required. Internal IP of the Azure Firewall in the hub. Use an empty string when no firewall egress route is required.')
-  firewallInternalIp: string
+      @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
+      doNotVerifyRemoteGateways: bool
+
+      @description('Required. Use remote gateways on the hub-to-spoke peering.')
+      useRemoteGateways: bool
+    }?
+  }?
+
+  @description('Optional. Egress firewall configuration. Omit this object when egress traffic is not routed through a hub firewall.')
+  egressFirewallConfig: {
+    @description('Required. Internal IP of the Azure Firewall in the hub.')
+    internalIp: string
+  }?
 
   @description('Required. Ingress option: "frontDoor", "applicationGateway", or "none".')
   ingressOption: ('frontDoor' | 'applicationGateway' | 'none')
@@ -137,8 +158,8 @@ type spokeNetworkConfigType = {
   @description('Required. Custom DNS servers for the spoke VNet. Use an empty array when Azure-provided DNS is intended.')
   dnsServers: string[]
 
-  @description('Required. Resource ID of a DDoS Protection Plan to associate with the spoke VNet. Use an empty string when none is intended.')
-  ddosProtectionPlanResourceId: string
+  @description('Optional. Resource ID of a DDoS Protection Plan to associate with the spoke VNet.')
+  ddosProtectionPlanResourceId: string?
 
   @description('Required. Whether to disable BGP route propagation on the route table.')
   disableBgpRoutePropagation: bool
@@ -158,8 +179,8 @@ type spokeNetworkConfigType = {
   @description('Required. Virtual network private endpoint policies setting. Use "Basic" for high-scale private endpoint scenarios, otherwise "Disabled".')
   enablePrivateEndpointVNetPolicies: ('Basic' | 'Disabled')
 
-  @description('Required. The BGP community for the VNet. Use an empty string when none is intended.')
-  bgpCommunity: string
+  @description('Optional. The BGP community for the VNet.')
+  bgpCommunity: string?
 
   @description('Optional. Resource lock for the spoke virtual network.')
   lock: lockType?
@@ -233,7 +254,7 @@ type servicePlanConfigType = {
   storageMounts: array
 
   @description('Required. Managed identities for the App Service Plan.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Optional. Resource lock for the App Service Plan.')
   lock: lockType?
@@ -318,7 +339,7 @@ type appServiceConfigType = {
   keyVaultAccessIdentityResourceId: string?
 
   @description('Required. Managed identities assigned to the web app.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Optional. Extensions configuration for the web app.')
   extensions: array?
@@ -435,7 +456,7 @@ type appServiceSlotConfigType = {
   appServiceEnvironmentResourceId: string?
 
   @description('Optional. The managed identity definition for this slot.')
-  managedIdentities: managedIdentityAllType?
+  managedIdentities: managedIdentityOnlySysAssignedType?
 
   @description('Optional. The resource ID of the assigned identity to be used to access a Key Vault.')
   keyVaultAccessIdentityResourceId: string?
@@ -563,6 +584,91 @@ type appServiceSlotConfigType = {
 // ======================== //
 
 @export()
+@description('Explicit private endpoint configuration for a Key Vault.')
+type keyVaultPrivateEndpointType = {
+  @description('Required. The name of the private endpoint.')
+  name: string
+
+  @description('Required. The location to deploy the private endpoint to.')
+  location: string
+
+  @description('Required. The resource group name where the private endpoint will be created.')
+  resourceGroupName: string
+
+  @description('Required. The name of the private link service connection to create.')
+  privateLinkServiceConnectionName: string
+
+  @description('Required. The Key Vault subresource to connect to.')
+  service: 'vault'
+
+  @description('Required. Resource ID of the subnet where the endpoint needs to be created.')
+  subnetResourceId: string
+
+  @description('Optional. The private DNS zone group to configure for the private endpoint.')
+  privateDnsZoneGroup: {
+    @description('Optional. The name of the private DNS zone group.')
+    name: string?
+
+    @description('Required. The private DNS zone group configs to associate with the private endpoint.')
+    privateDnsZoneGroupConfigs: {
+      @description('Required. The name of the private DNS zone group config.')
+      name: string
+
+      @description('Required. The resource ID of the private DNS zone.')
+      privateDnsZoneResourceId: string
+    }[]
+  }?
+
+  @description('Required. If manual private link connection approval is required.')
+  isManualConnection: bool
+
+  @description('Optional. A message passed to the owner of the remote resource with the manual connection request.')
+  manualConnectionRequestMessage: string?
+
+  @description('Optional. Custom DNS configurations.')
+  customDnsConfigs: {
+    @description('Optional. FQDN that resolves to private endpoint IP address.')
+    fqdn: string?
+
+    @description('Required. A list of private IP addresses of the private endpoint.')
+    ipAddresses: string[]
+  }[]?
+
+  @description('Optional. A list of IP configurations of the private endpoint.')
+  ipConfigurations: {
+    @description('Required. The name of the IP configuration.')
+    name: string
+
+    @description('Required. Properties of private endpoint IP configurations.')
+    properties: {
+      @description('Required. The ID of a group obtained from the remote resource that this private endpoint should connect to.')
+      groupId: string
+
+      @description('Required. The member name of a group obtained from the remote resource that this private endpoint should connect to.')
+      memberName: string
+
+      @description('Required. A private IP address obtained from the private endpoint subnet.')
+      privateIPAddress: string
+    }
+  }[]?
+
+  @description('Optional. Application security groups in which the private endpoint IP configuration is included.')
+  applicationSecurityGroupResourceIds: string[]?
+
+  @description('Optional. The custom name of the network interface attached to the private endpoint.')
+  customNetworkInterfaceName: string?
+
+  @description('Optional. Resource lock for the private endpoint.')
+  lock: lockType?
+
+  @description('Optional. Role assignments for the private endpoint.')
+  roleAssignments: roleAssignmentType[]?
+
+  @description('Optional. Tags for the private endpoint.')
+  tags: resourceInput<'Microsoft.Network/privateEndpoints@2024-07-01'>.tags?
+}
+
+@export()
 @description('Configuration for the Key Vault.')
 type keyVaultConfigType = {
   @description('Required. Enable purge protection.')
@@ -596,10 +702,10 @@ type keyVaultConfigType = {
   networkAcls: object
 
   @description('Required. Public network access for the Key Vault.')
-  publicNetworkAccess: ('Enabled' | 'Disabled' | '')
+  publicNetworkAccess: ('Enabled' | 'Disabled')
 
   @description('Required. Private endpoints for the Key Vault.')
-  privateEndpoints: privateEndpointSingleServiceType[]
+  privateEndpoints: keyVaultPrivateEndpointType[]
 
   @description('Optional. Resource lock for the Key Vault.')
   lock: lockType?
@@ -694,6 +800,15 @@ type logAnalyticsConfigType = {
 
   @description('Required. Public network access for query.')
   publicNetworkAccessForQuery: ('Enabled' | 'Disabled')
+
+  @description('Optional. Resource lock for the Log Analytics workspace.')
+  lock: lockType?
+
+  @description('Required. Role assignments for the Log Analytics workspace.')
+  roleAssignments: roleAssignmentType[]
+
+  @description('Required. Diagnostic settings for the Log Analytics workspace.')
+  diagnosticSettings: diagnosticSettingFullType[]
 }
 
 // ======================== //
@@ -718,14 +833,11 @@ type appGatewayConfigType = {
   @description('Required. Availability zones for the Application Gateway and its public IP.')
   availabilityZones: int[]
 
-  @description('Required. Health probe path for backend health checks.')
-  healthProbePath: string
-
   @description('Required. SSL certificates for HTTPS termination.')
   sslCertificates: array
 
   @description('Required. Managed identities for Key Vault-referenced SSL certificates.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Required. Trusted root certificates for end-to-end SSL.')
   trustedRootCertificates: array
@@ -778,6 +890,30 @@ type appGatewayConfigType = {
   @description('Required. Rewrite rule sets.')
   rewriteRuleSets: array
 
+  @description('Required. Gateway IP configurations.')
+  gatewayIPConfigurations: array
+
+  @description('Required. Frontend IP configurations.')
+  frontendIPConfigurations: array
+
+  @description('Required. Frontend ports.')
+  frontendPorts: array
+
+  @description('Required. Backend address pools.')
+  backendAddressPools: array
+
+  @description('Required. Backend HTTP settings collection.')
+  backendHttpSettingsCollection: array
+
+  @description('Required. Health probes.')
+  probes: array
+
+  @description('Required. HTTP listeners.')
+  httpListeners: array
+
+  @description('Required. Request routing rules.')
+  requestRoutingRules: array
+
   @description('Required. SSL profiles.')
   sslProfiles: array
 
@@ -802,18 +938,6 @@ type appGatewayConfigType = {
   @description('Required. Diagnostic settings for the Application Gateway.')
   diagnosticSettings: diagnosticSettingFullType[]
 
-  @description('Required. Backend request timeout in seconds.')
-  backendRequestTimeout: int
-
-  @description('Required. Probe interval in seconds.')
-  probeInterval: int
-
-  @description('Required. Probe timeout in seconds.')
-  probeTimeout: int
-
-  @description('Required. Probe unhealthy threshold.')
-  probeUnhealthyThreshold: int
-
   @description('Required. WAF policy settings for the Application Gateway.')
   wafPolicySettings: object
 
@@ -826,25 +950,141 @@ type appGatewayConfigType = {
 // ======================== //
 
 @export()
+@description('Configuration for a Front Door shared private link to the workload web app.')
+type frontDoorAppServiceOriginPrivateLinkType = {
+  @description('Required. Shared Private Link approval message.')
+  requestMessage: string
+
+  @description('Required. Shared Private Link group ID.')
+  groupId: string
+}
+
+@export()
+@description('Configuration for a Front Door origin that targets the workload web app.')
+type frontDoorAppServiceOriginConfigType = {
+  @description('Required. Name of the origin.')
+  name: string
+
+  @description('Required. Whether the origin is enabled.')
+  enabledState: ('Enabled' | 'Disabled')
+
+  @description('Required. Whether Front Door enforces certificate name checks for the origin.')
+  enforceCertificateNameCheck: bool
+
+  @description('Required. Origin HTTP port.')
+  httpPort: int
+
+  @description('Required. Origin HTTPS port.')
+  httpsPort: int
+
+  @description('Required. Origin priority.')
+  priority: int
+
+  @description('Required. Origin weight.')
+  weight: int
+
+  @description('Optional. Shared private link configuration to the workload web app. Omit this object to use a public origin path.')
+  sharedPrivateLink: frontDoorAppServiceOriginPrivateLinkType?
+}
+
+@export()
+@description('Configuration for a Front Door origin group.')
+type frontDoorOriginGroupConfigType = {
+  @description('Required. Name of the origin group.')
+  name: string
+
+  @description('Optional. Settings for Origin Authentication.')
+  authentication: resourceInput<'Microsoft.Cdn/profiles/originGroups@2025-06-01'>.properties.authentication?
+
+  @description('Optional. Health probe settings for the origin group.')
+  healthProbeSettings: resourceInput<'Microsoft.Cdn/profiles/originGroups@2025-06-01'>.properties.healthProbeSettings?
+
+  @description('Required. Load balancing settings for the origin group.')
+  loadBalancingSettings: resourceInput<'Microsoft.Cdn/profiles/originGroups@2025-06-01'>.properties.loadBalancingSettings
+
+  @description('Required. Session affinity state for the origin group.')
+  sessionAffinityState: ('Enabled' | 'Disabled')
+
+  @description('Required. Traffic restoration time for healed or new endpoints.')
+  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: int
+
+  @description('Required. Origins in this group. These origins target the workload web app.')
+  origins: frontDoorAppServiceOriginConfigType[]
+}
+
+@export()
+@description('Configuration for a Front Door route.')
+type frontDoorRouteConfigType = {
+  @description('Required. Name of the route.')
+  name: string
+
+  @description('Optional. Caching configuration for this route.')
+  cacheConfiguration: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.cacheConfiguration?
+
+  @description('Optional. Names of custom domains attached to this route.')
+  customDomainNames: string[]?
+
+  @description('Required. Whether the route is enabled.')
+  enabledState: ('Enabled' | 'Disabled')
+
+  @description('Required. The protocol this route uses when forwarding traffic to the origin group.')
+  forwardingProtocol: ('HttpOnly' | 'HttpsOnly' | 'MatchRequest')
+
+  @description('Required. Whether HTTP traffic is redirected to HTTPS.')
+  httpsRedirect: ('Enabled' | 'Disabled')
+
+  @description('Required. Whether the route is linked to the default endpoint domain.')
+  linkToDefaultDomain: ('Enabled' | 'Disabled')
+
+  @description('Required. Name of the origin group that serves this route.')
+  originGroupName: string
+
+  @description('Optional. Origin path prefix for this route.')
+  originPath: string?
+
+  @description('Required. Route patterns to match.')
+  patternsToMatch: string[]
+
+  @description('Optional. Names of rule sets attached to this route.')
+  ruleSets: string[]?
+
+  @description('Required. Supported protocols for this route.')
+  supportedProtocols: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.supportedProtocols
+}
+
+@export()
+@description('Configuration for a Front Door AFD endpoint.')
+type frontDoorAfdEndpointConfigType = {
+  @description('Required. Name of the AFD endpoint.')
+  name: string
+
+  @description('Required. Routes for this endpoint.')
+  routes: frontDoorRouteConfigType[]
+
+  @description('Optional. Tags for the AFD endpoint.')
+  tags: resourceInput<'Microsoft.Cdn/profiles/endpoints@2025-06-01'>.tags?
+
+  @description('Required. Scope of the auto-generated domain name label.')
+  autoGeneratedDomainNameLabelScope: ('NoReuse' | 'ResourceGroupReuse' | 'SubscriptionReuse' | 'TenantReuse')
+
+  @description('Required. Whether the AFD endpoint is enabled.')
+  enabledState: ('Enabled' | 'Disabled')
+}
+
+@export()
 @description('Configuration for Azure Front Door.')
 type frontDoorConfigType = {
   @description('Required. Isolation scope for the AFD private-endpoint auto-approver managed identity.')
   afdPeAutoApproverIsolationScope: ('None' | 'Regional')
 
   @description('Required. Managed identities for the Front Door profile.')
-  managedIdentities: managedIdentityAllType
+  managedIdentities: managedIdentityOnlySysAssignedType
 
   @description('Required. Deploy the default WAF rule that blocks non-GET/HEAD/OPTIONS methods.')
   enableDefaultWafMethodBlock: bool
 
   @description('Required. Custom WAF rules. Use an empty object when enableDefaultWafMethodBlock is true.')
   wafCustomRules: object
-
-  @description('Required. Health probe path for the origin group.')
-  healthProbePath: string
-
-  @description('Required. Health probe interval in seconds.')
-  healthProbeIntervalInSeconds: int
 
   @description('Required. Custom domains for the Front Door profile.')
   customDomains: array
@@ -873,68 +1113,11 @@ type frontDoorConfigType = {
   @description('Required. WAF managed rule sets for Front Door.')
   wafManagedRuleSets: array
 
-  @description('Required. Enabled state for the Front Door endpoint.')
-  endpointEnabledState: string
+  @description('Required. Explicit origin groups for the Front Door topology.')
+  originGroups: frontDoorOriginGroupConfigType[]
 
-  @description('Required. Route patterns to match.')
-  routePatternsToMatch: string[]
-
-  @description('Required. Route forwarding protocol.')
-  routeForwardingProtocol: string
-
-  @description('Required. Link-to-default-domain setting for the route.')
-  routeLinkToDefaultDomain: string
-
-  @description('Required. HTTPS redirect setting for the route.')
-  routeHttpsRedirect: string
-
-  @description('Required. Enabled state for the route.')
-  routeEnabledState: string
-
-  @description('Required. Origin HTTP port.')
-  originHttpPort: int
-
-  @description('Required. Origin HTTPS port.')
-  originHttpsPort: int
-
-  @description('Required. Origin priority.')
-  originPriority: int
-
-  @description('Required. Origin weight.')
-  originWeight: int
-
-  @description('Required. Origin enabled state.')
-  originEnabledState: string
-
-  @description('Required. Whether Front Door enforces certificate name checks for the origin.')
-  originEnforceCertificateNameCheck: bool
-
-  @description('Required. Shared Private Link approval message.')
-  sharedPrivateLinkRequestMessage: string
-
-  @description('Required. Shared Private Link group ID.')
-  sharedPrivateLinkGroupId: string
-
-  @description('Required. Load balancing sample size.')
-  loadBalancingSampleSize: int
-
-  @description('Required. Successful samples required.')
-  loadBalancingSuccessfulSamplesRequired: int
-
-  @description('Required. Additional latency in milliseconds.')
-  loadBalancingAdditionalLatencyInMilliseconds: int
-
-  @description('Required. Probe request type.')
-  healthProbeRequestType: string
-
-  @description('Required. Probe protocol.')
-  healthProbeProtocol: string
-
-  @description('Required. Session affinity state.')
-  sessionAffinityState: string
-
-  @description('Required. Traffic restoration time for healed or new endpoints.')
-  trafficRestorationTimeToHealedOrNewEndpointsInMinutes: int
+  @description('Required. Explicit AFD endpoints and routes for the Front Door topology.')
+  afdEndpoints: frontDoorAfdEndpointConfigType[]
 
   @description('Required. Security policy patterns to match.')
   securityPatternsToMatch: string[]
@@ -967,9 +1150,6 @@ type aseConfigType = {
 
   @description('Required. Key Vault certificate URL for the custom DNS suffix. Use an empty string when not applicable.')
   customDnsSuffixCertificateUrl: string
-
-  @description('Required. User-assigned identity for resolving the ASE Key Vault certificate. Use an empty string when not applicable.')
-  customDnsSuffixKeyVaultReferenceIdentity: string
 
   @description('Required. Dedicated Host Count. Set to 0 when not applicable.')
   dedicatedHostCount: int
@@ -1016,19 +1196,13 @@ type aseConfigType = {
 // ======================== //
 
 @export()
-@description('Configuration for a Microsoft Entra group created and populated by the template set.')
+@description('Configuration for an existing Microsoft Entra security group used by the workload.')
 type entraGroupConfigType = {
-  @description('Required. Workload descriptor used by the owning module to derive the group name.')
-  workloadDescription: string
+  @description('Required. Object ID of the existing Microsoft Entra security group.')
+  objectId: string
 
-  @description('Optional. Human-readable description for the group.')
-  description: string?
-
-  @description('Required. Object IDs of Microsoft Entra users, groups, or service principals that should be members of the group.')
-  members: string[]
-
-  @description('Optional. Object IDs of Microsoft Entra principals that should own the group.')
-  owners: string[]?
+  @description('Required. Display name of the existing Microsoft Entra security group.')
+  displayName: string
 }
 
 // ======================== //
@@ -1067,7 +1241,7 @@ type postgresqlConfigType = {
   @description('Required. Workload descriptor used by the owning module to derive the server name.')
   workloadDescription: string
 
-  @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" for private access or "none" when private access is not intended.')
+  @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" when deployPrivateNetworking is true. Use "none" when deployPrivateNetworking is false.')
   privateAccessMode: ('delegatedSubnet' | 'none')
 
   @description('Required. The SKU name for the PostgreSQL flexible server, for example "Standard_D2s_v3".')
@@ -1079,29 +1253,32 @@ type postgresqlConfigType = {
   @description('Required. Availability zone. Use -1 when no explicit zone is intended.')
   availabilityZone: (-1 | 1 | 2 | 3)
 
-  @description('Optional. Standby availability zone. Use -1 when no explicit zone is intended.')
-  highAvailabilityZone: (-1 | 1 | 2 | 3)?
+  @description('Required. Standby availability zone. Use -1 when no explicit zone is intended.')
+  highAvailabilityZone: (-1 | 1 | 2 | 3)
 
-  @description('Optional. High availability mode.')
-  highAvailability: ('Disabled' | 'SameZone' | 'ZoneRedundant')?
+  @description('Required. High availability mode.')
+  highAvailability: ('Disabled' | 'SameZone' | 'ZoneRedundant')
 
-  @description('Optional. Backup retention in days.')
-  backupRetentionDays: int?
+  @description('Required. Backup retention in days.')
+  backupRetentionDays: int
 
-  @description('Optional. Whether geo-redundant backup is enabled.')
-  geoRedundantBackup: ('Disabled' | 'Enabled')?
+  @description('Required. Whether geo-redundant backup is enabled.')
+  geoRedundantBackup: ('Disabled' | 'Enabled')
 
-  @description('Optional. Maximum storage size in GB.')
-  storageSizeGB: int?
+  @description('Required. Maximum storage size in GB.')
+  storageSizeGB: int
 
-  @description('Optional. Storage autogrow setting.')
-  autoGrow: ('Disabled' | 'Enabled')?
+  @description('Required. Storage autogrow setting.')
+  autoGrow: ('Disabled' | 'Enabled')
 
-  @description('Optional. PostgreSQL engine version.')
-  version: ('11' | '12' | '13' | '14' | '15' | '16' | '17' | '18')?
+  @description('Required. PostgreSQL engine version. Region support varies by subscription and location.')
+  version: ('11' | '12' | '13' | '14' | '15' | '16' | '17' | '18')
 
-  @description('Required. Public network access setting for the server.')
+  @description('Required. Public network access setting for the server. Use "Disabled" when deployPrivateNetworking is true and "Enabled" when deployPrivateNetworking is false.')
   publicNetworkAccess: ('Disabled' | 'Enabled')
+
+  @description('Required. Set to true to assign the Azure Reader role on the PostgreSQL server resource to the Web App system-assigned identity.')
+  grantAppServiceIdentityReaderRole: bool
 
   @description('Required. Databases to create on the server.')
   databases: postgresqlDatabaseConfigType[]
@@ -1112,7 +1289,7 @@ type postgresqlConfigType = {
   @description('Optional. Resource lock for the server.')
   lock: lockType?
 
-  @description('Required. Role assignments for the server.')
+  @description('Required. Azure RBAC role assignments for the PostgreSQL server resource. These do not configure database principals or in-database grants.')
   roleAssignments: roleAssignmentType[]
 
   @description('Required. Diagnostic settings for the server.')
