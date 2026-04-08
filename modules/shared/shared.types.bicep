@@ -83,59 +83,71 @@ type spokeNetworkConfigType = {
   @description('Required. CIDR of the private endpoint subnet.')
   privateEndpointSubnetAddressSpace: string
 
-  @description('Required. CIDR of the Application Gateway subnet. Use an empty string when ingressOption is not "applicationGateway".')
-  appGwSubnetAddressSpace: string
+  @description('Optional. Application Gateway network configuration. Omit this object when ingressOption is not "applicationGateway".')
+  applicationGatewayConfig: {
+    @description('Required. CIDR of the Application Gateway subnet.')
+    subnetAddressSpace: string
+  }?
 
-  @description('Required. CIDR of the PostgreSQL delegated subnet. Use an empty string when PostgreSQL private access is not intended.')
-  postgresSubnetAddressSpace: string
+  @description('Optional. PostgreSQL private access network configuration. Omit this object when PostgreSQL delegated subnet access is not intended.')
+  postgreSqlPrivateAccessConfig: {
+    @description('Required. CIDR of the PostgreSQL delegated subnet.')
+    subnetAddressSpace: string
+  }?
 
-  @description('Required. Resource ID of an existing hub VNet to peer with. Use an empty string when no peering is required.')
-  hubVnetResourceId: string
+  @description('Optional. Existing hub VNet peering configuration. Omit this object when no hub peering is required.')
+  hubPeeringConfig: {
+    @description('Required. Resource ID of the existing hub VNet.')
+    virtualNetworkResourceId: string
 
-  @description('Required. Name of the existing hub VNet. Use an empty string when no peering is required.')
-  hubVnetName: string
+    @description('Required. Name of the existing hub VNet.')
+    virtualNetworkName: string
 
-  @description('Required. Resource group name of the existing hub VNet. Use an empty string when no peering is required.')
-  hubVnetResourceGroupName: string
+    @description('Required. Resource group name of the existing hub VNet.')
+    resourceGroupName: string
 
-  @description('Required. Subscription ID of the existing hub VNet. Use an empty string when no peering is required.')
-  hubVnetSubscriptionId: string
+    @description('Required. Subscription ID of the existing hub VNet.')
+    subscriptionId: string
 
-  @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
-  hubPeeringAllowForwardedTraffic: bool
+    @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
+    allowForwardedTraffic: bool
 
-  @description('Required. Allow gateway transit on the spoke-to-hub peering.')
-  hubPeeringAllowGatewayTransit: bool
+    @description('Required. Allow gateway transit on the spoke-to-hub peering.')
+    allowGatewayTransit: bool
 
-  @description('Required. Allow virtual network access on the spoke-to-hub peering.')
-  hubPeeringAllowVirtualNetworkAccess: bool
+    @description('Required. Allow virtual network access on the spoke-to-hub peering.')
+    allowVirtualNetworkAccess: bool
 
-  @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
-  hubPeeringDoNotVerifyRemoteGateways: bool
+    @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
+    doNotVerifyRemoteGateways: bool
 
-  @description('Required. Use remote gateways on the spoke-to-hub peering.')
-  hubPeeringUseRemoteGateways: bool
+    @description('Required. Use remote gateways on the spoke-to-hub peering.')
+    useRemoteGateways: bool
 
-  @description('Required. Create the reverse hub-to-spoke peering as well.')
-  hubRemotePeeringEnabled: bool
+    @description('Optional. Reverse hub-to-spoke peering settings. Omit this object when the reverse peering should not be created.')
+    reversePeeringConfig: {
+      @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
+      allowForwardedTraffic: bool
 
-  @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
-  hubRemotePeeringAllowForwardedTraffic: bool
+      @description('Required. Allow gateway transit on the hub-to-spoke peering.')
+      allowGatewayTransit: bool
 
-  @description('Required. Allow gateway transit on the hub-to-spoke peering.')
-  hubRemotePeeringAllowGatewayTransit: bool
+      @description('Required. Allow virtual network access on the hub-to-spoke peering.')
+      allowVirtualNetworkAccess: bool
 
-  @description('Required. Allow virtual network access on the hub-to-spoke peering.')
-  hubRemotePeeringAllowVirtualNetworkAccess: bool
+      @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
+      doNotVerifyRemoteGateways: bool
 
-  @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
-  hubRemotePeeringDoNotVerifyRemoteGateways: bool
+      @description('Required. Use remote gateways on the hub-to-spoke peering.')
+      useRemoteGateways: bool
+    }?
+  }?
 
-  @description('Required. Use remote gateways on the hub-to-spoke peering.')
-  hubRemotePeeringUseRemoteGateways: bool
-
-  @description('Required. Internal IP of the Azure Firewall in the hub. Use an empty string when no firewall egress route is required.')
-  firewallInternalIp: string
+  @description('Optional. Egress firewall configuration. Omit this object when egress traffic is not routed through a hub firewall.')
+  egressFirewallConfig: {
+    @description('Required. Internal IP of the Azure Firewall in the hub.')
+    internalIp: string
+  }?
 
   @description('Required. Ingress option: "frontDoor", "applicationGateway", or "none".')
   ingressOption: ('frontDoor' | 'applicationGateway' | 'none')
@@ -146,8 +158,8 @@ type spokeNetworkConfigType = {
   @description('Required. Custom DNS servers for the spoke VNet. Use an empty array when Azure-provided DNS is intended.')
   dnsServers: string[]
 
-  @description('Required. Resource ID of a DDoS Protection Plan to associate with the spoke VNet. Use an empty string when none is intended.')
-  ddosProtectionPlanResourceId: string
+  @description('Optional. Resource ID of a DDoS Protection Plan to associate with the spoke VNet.')
+  ddosProtectionPlanResourceId: string?
 
   @description('Required. Whether to disable BGP route propagation on the route table.')
   disableBgpRoutePropagation: bool
@@ -167,8 +179,8 @@ type spokeNetworkConfigType = {
   @description('Required. Virtual network private endpoint policies setting. Use "Basic" for high-scale private endpoint scenarios, otherwise "Disabled".')
   enablePrivateEndpointVNetPolicies: ('Basic' | 'Disabled')
 
-  @description('Required. The BGP community for the VNet. Use an empty string when none is intended.')
-  bgpCommunity: string
+  @description('Optional. The BGP community for the VNet.')
+  bgpCommunity: string?
 
   @description('Optional. Resource lock for the spoke virtual network.')
   lock: lockType?

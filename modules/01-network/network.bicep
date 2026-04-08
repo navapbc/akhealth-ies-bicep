@@ -38,14 +38,23 @@ param subnetSpokeAppSvcAddressSpace string
 @description('Conditional. CIDR of the subnet that will hold the private endpoints of the supporting services. Used only when deployPrivateNetworking is true.')
 param subnetSpokePrivateEndpointAddressSpace string
 
-@description('Optional. CIDR of the subnet that will hold the Application Gateway. Required if networkingOption is "applicationGateway".')
-param subnetSpokeAppGwAddressSpace string
+@description('Optional. Application Gateway network configuration. Omit this object when networkingOption is not "applicationGateway".')
+param applicationGatewayConfig {
+  @description('Required. CIDR of the Application Gateway subnet.')
+  subnetAddressSpace: string
+}?
 
-@description('Optional. CIDR of the subnet that will hold Azure Database for PostgreSQL Flexible Server private access. Required when deployPostgreSqlPrivateAccess is true.')
-param subnetSpokePostgreSqlAddressSpace string
+@description('Optional. PostgreSQL private access network configuration. Omit this object when deployPostgreSqlPrivateAccess is false.')
+param postgreSqlPrivateAccessConfig {
+  @description('Required. CIDR of the PostgreSQL delegated subnet.')
+  subnetAddressSpace: string
+}?
 
-@description('Optional. Internal IP of the Azure firewall deployed in Hub. Used for creating UDR to route all vnet egress traffic through Firewall. If empty no UDR.')
-param firewallInternalIp string
+@description('Optional. Egress firewall configuration. Omit this object when no firewall-backed egress route is required.')
+param egressFirewallConfig {
+  @description('Required. Internal IP of the Azure firewall deployed in the hub.')
+  internalIp: string
+}?
 
 @description('Optional. Resource tags that we might need to add to all resources (i.e. Environment, Cost center, application name etc).')
 param tags object
@@ -63,56 +72,59 @@ param deployPostgreSqlPrivateAccess bool = false
 @description('Required. The resource ID of the Log Analytics workspace for diagnostic settings.')
 param logAnalyticsWorkspaceId string
 
-@description('Optional. The resource ID of the hub VNet. If not empty, VNet peering will be configured.')
-param hubVnetResourceId string
+@description('Optional. Hub VNet peering configuration. Omit this object when no hub peering is required.')
+param hubPeeringConfig {
+  @description('Required. Resource ID of the existing hub VNet.')
+  virtualNetworkResourceId: string
 
-@description('Optional. The name of the hub VNet. Required when hubVnetResourceId is provided.')
-param hubVnetName string
+  @description('Required. Name of the existing hub VNet.')
+  virtualNetworkName: string
 
-@description('Optional. The resource group name of the hub VNet. Required when hubVnetResourceId is provided.')
-param hubVnetResourceGroupName string
+  @description('Required. Resource group name of the existing hub VNet.')
+  resourceGroupName: string
 
-@description('Optional. The subscription ID of the hub VNet. Required when hubVnetResourceId is provided.')
-param hubVnetSubscriptionId string
+  @description('Required. Subscription ID of the existing hub VNet.')
+  subscriptionId: string
 
-@description('Optional. Allow forwarded traffic on the spoke-to-hub peering.')
-param hubPeeringAllowForwardedTraffic bool
+  @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
+  allowForwardedTraffic: bool
 
-@description('Optional. Allow gateway transit on the spoke-to-hub peering.')
-param hubPeeringAllowGatewayTransit bool
+  @description('Required. Allow gateway transit on the spoke-to-hub peering.')
+  allowGatewayTransit: bool
 
-@description('Optional. Allow virtual network access on the spoke-to-hub peering.')
-param hubPeeringAllowVirtualNetworkAccess bool
+  @description('Required. Allow virtual network access on the spoke-to-hub peering.')
+  allowVirtualNetworkAccess: bool
 
-@description('Optional. Do not verify remote gateways on the spoke-to-hub peering.')
-param hubPeeringDoNotVerifyRemoteGateways bool
+  @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
+  doNotVerifyRemoteGateways: bool
 
-@description('Optional. Use remote gateways on the spoke-to-hub peering.')
-param hubPeeringUseRemoteGateways bool
+  @description('Required. Use remote gateways on the spoke-to-hub peering.')
+  useRemoteGateways: bool
 
-@description('Optional. Create the reverse hub-to-spoke peering as well.')
-param hubRemotePeeringEnabled bool
+  @description('Optional. Reverse hub-to-spoke peering settings. Omit this object when the reverse peering should not be created.')
+  reversePeeringConfig: {
+    @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
+    allowForwardedTraffic: bool
 
-@description('Optional. Allow forwarded traffic on the hub-to-spoke peering.')
-param hubRemotePeeringAllowForwardedTraffic bool
+    @description('Required. Allow gateway transit on the hub-to-spoke peering.')
+    allowGatewayTransit: bool
 
-@description('Optional. Allow gateway transit on the hub-to-spoke peering.')
-param hubRemotePeeringAllowGatewayTransit bool
+    @description('Required. Allow virtual network access on the hub-to-spoke peering.')
+    allowVirtualNetworkAccess: bool
 
-@description('Optional. Allow virtual network access on the hub-to-spoke peering.')
-param hubRemotePeeringAllowVirtualNetworkAccess bool
+    @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
+    doNotVerifyRemoteGateways: bool
 
-@description('Optional. Do not verify remote gateways on the hub-to-spoke peering.')
-param hubRemotePeeringDoNotVerifyRemoteGateways bool
-
-@description('Optional. Use remote gateways on the hub-to-spoke peering.')
-param hubRemotePeeringUseRemoteGateways bool
+    @description('Required. Use remote gateways on the hub-to-spoke peering.')
+    useRemoteGateways: bool
+  }?
+}?
 
 @description('Optional. Custom DNS servers for the spoke VNet. If empty, Azure-provided DNS is used.')
 param dnsServers string[]?
 
 @description('Optional. The resource ID of a DDoS Protection Plan to associate with the spoke VNet.')
-param ddosProtectionPlanResourceId string
+param ddosProtectionPlanResourceId string?
 
 @description('Optional. Diagnostic Settings for the spoke virtual network.')
 param vnetDiagnosticSettings diagnosticSettingFullType[]?
@@ -180,6 +192,10 @@ var resourceNames = {
   routeEgressLockdown: egressLockdownRouteName
 }
 
+var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfig.?subnetAddressSpace
+var subnetSpokeAppGwAddressSpace = applicationGatewayConfig.?subnetAddressSpace
+var firewallInternalIp = egressFirewallConfig.?internalIp
+
 var udrRoutes = [
   {
     name: 'defaultEgressLockdown'
@@ -239,26 +255,26 @@ var appGatewaySubnets = shouldCreateAppGatewaySubnet ? [appGatewaySubnet] : []
 var subnets = concat(baseSubnets, privateEndpointSubnets, postgreSqlSubnets, appGatewaySubnets)
 var postgreSqlSubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0)
 var appGatewaySubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0) + (shouldCreatePostgreSqlSubnet ? 1 : 0)
-
-var shouldCreateHubPeering = !empty(hubVnetResourceId)
+var shouldCreateHubPeering = hubPeeringConfig != null
+var reverseHubPeeringConfig = hubPeeringConfig.?reversePeeringConfig
 var hubPeering = {
   name: spokeToHubPeeringName
-  remoteVirtualNetworkResourceId: hubVnetResourceId
-  remoteVirtualNetworkName: hubVnetName
-  remoteVirtualNetworkResourceGroupName: hubVnetResourceGroupName
-  remoteVirtualNetworkSubscriptionId: hubVnetSubscriptionId
-  allowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
-  allowForwardedTraffic: hubPeeringAllowForwardedTraffic
-  allowGatewayTransit: hubPeeringAllowGatewayTransit
-  doNotVerifyRemoteGateways: hubPeeringDoNotVerifyRemoteGateways
-  useRemoteGateways: hubPeeringUseRemoteGateways
-  remotePeeringEnabled: hubRemotePeeringEnabled
+  remoteVirtualNetworkResourceId: hubPeeringConfig!.virtualNetworkResourceId
+  remoteVirtualNetworkName: hubPeeringConfig!.virtualNetworkName
+  remoteVirtualNetworkResourceGroupName: hubPeeringConfig!.resourceGroupName
+  remoteVirtualNetworkSubscriptionId: hubPeeringConfig!.subscriptionId
+  allowVirtualNetworkAccess: hubPeeringConfig!.allowVirtualNetworkAccess
+  allowForwardedTraffic: hubPeeringConfig!.allowForwardedTraffic
+  allowGatewayTransit: hubPeeringConfig!.allowGatewayTransit
+  doNotVerifyRemoteGateways: hubPeeringConfig!.doNotVerifyRemoteGateways
+  useRemoteGateways: hubPeeringConfig!.useRemoteGateways
+  remotePeeringEnabled: reverseHubPeeringConfig != null
   remotePeeringName: hubToSpokePeeringName
-  remotePeeringAllowForwardedTraffic: hubRemotePeeringAllowForwardedTraffic
-  remotePeeringAllowGatewayTransit: hubRemotePeeringAllowGatewayTransit
-  remotePeeringAllowVirtualNetworkAccess: hubRemotePeeringAllowVirtualNetworkAccess
-  remotePeeringDoNotVerifyRemoteGateways: hubRemotePeeringDoNotVerifyRemoteGateways
-  remotePeeringUseRemoteGateways: hubRemotePeeringUseRemoteGateways
+  remotePeeringAllowForwardedTraffic: reverseHubPeeringConfig.?allowForwardedTraffic
+  remotePeeringAllowGatewayTransit: reverseHubPeeringConfig.?allowGatewayTransit
+  remotePeeringAllowVirtualNetworkAccess: reverseHubPeeringConfig.?allowVirtualNetworkAccess
+  remotePeeringDoNotVerifyRemoteGateways: reverseHubPeeringConfig.?doNotVerifyRemoteGateways
+  remotePeeringUseRemoteGateways: reverseHubPeeringConfig.?useRemoteGateways
 }
 
 module vnetSpoke './virtual-network.bicep' = {

@@ -25,56 +25,49 @@ param spokeNetworkConfig = {
   vnetAddressSpace: '10.240.0.0/20'
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
-  appGwSubnetAddressSpace: ''
-  postgresSubnetAddressSpace: '10.240.10.0/28'
-  hubVnetResourceId: ''
-  hubVnetName: ''
-  hubVnetResourceGroupName: ''
-  hubVnetSubscriptionId: ''
-  hubPeeringAllowForwardedTraffic: false
-  hubPeeringAllowGatewayTransit: false
-  hubPeeringAllowVirtualNetworkAccess: true
-  hubPeeringDoNotVerifyRemoteGateways: true
-  hubPeeringUseRemoteGateways: false
-  hubRemotePeeringEnabled: false
-  hubRemotePeeringAllowForwardedTraffic: true
-  hubRemotePeeringAllowGatewayTransit: false
-  hubRemotePeeringAllowVirtualNetworkAccess: true
-  hubRemotePeeringDoNotVerifyRemoteGateways: true
-  hubRemotePeeringUseRemoteGateways: false
-  firewallInternalIp: ''
+  postgreSqlPrivateAccessConfig: {
+    subnetAddressSpace: '10.240.10.0/28'
+  }
   enableEgressLockdown: false
   dnsServers: []
-  ddosProtectionPlanResourceId: ''
   disableBgpRoutePropagation: true
   encryption: false
   encryptionEnforcement: 'AllowUnencrypted'
   flowTimeoutInMinutes: 0
   enableVmProtection: false
   enablePrivateEndpointVNetPolicies: 'Disabled'
-  bgpCommunity: ''
   roleAssignments: []
   diagnosticSettings: []
 
   // Example hub peering configuration. Leave commented out unless you want to
   // override the default spoke-to-hub configs
   //
-  // hubVnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<hub-rg>/providers/Microsoft.Network/virtualNetworks/<hub-vnet>'
-  // hubVnetName: '<hub-vnet>'
-  // hubVnetResourceGroupName: '<hub-rg>'
-  // hubVnetSubscriptionId: '<subscription-id>'
-  // hubPeeringAllowForwardedTraffic: false
-  // hubPeeringAllowGatewayTransit: false
-  // hubPeeringAllowVirtualNetworkAccess: true
-  // hubPeeringDoNotVerifyRemoteGateways: true
-  // hubPeeringUseRemoteGateways: false
+  // hubPeeringConfig: {
+  //   virtualNetworkResourceId: '/subscriptions/<subscription-id>/resourceGroups/<hub-rg>/providers/Microsoft.Network/virtualNetworks/<hub-vnet>'
+  //   virtualNetworkName: '<hub-vnet>'
+  //   resourceGroupName: '<hub-rg>'
+  //   subscriptionId: '<subscription-id>'
+  //   allowForwardedTraffic: false
+  //   allowGatewayTransit: false
+  //   allowVirtualNetworkAccess: true
+  //   doNotVerifyRemoteGateways: true
+  //   useRemoteGateways: false
+  //   reversePeeringConfig: {
+  //     allowForwardedTraffic: true
+  //     allowGatewayTransit: false
+  //     allowVirtualNetworkAccess: true
+  //     doNotVerifyRemoteGateways: true
+  //     useRemoteGateways: false
+  //   }
+  // }
   //
-  // hubRemotePeeringEnabled: true
-  // hubRemotePeeringAllowForwardedTraffic: true
-  // hubRemotePeeringAllowGatewayTransit: false
-  // hubRemotePeeringAllowVirtualNetworkAccess: true
-  // hubRemotePeeringDoNotVerifyRemoteGateways: true
-  // hubRemotePeeringUseRemoteGateways: false
+  // applicationGatewayConfig: {
+  //   subnetAddressSpace: '10.240.12.0/24'
+  // }
+  //
+  // egressFirewallConfig: {
+  //   internalIp: '10.0.0.4'
+  // }
   //
   // enablePrivateEndpointVNetPolicies: 'Basic'
 }

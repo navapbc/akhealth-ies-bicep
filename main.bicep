@@ -111,25 +111,12 @@ param postgresqlConfig postgresqlConfigType
 var vnetSpokeAddressSpace = spokeNetworkConfig.vnetAddressSpace
 var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.appSvcSubnetAddressSpace
 var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointSubnetAddressSpace
-var subnetSpokeAppGwAddressSpace = spokeNetworkConfig.appGwSubnetAddressSpace
-var subnetSpokePostgreSqlAddressSpace = spokeNetworkConfig.postgresSubnetAddressSpace
-var vnetHubResourceId = spokeNetworkConfig.hubVnetResourceId
-var vnetHubName = spokeNetworkConfig.hubVnetName
-var vnetHubResourceGroupName = spokeNetworkConfig.hubVnetResourceGroupName
-var vnetHubSubscriptionId = spokeNetworkConfig.hubVnetSubscriptionId
-var hubPeeringAllowForwardedTraffic = spokeNetworkConfig.hubPeeringAllowForwardedTraffic
-var hubPeeringAllowGatewayTransit = spokeNetworkConfig.hubPeeringAllowGatewayTransit
-var hubPeeringAllowVirtualNetworkAccess = spokeNetworkConfig.hubPeeringAllowVirtualNetworkAccess
-var hubPeeringDoNotVerifyRemoteGateways = spokeNetworkConfig.hubPeeringDoNotVerifyRemoteGateways
-var hubPeeringUseRemoteGateways = spokeNetworkConfig.hubPeeringUseRemoteGateways
-var hubRemotePeeringEnabled = spokeNetworkConfig.hubRemotePeeringEnabled
-var hubRemotePeeringAllowForwardedTraffic = spokeNetworkConfig.hubRemotePeeringAllowForwardedTraffic
-var hubRemotePeeringAllowGatewayTransit = spokeNetworkConfig.hubRemotePeeringAllowGatewayTransit
-var hubRemotePeeringAllowVirtualNetworkAccess = spokeNetworkConfig.hubRemotePeeringAllowVirtualNetworkAccess
-var hubRemotePeeringDoNotVerifyRemoteGateways = spokeNetworkConfig.hubRemotePeeringDoNotVerifyRemoteGateways
-var hubRemotePeeringUseRemoteGateways = spokeNetworkConfig.hubRemotePeeringUseRemoteGateways
-var firewallInternalIp = spokeNetworkConfig.firewallInternalIp
 var networkingOption = spokeNetworkConfig.ingressOption
+var applicationGatewayNetworkConfig = networkingOption == 'applicationGateway'
+  ? (spokeNetworkConfig.?applicationGatewayConfig != null
+      ? spokeNetworkConfig.?applicationGatewayConfig!
+      : fail('When ingressOption is "applicationGateway", spokeNetworkConfig.applicationGatewayConfig must be provided.'))
+  : null
 var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
 var postgreSqlEnabled = deployPostgreSql
@@ -149,16 +136,29 @@ var resolvedPostgreSqlPublicNetworkAccess = !postgreSqlEnabled
   ? 'Disabled'
   : (postgreSqlPrivateNetworkingRequired ? 'Disabled' : 'Enabled')
 var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && resolvedPostgreSqlPrivateAccessMode == 'delegatedSubnet'
+var postgreSqlPrivateAccessNetworkConfig = postgreSqlPrivateAccessEnabled
+  ? (spokeNetworkConfig.?postgreSqlPrivateAccessConfig != null
+      ? spokeNetworkConfig.?postgreSqlPrivateAccessConfig!
+      : fail('When PostgreSQL delegated subnet private access is required, spokeNetworkConfig.postgreSqlPrivateAccessConfig must be provided.'))
+  : spokeNetworkConfig.?postgreSqlPrivateAccessConfig
+var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
+var vnetHubResourceId = hubPeeringConfig.?virtualNetworkResourceId ?? ''
+var vnetHubName = hubPeeringConfig.?virtualNetworkName ?? ''
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
+var egressFirewallConfig = enableEgressLockdown
+  ? (spokeNetworkConfig.?egressFirewallConfig != null
+      ? spokeNetworkConfig.?egressFirewallConfig!
+      : fail('When enableEgressLockdown is true, spokeNetworkConfig.egressFirewallConfig must be provided.'))
+  : spokeNetworkConfig.?egressFirewallConfig
 var dnsServers = spokeNetworkConfig.dnsServers
-var ddosProtectionPlanResourceId = spokeNetworkConfig.ddosProtectionPlanResourceId
+var ddosProtectionPlanResourceId = spokeNetworkConfig.?ddosProtectionPlanResourceId
 var disableBgpRoutePropagation = spokeNetworkConfig.disableBgpRoutePropagation
 var vnetEncryption = spokeNetworkConfig.encryption
 var vnetEncryptionEnforcement = spokeNetworkConfig.encryptionEnforcement
 var flowTimeoutInMinutes = spokeNetworkConfig.flowTimeoutInMinutes
 var enableVmProtection = spokeNetworkConfig.enableVmProtection
 var enablePrivateEndpointVNetPolicies = spokeNetworkConfig.enablePrivateEndpointVNetPolicies
-var virtualNetworkBgpCommunity = spokeNetworkConfig.bgpCommunity
+var virtualNetworkBgpCommunity = spokeNetworkConfig.?bgpCommunity
 var vnetLock = spokeNetworkConfig.?lock
 var vnetRoleAssignments = spokeNetworkConfig.roleAssignments
 var vnetDiagnosticSettings = spokeNetworkConfig.diagnosticSettings
@@ -258,24 +258,10 @@ module networking 'modules/01-network/network.bicep' = {
     vnetSpokeAddressSpace: vnetSpokeAddressSpace
     subnetSpokeAppSvcAddressSpace: subnetSpokeAppSvcAddressSpace
     subnetSpokePrivateEndpointAddressSpace: subnetSpokePrivateEndpointAddressSpace
-    subnetSpokeAppGwAddressSpace: subnetSpokeAppGwAddressSpace
-    subnetSpokePostgreSqlAddressSpace: subnetSpokePostgreSqlAddressSpace
-    firewallInternalIp: firewallInternalIp
-    hubVnetResourceId: vnetHubResourceId
-    hubVnetName: vnetHubName
-    hubVnetResourceGroupName: vnetHubResourceGroupName
-    hubVnetSubscriptionId: vnetHubSubscriptionId
-    hubPeeringAllowForwardedTraffic: hubPeeringAllowForwardedTraffic
-    hubPeeringAllowGatewayTransit: hubPeeringAllowGatewayTransit
-    hubPeeringAllowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
-    hubPeeringDoNotVerifyRemoteGateways: hubPeeringDoNotVerifyRemoteGateways
-    hubPeeringUseRemoteGateways: hubPeeringUseRemoteGateways
-    hubRemotePeeringEnabled: hubRemotePeeringEnabled
-    hubRemotePeeringAllowForwardedTraffic: hubRemotePeeringAllowForwardedTraffic
-    hubRemotePeeringAllowGatewayTransit: hubRemotePeeringAllowGatewayTransit
-    hubRemotePeeringAllowVirtualNetworkAccess: hubRemotePeeringAllowVirtualNetworkAccess
-    hubRemotePeeringDoNotVerifyRemoteGateways: hubRemotePeeringDoNotVerifyRemoteGateways
-    hubRemotePeeringUseRemoteGateways: hubRemotePeeringUseRemoteGateways
+    applicationGatewayConfig: applicationGatewayNetworkConfig
+    postgreSqlPrivateAccessConfig: postgreSqlPrivateAccessNetworkConfig
+    egressFirewallConfig: egressFirewallConfig
+    hubPeeringConfig: hubPeeringConfig
     networkingOption: networkingOption
     deployPostgreSqlPrivateAccess: postgreSqlPrivateAccessEnabled
     logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
