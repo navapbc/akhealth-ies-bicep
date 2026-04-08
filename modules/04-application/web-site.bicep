@@ -518,7 +518,8 @@ resource app_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
 var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {
-        resourceGroupResourceId: resourceGroup().id
+        resourceGroupName: resourceGroup().name
+        resourceGroupSubscriptionId: subscription().subscriptionId
         name: defaultPrivateEndpointName
         location: location
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
@@ -548,7 +549,8 @@ module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (sh
 
 var resolvedPrivateEndpoints = [
   for (privateEndpoint, index) in moduleOwnedPrivateEndpoints: {
-    resourceGroupResourceId: privateEndpoint.resourceGroupResourceId
+    resourceGroupName: privateEndpoint.resourceGroupName
+    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
     name: privateEndpoint.name
     service: privateEndpoint.service
     isManualConnection: privateEndpoint.?isManualConnection == true
@@ -571,10 +573,7 @@ module app_privateEndpoints '../01-network/private-endpoint.bicep' = [
   for (privateEndpoint, index) in resolvedPrivateEndpoints: {
     name: '${uniqueString(deployment().name, location)}-app-PrivateEndpoint-${index}'
     dependsOn: shouldCreateDefaultPrivateEndpoint ? [app_defaultPrivateDnsZone] : []
-    scope: resourceGroup(
-      split(privateEndpoint.resourceGroupResourceId, '/')[2],
-      split(privateEndpoint.resourceGroupResourceId, '/')[4]
-    )
+    scope: resourceGroup(privateEndpoint.resourceGroupSubscriptionId, privateEndpoint.resourceGroupName)
     params: {
       name: privateEndpoint.name
       privateLinkServiceConnections: !privateEndpoint.isManualConnection

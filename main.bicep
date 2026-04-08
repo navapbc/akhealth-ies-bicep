@@ -114,6 +114,9 @@ var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointS
 var subnetSpokeAppGwAddressSpace = spokeNetworkConfig.appGwSubnetAddressSpace
 var subnetSpokePostgreSqlAddressSpace = spokeNetworkConfig.postgresSubnetAddressSpace
 var vnetHubResourceId = spokeNetworkConfig.hubVnetResourceId
+var vnetHubName = spokeNetworkConfig.hubVnetName
+var vnetHubResourceGroupName = spokeNetworkConfig.hubVnetResourceGroupName
+var vnetHubSubscriptionId = spokeNetworkConfig.hubVnetSubscriptionId
 var hubPeeringAllowForwardedTraffic = spokeNetworkConfig.hubPeeringAllowForwardedTraffic
 var hubPeeringAllowGatewayTransit = spokeNetworkConfig.hubPeeringAllowGatewayTransit
 var hubPeeringAllowVirtualNetworkAccess = spokeNetworkConfig.hubPeeringAllowVirtualNetworkAccess
@@ -189,9 +192,9 @@ var virtualNetworkLinks = [
 var postgreSqlPrivateDnsZoneVirtualNetworkLinks = concat(
   virtualNetworkLinks,
   !empty(vnetHubResourceId)
-    ? [
+      ? [
         {
-          name: last(split(vnetHubResourceId, '/'))
+          name: vnetHubName
           virtualNetworkResourceId: vnetHubResourceId
           registrationEnabled: false
         }
@@ -259,6 +262,9 @@ module networking 'modules/01-network/network.bicep' = {
     subnetSpokePostgreSqlAddressSpace: subnetSpokePostgreSqlAddressSpace
     firewallInternalIp: firewallInternalIp
     hubVnetResourceId: vnetHubResourceId
+    hubVnetName: vnetHubName
+    hubVnetResourceGroupName: vnetHubResourceGroupName
+    hubVnetSubscriptionId: vnetHubSubscriptionId
     hubPeeringAllowForwardedTraffic: hubPeeringAllowForwardedTraffic
     hubPeeringAllowGatewayTransit: hubPeeringAllowGatewayTransit
     hubPeeringAllowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
@@ -1040,7 +1046,7 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
       !empty(vnetHubResourceId)
         ? [
             {
-              name: last(split(vnetHubResourceId, '/'))
+              name: vnetHubName
               virtualNetworkResourceId: vnetHubResourceId
               registrationEnabled: false
             }

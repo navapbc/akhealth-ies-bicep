@@ -202,7 +202,8 @@ var formattedRoleAssignments = [
 
 var resolvedSlotPrivateEndpoints = [
   for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupResourceId: privateEndpoint.resourceGroupResourceId
+    resourceGroupName: privateEndpoint.resourceGroupName
+    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
     name: privateEndpoint.name
     service: privateEndpoint.service
     isManualConnection: privateEndpoint.?isManualConnection == true
@@ -383,10 +384,7 @@ resource slot_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-0
 module slot_privateEndpoints '../01-network/private-endpoint.bicep' = [
   for (privateEndpoint, index) in resolvedSlotPrivateEndpoints: {
     name: '${uniqueString(deployment().name, location)}-slot-PrivateEndpoint-${index}'
-    scope: resourceGroup(
-      split(privateEndpoint.resourceGroupResourceId, '/')[2],
-      split(privateEndpoint.resourceGroupResourceId, '/')[4]
-    )
+    scope: resourceGroup(privateEndpoint.resourceGroupSubscriptionId, privateEndpoint.resourceGroupName)
     params: {
       name: privateEndpoint.name
       privateLinkServiceConnections: !privateEndpoint.isManualConnection

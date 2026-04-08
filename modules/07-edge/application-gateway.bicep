@@ -348,7 +348,8 @@ resource applicationGateway_diagnosticSettings 'Microsoft.Insights/diagnosticSet
 
 var resolvedApplicationGatewayPrivateEndpoints = [
   for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupResourceId: privateEndpoint.resourceGroupResourceId
+    resourceGroupName: privateEndpoint.resourceGroupName
+    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
     name: privateEndpoint.name
     privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
     isManualConnection: privateEndpoint.?isManualConnection == true
@@ -370,10 +371,7 @@ var resolvedApplicationGatewayPrivateEndpoints = [
 module applicationGateway_privateEndpoints '../01-network/private-endpoint.bicep' = [
   for (privateEndpoint, index) in resolvedApplicationGatewayPrivateEndpoints: {
     name: '${uniqueString(deployment().name, location)}-applicationGateway-PrEndpoint-${index}'
-    scope: resourceGroup(
-      split(privateEndpoint.resourceGroupResourceId, '/')[2],
-      split(privateEndpoint.resourceGroupResourceId, '/')[4]
-    )
+    scope: resourceGroup(privateEndpoint.resourceGroupSubscriptionId, privateEndpoint.resourceGroupName)
     params: {
       name: privateEndpoint.name
       privateLinkServiceConnections: !privateEndpoint.isManualConnection

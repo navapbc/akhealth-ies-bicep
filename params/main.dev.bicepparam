@@ -28,6 +28,9 @@ param spokeNetworkConfig = {
   appGwSubnetAddressSpace: ''
   postgresSubnetAddressSpace: '10.240.10.0/28'
   hubVnetResourceId: ''
+  hubVnetName: ''
+  hubVnetResourceGroupName: ''
+  hubVnetSubscriptionId: ''
   hubPeeringAllowForwardedTraffic: false
   hubPeeringAllowGatewayTransit: false
   hubPeeringAllowVirtualNetworkAccess: true
@@ -57,6 +60,9 @@ param spokeNetworkConfig = {
   // override the default spoke-to-hub configs
   //
   // hubVnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<hub-rg>/providers/Microsoft.Network/virtualNetworks/<hub-vnet>'
+  // hubVnetName: '<hub-vnet>'
+  // hubVnetResourceGroupName: '<hub-rg>'
+  // hubVnetSubscriptionId: '<subscription-id>'
   // hubPeeringAllowForwardedTraffic: false
   // hubPeeringAllowGatewayTransit: false
   // hubPeeringAllowVirtualNetworkAccess: true
@@ -167,6 +173,8 @@ param appServiceConfig = {
   //     privateEndpoints: [
   //       {
   //         name: 'webApp-slot'
+  //         resourceGroupSubscriptionId: '<subscription-id>'
+  //         resourceGroupName: '<rg>'
   //         subnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>'
   //         privateDnsZoneGroup: {
   //           name: 'webApp-slot'

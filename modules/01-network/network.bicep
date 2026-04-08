@@ -66,6 +66,15 @@ param logAnalyticsWorkspaceId string
 @description('Optional. The resource ID of the hub VNet. If not empty, VNet peering will be configured.')
 param hubVnetResourceId string
 
+@description('Optional. The name of the hub VNet. Required when hubVnetResourceId is provided.')
+param hubVnetName string
+
+@description('Optional. The resource group name of the hub VNet. Required when hubVnetResourceId is provided.')
+param hubVnetResourceGroupName string
+
+@description('Optional. The subscription ID of the hub VNet. Required when hubVnetResourceId is provided.')
+param hubVnetSubscriptionId string
+
 @description('Optional. Allow forwarded traffic on the spoke-to-hub peering.')
 param hubPeeringAllowForwardedTraffic bool
 
@@ -235,6 +244,9 @@ var shouldCreateHubPeering = !empty(hubVnetResourceId)
 var hubPeering = {
   name: spokeToHubPeeringName
   remoteVirtualNetworkResourceId: hubVnetResourceId
+  remoteVirtualNetworkName: hubVnetName
+  remoteVirtualNetworkResourceGroupName: hubVnetResourceGroupName
+  remoteVirtualNetworkSubscriptionId: hubVnetSubscriptionId
   allowVirtualNetworkAccess: hubPeeringAllowVirtualNetworkAccess
   allowForwardedTraffic: hubPeeringAllowForwardedTraffic
   allowGatewayTransit: hubPeeringAllowGatewayTransit

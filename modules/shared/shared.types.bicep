@@ -92,6 +92,15 @@ type spokeNetworkConfigType = {
   @description('Required. Resource ID of an existing hub VNet to peer with. Use an empty string when no peering is required.')
   hubVnetResourceId: string
 
+  @description('Required. Name of the existing hub VNet. Use an empty string when no peering is required.')
+  hubVnetName: string
+
+  @description('Required. Resource group name of the existing hub VNet. Use an empty string when no peering is required.')
+  hubVnetResourceGroupName: string
+
+  @description('Required. Subscription ID of the existing hub VNet. Use an empty string when no peering is required.')
+  hubVnetSubscriptionId: string
+
   @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
   hubPeeringAllowForwardedTraffic: bool
 
