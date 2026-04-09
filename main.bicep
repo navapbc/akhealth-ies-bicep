@@ -468,7 +468,7 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     configs: appServiceConfig.configs
     slots: appServiceConfig.slots
     enableDefaultPrivateEndpoint: webAppPrivateNetworkingEnabled
-    defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
+    defaultPrivateEndpointSubnetResourceId: networking.outputs.?snetPeResourceId
     defaultPrivateDnsZoneVirtualNetworkLinks: spokePrivateDnsZoneLinks
     tags: tags
   }
@@ -704,7 +704,7 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
     secrets: keyVaultConfig.?secrets
     keys: keyVaultConfig.?keys
     enableDefaultPrivateEndpoint: privateNetworkingEnabled
-    defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
+    defaultPrivateEndpointSubnetResourceId: networking.outputs.?snetPeResourceId
     defaultPrivateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
     diagnosticSettings: keyVaultConfig.diagnosticSettings
     lock: keyVaultConfig.?lock
@@ -756,7 +756,7 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     deployPrivateNetworking: postgreSqlPrivateNetworkingEnabled
     publicNetworkAccess: postgresqlConfig.publicNetworkAccess
     privateAccessMode: postgresqlConfig.privateAccessMode
-    delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.snetPostgreSqlResourceId : null
+    delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.?snetPostgreSqlResourceId : null
     privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
     databases: postgresqlConfig.databases
     configurations: postgresqlConfig.configurations

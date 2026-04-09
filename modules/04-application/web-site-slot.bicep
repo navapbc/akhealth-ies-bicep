@@ -89,7 +89,7 @@ param lock lockType?
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
-param defaultPrivateEndpointSubnetResourceId string = ''
+param defaultPrivateEndpointSubnetResourceId string?
 
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
@@ -204,6 +204,9 @@ var formattedRoleAssignments = [
 ]
 
 var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 // App Service slots use the sites-<slot-name> subresource for Private Link.
 // Ref: https://learn.microsoft.com/en-us/azure/app-service/overview-private-endpoint
@@ -219,7 +222,7 @@ var resolvedSlotPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         service: defaultPrivateEndpointService
         isManualConnection: false
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
-        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
         location: location
         lock: lock
         privateDnsZoneGroup: {

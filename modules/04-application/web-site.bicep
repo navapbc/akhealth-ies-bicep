@@ -97,7 +97,7 @@ import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
-param defaultPrivateEndpointSubnetResourceId string = ''
+param defaultPrivateEndpointSubnetResourceId string?
 
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
@@ -259,6 +259,9 @@ var resolvedHostingEnvironmentProfile = !empty(appServiceEnvironmentResourceId)
   : null
 var resolvedSitePublicNetworkAccess = supportsServerFarmSettings ? publicNetworkAccess : null
 var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'appservice'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -430,7 +433,7 @@ module app_slots './web-site-slot.bicep' = [
       basicPublishingCredentialsPolicies: slot.basicPublishingCredentialsPolicies
       lock: slot.lock
       enableDefaultPrivateEndpoint: slot.enableDefaultPrivateEndpoint
-      defaultPrivateEndpointSubnetResourceId: slot.defaultPrivateEndpointSubnetResourceId
+      defaultPrivateEndpointSubnetResourceId: slot.?defaultPrivateEndpointSubnetResourceId
       defaultPrivateDnsZoneName: slot.defaultPrivateDnsZoneName
       tags: slot.tags
       clientCertEnabled: slot.clientCertEnabled
@@ -528,7 +531,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         location: location
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
         service: 'sites'
-        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {

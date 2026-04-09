@@ -80,7 +80,7 @@ import {
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
-param defaultPrivateEndpointSubnetResourceId string = ''
+param defaultPrivateEndpointSubnetResourceId string?
 
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.vaultcore.azure.net'
@@ -182,6 +182,9 @@ var resolvedKeyVaultNetworkAcls = !empty(networkAcls ?? {})
     }
   : null
 var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'keyvault'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -194,7 +197,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         resourceGroupName: resourceGroup().name
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
         service: 'vault'
-        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
         isManualConnection: false
         manualConnectionRequestMessage: null
         customDnsConfigs: null
