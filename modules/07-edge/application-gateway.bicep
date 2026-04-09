@@ -194,7 +194,7 @@ param listeners resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'
 param routingRules resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.routingRules = []
 
 var resourceAbbreviation = 'agw'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

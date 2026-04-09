@@ -29,7 +29,7 @@ param wafPolicyResourceId string
 param associations associationsType[]
 
 var resourceAbbreviation = 'fdsecp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

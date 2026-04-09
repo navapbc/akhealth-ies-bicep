@@ -16,9 +16,6 @@ param instanceNumber string
 @description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
 
-@description('Optional. Location for all resources.')
-param location string = 'global'
-
 @description('Required. Declared Front Door configuration for this workload.')
 param config frontDoorConfigType
 
@@ -34,7 +31,8 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 var resourceAbbreviation = 'fdfp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var resourceLocation = 'global'
+var regionAbbreviation = regionAbbreviations[resourceLocation]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   replace('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', '-', ''),
@@ -103,7 +101,7 @@ var formattedRoleAssignments = [
 
 resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01' = {
   name: resolvedName
-  location: location
+  location: resourceLocation
   sku: {
     name: config.sku
   }

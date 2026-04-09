@@ -36,7 +36,7 @@ param tags resourceInput<'Microsoft.Cdn/profiles@2025-06-01'>.tags?
 
 var resourceAbbreviation = 'afd'
 var endpointResourceAbbreviation = 'fde'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

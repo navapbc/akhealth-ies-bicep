@@ -38,7 +38,7 @@ param tags resourceInput<'Microsoft.ManagedIdentity/userAssignedIdentities@2024-
 param isolationScope string?
 
 var resourceAbbreviation = 'id'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

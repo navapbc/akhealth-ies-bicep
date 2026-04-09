@@ -83,7 +83,7 @@ import { diagnosticSettingLogsOnlyType } from '../shared/avm-common-types.bicep'
 param diagnosticSettings diagnosticSettingLogsOnlyType[]?
 
 var resourceAbbreviation = 'ase'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

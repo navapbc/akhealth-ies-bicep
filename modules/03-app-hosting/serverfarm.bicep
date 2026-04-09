@@ -113,7 +113,7 @@ import { diagnosticSettingMetricsOnlyType } from '../shared/avm-common-types.bic
 param diagnosticSettings diagnosticSettingMetricsOnlyType[]?
 
 var resourceAbbreviation = 'asp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 40)
 var resolvedName = derivedName

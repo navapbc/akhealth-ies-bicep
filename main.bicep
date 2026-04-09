@@ -108,49 +108,21 @@ param postgresqlConfig postgresqlConfigType
 // ======================== //
 
 // Spoke Network
-var vnetSpokeAddressSpace = spokeNetworkConfig.vnetAddressSpace
-var subnetSpokeAppSvcAddressSpace = spokeNetworkConfig.appSvcSubnetAddressSpace
-var subnetSpokePrivateEndpointAddressSpace = spokeNetworkConfig.privateEndpointSubnetAddressSpace
 var networkingOption = spokeNetworkConfig.ingressOption
-var applicationGatewayConfig = spokeNetworkConfig.?applicationGatewayConfig
-var privateNetworkingEnabled = deployPrivateNetworking && !empty(subnetSpokePrivateEndpointAddressSpace)
+var privateNetworkingEnabled = deployPrivateNetworking && !empty(spokeNetworkConfig.privateEndpointSubnetAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
 var postgreSqlEnabled = deployPostgreSql
 var postgreSqlPrivateNetworkingEnabled = postgreSqlEnabled && deployPrivateNetworking
 var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
-var postgreSqlPrivateAccessConfig = spokeNetworkConfig.?postgreSqlPrivateAccessConfig
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
-var egressFirewallConfig = spokeNetworkConfig.?egressFirewallConfig
-var dnsServers = spokeNetworkConfig.dnsServers
-var ddosProtectionPlanResourceId = spokeNetworkConfig.?ddosProtectionPlanResourceId
-var disableBgpRoutePropagation = spokeNetworkConfig.disableBgpRoutePropagation
-var vnetEncryption = spokeNetworkConfig.encryption
-var vnetEncryptionEnforcement = spokeNetworkConfig.encryptionEnforcement
-var flowTimeoutInMinutes = spokeNetworkConfig.flowTimeoutInMinutes
-var enableVmProtection = spokeNetworkConfig.enableVmProtection
-var enablePrivateEndpointVNetPolicies = spokeNetworkConfig.enablePrivateEndpointVNetPolicies
-var virtualNetworkBgpCommunity = spokeNetworkConfig.?bgpCommunity
-var vnetLock = spokeNetworkConfig.?lock
-var vnetRoleAssignments = spokeNetworkConfig.roleAssignments
-var vnetDiagnosticSettings = spokeNetworkConfig.diagnosticSettings
 
 // Log Analytics
-var logAnalyticsWorkspaceSku = logAnalyticsConfig.sku
-var logAnalyticsWorkspaceRetentionInDays = logAnalyticsConfig.retentionInDays
-var logAnalyticsWorkspaceEnableLogAccessUsingOnlyResourcePermissions = logAnalyticsConfig.enableLogAccessUsingOnlyResourcePermissions
-var logAnalyticsWorkspaceDisableLocalAuth = logAnalyticsConfig.disableLocalAuth
-var logAnalyticsWorkspacePublicNetworkAccessForIngestion = logAnalyticsConfig.publicNetworkAccessForIngestion
-var logAnalyticsWorkspacePublicNetworkAccessForQuery = logAnalyticsConfig.publicNetworkAccessForQuery
-var logAnalyticsWorkspaceLock = logAnalyticsConfig.?lock
-var logAnalyticsWorkspaceRoleAssignments = logAnalyticsConfig.roleAssignments
-var logAnalyticsWorkspaceDiagnosticSettings = logAnalyticsConfig.diagnosticSettings
-
 // ======================== //
 // Naming & Resource Names  //
 // ======================== //
 
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var resourceGroupName = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
 
@@ -198,15 +170,15 @@ module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bice
     workloadDescription: workloadDescription
     location: location
     tags: tags
-    sku: logAnalyticsWorkspaceSku
-    retentionInDays: logAnalyticsWorkspaceRetentionInDays
-    enableLogAccessUsingOnlyResourcePermissions: logAnalyticsWorkspaceEnableLogAccessUsingOnlyResourcePermissions
-    disableLocalAuth: logAnalyticsWorkspaceDisableLocalAuth
-    publicNetworkAccessForIngestion: logAnalyticsWorkspacePublicNetworkAccessForIngestion
-    publicNetworkAccessForQuery: logAnalyticsWorkspacePublicNetworkAccessForQuery
-    lock: logAnalyticsWorkspaceLock
-    roleAssignments: logAnalyticsWorkspaceRoleAssignments
-    diagnosticSettings: logAnalyticsWorkspaceDiagnosticSettings
+    sku: logAnalyticsConfig.sku
+    retentionInDays: logAnalyticsConfig.retentionInDays
+    enableLogAccessUsingOnlyResourcePermissions: logAnalyticsConfig.enableLogAccessUsingOnlyResourcePermissions
+    disableLocalAuth: logAnalyticsConfig.disableLocalAuth
+    publicNetworkAccessForIngestion: logAnalyticsConfig.publicNetworkAccessForIngestion
+    publicNetworkAccessForQuery: logAnalyticsConfig.publicNetworkAccessForQuery
+    lock: logAnalyticsConfig.?lock
+    roleAssignments: logAnalyticsConfig.roleAssignments
+    diagnosticSettings: logAnalyticsConfig.diagnosticSettings
   }
 }
 
@@ -229,28 +201,28 @@ module networking 'modules/01-network/network.bicep' = {
     deployAseV3: deployAseV3
     deployPrivateNetworking: privateNetworkingEnabled
     enableEgressLockdown: enableEgressLockdown
-    vnetSpokeAddressSpace: vnetSpokeAddressSpace
-    subnetSpokeAppSvcAddressSpace: subnetSpokeAppSvcAddressSpace
-    subnetSpokePrivateEndpointAddressSpace: subnetSpokePrivateEndpointAddressSpace
-    applicationGatewayConfig: applicationGatewayConfig
-    postgreSqlPrivateAccessConfig: postgreSqlPrivateAccessConfig
-    egressFirewallConfig: egressFirewallConfig
+    vnetSpokeAddressSpace: spokeNetworkConfig.vnetAddressSpace
+    subnetSpokeAppSvcAddressSpace: spokeNetworkConfig.appSvcSubnetAddressSpace
+    subnetSpokePrivateEndpointAddressSpace: spokeNetworkConfig.privateEndpointSubnetAddressSpace
+    applicationGatewayConfig: spokeNetworkConfig.?applicationGatewayConfig
+    postgreSqlPrivateAccessConfig: spokeNetworkConfig.?postgreSqlPrivateAccessConfig
+    egressFirewallConfig: spokeNetworkConfig.?egressFirewallConfig
     hubPeeringConfig: hubPeeringConfig
     networkingOption: networkingOption
     deployPostgreSqlPrivateAccess: postgreSqlPrivateNetworkingEnabled
     logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
-    dnsServers: dnsServers
-    ddosProtectionPlanResourceId: ddosProtectionPlanResourceId
-    vnetDiagnosticSettings: vnetDiagnosticSettings
-    vnetLock: vnetLock
-    disableBgpRoutePropagation: disableBgpRoutePropagation
-    vnetRoleAssignments: vnetRoleAssignments
-    vnetEncryption: vnetEncryption
-    vnetEncryptionEnforcement: vnetEncryptionEnforcement
-    flowTimeoutInMinutes: flowTimeoutInMinutes
-    enableVmProtection: enableVmProtection
-    enablePrivateEndpointVNetPolicies: enablePrivateEndpointVNetPolicies
-    virtualNetworkBgpCommunity: virtualNetworkBgpCommunity
+    dnsServers: spokeNetworkConfig.dnsServers
+    ddosProtectionPlanResourceId: spokeNetworkConfig.?ddosProtectionPlanResourceId
+    vnetDiagnosticSettings: spokeNetworkConfig.diagnosticSettings
+    vnetLock: spokeNetworkConfig.?lock
+    disableBgpRoutePropagation: spokeNetworkConfig.disableBgpRoutePropagation
+    vnetRoleAssignments: spokeNetworkConfig.roleAssignments
+    vnetEncryption: spokeNetworkConfig.encryption
+    vnetEncryptionEnforcement: spokeNetworkConfig.encryptionEnforcement
+    flowTimeoutInMinutes: spokeNetworkConfig.flowTimeoutInMinutes
+    enableVmProtection: spokeNetworkConfig.enableVmProtection
+    enablePrivateEndpointVNetPolicies: spokeNetworkConfig.enablePrivateEndpointVNetPolicies
+    virtualNetworkBgpCommunity: spokeNetworkConfig.?bgpCommunity
     tags: tags
   }
 }
@@ -541,7 +513,6 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDe
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
-    location: 'global'
     config: frontDoorSettings
     tags: tags
   }

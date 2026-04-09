@@ -148,7 +148,7 @@ param diagnosticSettings diagnosticSettingFullType[] = []
 param tags object
 
 var resourceAbbreviation = 'psqlfx'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
 var privateAccessEnabled = privateAccessMode == 'delegatedSubnet'
 var privateModeRequested = privateAccessMode == 'delegatedSubnet' && publicNetworkAccess == 'Disabled'

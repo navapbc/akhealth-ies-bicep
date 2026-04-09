@@ -160,7 +160,7 @@ param virtualNetworkBgpCommunity string?
 
 var deployAppGw = networkingOption == 'applicationGateway'
 
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var sharedNamePrefix = '${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}'
 var sharedNameSuffix = '${workloadSegment}-${instanceNumber}'

@@ -40,7 +40,7 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 var resourceAbbreviation = 'agwfp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',
