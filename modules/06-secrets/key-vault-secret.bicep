@@ -79,11 +79,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' existing = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' existing = {
   name: keyVaultName
 }
 
-resource secret 'Microsoft.KeyVault/vaults/secrets@2024-11-01' = {
+resource secret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   name: name
   parent: keyVault
   tags: tags

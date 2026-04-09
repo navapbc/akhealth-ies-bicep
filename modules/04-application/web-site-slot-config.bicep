@@ -71,7 +71,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   scope: resourceGroup(applicationInsightsReference!.resourceGroupName)
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccount) {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' existing = if (hasStorageAccount) {
   name: storageAccountReference!.name
   scope: resourceGroup(storageAccountReference!.resourceGroupName)
 }

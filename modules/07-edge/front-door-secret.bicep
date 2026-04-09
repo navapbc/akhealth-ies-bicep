@@ -35,11 +35,11 @@ var resolvedSecretSourceResourceId = type == 'CustomerCertificate'
       : fail('Front Door CustomerCertificate secrets require secretSourceResourceId to be declared explicitly.'))
   : null
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource secret 'Microsoft.Cdn/profiles/secrets@2025-04-15' = {
+resource secret 'Microsoft.Cdn/profiles/secrets@2025-06-01' = {
   name: name
   parent: profile
   properties: {

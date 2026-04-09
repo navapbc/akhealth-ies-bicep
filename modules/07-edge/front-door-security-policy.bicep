@@ -38,11 +38,11 @@ var derivedName = take(
 var resolvedName = derivedName
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-04-15' = {
+resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-06-01' = {
   name: resolvedName
   parent: profile
   properties: {

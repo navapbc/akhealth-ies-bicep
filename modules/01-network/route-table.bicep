@@ -8,7 +8,7 @@ param name string
 param location string = resourceGroup().location
 
 @description('Optional. An array of routes to be established within the hub route table.')
-param routes resourceInput<'Microsoft.Network/routeTables@2024-07-01'>.properties.routes?
+param routes resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.properties.routes?
 
 @description('Optional. Switch to disable BGP route propagation.')
 param disableBgpRoutePropagation bool = false
@@ -22,7 +22,7 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 @description('Optional. Tags of the resource.')
-param tags resourceInput<'Microsoft.Network/routeTables@2024-07-01'>.tags?
+param tags resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.tags?
 
 
 var builtInRoleNames = {
@@ -54,7 +54,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource routeTable 'Microsoft.Network/routeTables@2024-07-01' = {
+resource routeTable 'Microsoft.Network/routeTables@2025-05-01' = {
   name: name
   location: location
   tags: tags

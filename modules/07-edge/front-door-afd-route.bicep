@@ -11,7 +11,7 @@ param profileName string
 param afdEndpointName string
 
 @description('Optional. The caching configuration for this route. To disable caching, do not provide a cacheConfiguration object.')
-param cacheConfiguration resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.cacheConfiguration?
+param cacheConfiguration resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.cacheConfiguration?
 
 @description('Optional. The names of the custom domains. The custom domains must be defined in the profile customDomains array.')
 param customDomainNames string[]?
@@ -52,41 +52,41 @@ param originGroupName string
 param originPath string?
 
 @description('Optional. The route patterns of the rule.')
-param patternsToMatch resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.patternsToMatch?
+param patternsToMatch resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.patternsToMatch?
 
 @description('Optional. The names of the rule sets of the rule. The rule sets must be defined in the profile ruleSets.')
 param ruleSets string[]?
 
 @allowed(['Http', 'Https'])
 @description('Optional. The supported protocols of the rule.')
-param supportedProtocols resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.supportedProtocols?
+param supportedProtocols resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.supportedProtocols?
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 
-  resource afdEndpoint 'afdEndpoints@2025-04-15' existing = {
+  resource afdEndpoint 'afdEndpoints@2025-06-01' existing = {
     name: afdEndpointName
   }
 
-  resource customDomains 'customDomains@2025-04-15' existing = [
+  resource customDomains 'customDomains@2025-06-01' existing = [
     for customDomainName in (customDomainNames ?? []): {
       name: customDomainName
     }
   ]
 
-  resource originGroup 'originGroups@2025-04-15' existing = {
+  resource originGroup 'originGroups@2025-06-01' existing = {
     name: originGroupName
   }
 
-  resource ruleSet 'ruleSets@2025-04-15' existing = [
+  resource ruleSet 'ruleSets@2025-06-01' existing = [
     for ruleSet in (ruleSets ?? []): {
       name: ruleSet
     }
   ]
 }
 
-resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15' = {
+resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
   name: name
   parent: profile::afdEndpoint
   properties: {

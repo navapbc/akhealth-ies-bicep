@@ -251,7 +251,7 @@ var resolvedKeys = [
 // Dependencies //
 // ============ //
 
-resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
   name: resolvedName
   location: location
   tags: tags

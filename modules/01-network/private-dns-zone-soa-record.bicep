@@ -54,11 +54,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
   name: privateDnsZoneName
 }
 
-resource SOA 'Microsoft.Network/privateDnsZones/SOA@2020-06-01' = {
+resource SOA 'Microsoft.Network/privateDnsZones/SOA@2024-06-01' = {
   name: name
   parent: privateDnsZone
   properties: {

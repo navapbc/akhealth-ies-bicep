@@ -26,7 +26,7 @@ param location string = 'global'
 param sku string = 'Standard_AzureFrontDoor'
 
 @description('Optional. Resource tags.')
-param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-03-01'>.tags?
+param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01'>.tags?
 
 
 @description('Optional. Describes the managedRules structure.')
@@ -117,7 +117,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-01' = {
+resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01' = {
   name: resolvedName
   location: location
   sku: {

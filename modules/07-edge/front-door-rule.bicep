@@ -14,10 +14,10 @@ param ruleSetName string
 param order int
 
 @description('Optional. A list of actions that are executed when all the conditions of a rule are satisfied.')
-param actions resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15'>.properties.actions?
+param actions resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01'>.properties.actions?
 
 @description('Optional. A list of conditions that must be matched for the actions to be executed.')
-param conditions resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15'>.properties.conditions?
+param conditions resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01'>.properties.conditions?
 
 @allowed([
   'Continue'
@@ -26,15 +26,15 @@ param conditions resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15
 @description('Optional. If this rule is a match should the rules engine continue running the remaining rules or stop. If not present, defaults to Continue.')
 param matchProcessingBehavior string = 'Continue'
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 
-  resource ruleSet 'ruleSets@2025-04-15' existing = {
+  resource ruleSet 'ruleSets@2025-06-01' existing = {
     name: ruleSetName
   }
 }
 
-resource rule 'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15' = {
+resource rule 'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01' = {
   name: name
   parent: profile::ruleSet
   properties: {

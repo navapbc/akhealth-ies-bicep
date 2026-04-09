@@ -32,11 +32,11 @@ param enabledState string
 @description('Optional. The list of routes for this AFD Endpoint.')
 param routes routeType[]?
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-04-15' = {
+resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01' = {
   name: name
   parent: profile
   location: location
@@ -98,7 +98,7 @@ type routeType = {
   name: string
 
   @description('Optional. The caching configuration for this route. To disable caching, do not provide a cacheConfiguration object.')
-  cacheConfiguration: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.cacheConfiguration?
+  cacheConfiguration: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.cacheConfiguration?
 
   @description('Optional. The names of the custom domains.')
   customDomainNames: string[]?
@@ -122,11 +122,11 @@ type routeType = {
   originPath: string?
 
   @description('Optional. The route patterns of the rule.')
-  patternsToMatch: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.patternsToMatch?
+  patternsToMatch: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.patternsToMatch?
 
   @description('Optional. The names of the rule sets of the rule.')
   ruleSets: string[]?
 
   @description('Optional. The supported protocols of the rule.')
-  supportedProtocols: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.supportedProtocols?
+  supportedProtocols: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.supportedProtocols?
 }

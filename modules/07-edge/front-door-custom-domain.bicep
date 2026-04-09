@@ -51,10 +51,10 @@ var resolvedSecretName = certificateType == 'CustomerCertificate'
   : secretName
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 
-  resource secret 'secrets@2025-04-15' existing = if (resolvedSecretName != null) {
+  resource secret 'secrets@2025-06-01' existing = if (resolvedSecretName != null) {
     name: resolvedSecretName!
   }
 }

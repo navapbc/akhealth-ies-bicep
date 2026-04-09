@@ -8,7 +8,7 @@ param name string
 param publicIpPrefixResourceId string?
 
 @description('Optional. The public IP address allocation method.')
-param publicIPAllocationMethod resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.publicIPAllocationMethod = 'Static'
+param publicIPAllocationMethod resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAllocationMethod = 'Static'
 
 @description('Optional. A list of availability zones denoting the IP allocated for the resource needs to come from.')
 @allowed([
@@ -23,29 +23,29 @@ param availabilityZones int[] = [
 ]
 
 @description('Optional. IP address version.')
-param publicIPAddressVersion resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.publicIPAddressVersion = 'IPv4'
+param publicIPAddressVersion resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAddressVersion = 'IPv4'
 
 @description('Optional. The DNS settings of the public IP address.')
-param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.dnsSettings?
+param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.dnsSettings?
 
 @description('Optional. The list of tags associated with the public IP address.')
-param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.ipTags?
+param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ipTags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @description('Optional. The lock settings of the service.')
 param lock lockType?
 
 @description('Optional. Name of a public IP address SKU.')
-param skuName resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.sku.name = 'Standard'
+param skuName resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.name = 'Standard'
 
 @description('Optional. Tier of a public IP address SKU.')
-param skuTier resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.sku.tier = 'Regional'
+param skuTier resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.tier = 'Regional'
 
 @description('Optional. The DDoS protection plan configuration associated with the public IP address.')
-param ddosSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.ddosSettings?
+param ddosSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ddosSettings?
 
 @description('Optional. The delete option for the public IP address.')
-param deleteOption resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.deleteOption?
+param deleteOption resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.deleteOption?
 
 @description('Optional. Location for all resources.')
 param location string = resourceGroup().location
@@ -59,7 +59,7 @@ param roleAssignments roleAssignmentType[]?
 param idleTimeoutInMinutes int = 4
 
 @description('Optional. Tags of the resource.')
-param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.tags?
+param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 @description('Optional. The diagnostic settings of the service.')
@@ -110,7 +110,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource publicIpAddress 'Microsoft.Network/publicIPAddresses@2025-01-01' = {
+resource publicIpAddress 'Microsoft.Network/publicIPAddresses@2025-05-01' = {
   name: name
   location: location
   tags: tags

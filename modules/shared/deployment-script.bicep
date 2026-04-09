@@ -141,7 +141,7 @@ var deploymentScriptAzPowerShellVersion = kind == 'AzurePowerShell' ? azPowerShe
 var deploymentScriptAzCliVersion = kind == 'AzureCLI' ? azCliVersion : null
 var forceUpdateTag = runOnce ? resourceGroup().name : baseTime
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccountReference) {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' existing = if (hasStorageAccountReference) {
   name: storageAccountReference!.name
   scope: resourceGroup(storageAccountReference!.subscriptionId, storageAccountReference!.resourceGroupName)
 }

@@ -3,12 +3,12 @@ using '../main.bicep'
 // Starter parameter file
 // Add or override more configuration blocks here as needed.
 
-param workloadName = '456ERT'
+param workloadName = '878RVZ'
 param location = 'eastus2'
 param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
-param instanceNumber = '001'
+param instanceNumber = '002'
 param workloadDescription = ''
 param existingLogAnalyticsID = null
 
