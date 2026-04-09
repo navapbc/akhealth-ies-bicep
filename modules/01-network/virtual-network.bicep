@@ -149,6 +149,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' = {
   }
 }
 
+#disable-diagnostics no-unnecessary-dependson
 @batchSize(1)
 module virtualNetwork_subnets './virtual-network-subnet.bicep' = [
   for (subnet, index) in (subnets ?? []): {
@@ -200,6 +201,7 @@ module virtualNetwork_peering_local './virtual-network-peering.bicep' = [
     }
   }
 ]
+#restore-diagnostics no-unnecessary-dependson
 
 // Remote to local peering (reverse)
 module virtualNetwork_peering_remote './virtual-network-peering.bicep' = [

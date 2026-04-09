@@ -103,11 +103,7 @@ param postgresqlConfig postgresqlConfigType
 // Variables        //
 // ================ //
 
-// ======================== //
-// Resolved Configuration   //
-// ======================== //
-
-// Spoke Network
+// Networking Decisions
 var networkingOption = spokeNetworkConfig.ingressOption
 var privateNetworkingEnabled = deployPrivateNetworking && !empty(spokeNetworkConfig.privateEndpointSubnetAddressSpace)
 var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
@@ -117,14 +113,17 @@ var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.priva
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
 
-// Log Analytics
 // ======================== //
-// Naming & Resource Names  //
+// Naming                   //
 // ======================== //
 
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var resourceGroupName = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
+
+// ======================== //
+// Shared Network Links     //
+// ======================== //
 
 var virtualNetworkLinks = [
   {
@@ -307,16 +306,15 @@ module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-lookup'
   scope: spokeResourceGroup
   params: {
-    aseName: aseEnvironment.outputs.name
+    aseName: aseEnvironment!.outputs.name
   }
 }
 
-#disable-next-line BCP318
 module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-dnszone'
   scope: spokeResourceGroup
   params: {
-    name: '${aseEnvironment.outputs.name}.appserviceenvironment.net'
+    name: '${aseEnvironment!.outputs.name}.appserviceenvironment.net'
     virtualNetworkLinks: virtualNetworkLinks
     tags: tags
     a: [
@@ -324,7 +322,7 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
         name: '*'
         aRecords: [
           {
-            ipv4Address: aseLookup.outputs.internalInboundIpAddress
+            ipv4Address: aseLookup!.outputs.internalInboundIpAddress
           }
         ]
         ttl: 3600
@@ -333,7 +331,7 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
         name: '*.scm'
         aRecords: [
           {
-            ipv4Address: aseLookup.outputs.internalInboundIpAddress
+            ipv4Address: aseLookup!.outputs.internalInboundIpAddress
           }
         ]
         ttl: 3600
@@ -342,7 +340,7 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
         name: '@'
         aRecords: [
           {
-            ipv4Address: aseLookup.outputs.internalInboundIpAddress
+            ipv4Address: aseLookup!.outputs.internalInboundIpAddress
           }
         ]
         ttl: 3600
@@ -544,13 +542,13 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
     location: location
-    profileName: afd.outputs.name
-    wafPolicyResourceId: frontDoorWaf.outputs.resourceId
+    profileName: afd!.outputs.name
+    wafPolicyResourceId: frontDoorWaf!.outputs.resourceId
     associations: [
       {
         domains: concat(
-          afd.outputs.customDomainSecurityPolicyDomains,
-          afd.outputs.afdDefaultLinkedSecurityPolicyDomains
+          afd!.outputs.customDomainSecurityPolicyDomains,
+          afd!.outputs.afdDefaultLinkedSecurityPolicyDomains
         )
         patternsToMatch: frontDoorSettings.securityPatternsToMatch
       }
@@ -562,7 +560,6 @@ module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bic
   name: '${uniqueString(deployment().name, location)}-afd-uami'
   scope: spokeResourceGroup
   dependsOn: [
-    spokeResourceGroup
     afd
   ]
   params: {
@@ -583,7 +580,7 @@ module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assig
     roleAssignments: [
       {
         roleDefinitionIdOrName: 'Contributor'
-        principalId: afdPeAutoApproverIdentity.outputs.principalId
+        principalId: afdPeAutoApproverIdentity!.outputs.principalId
         principalType: 'ServicePrincipal'
       }
     ]
@@ -602,7 +599,7 @@ module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoAppro
     tags: tags
     kind: 'AzureCLI'
     managedIdentities: {
-      userAssignedResourceIds: [afdPeAutoApproverIdentity.outputs.resourceId]
+      userAssignedResourceIds: [afdPeAutoApproverIdentity!.outputs.resourceId]
     }
     azCliVersion: '2.67.0'
     timeout: 'PT30M'
@@ -708,7 +705,7 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption 
     enableRequestBuffering: appGatewayEnableRequestBuffering
     enableResponseBuffering: appGatewayEnableResponseBuffering
     availabilityZones: appGatewayAvailabilityZones
-    firewallPolicyResourceId: appGwWafPolicy.outputs.resourceId
+    firewallPolicyResourceId: appGwWafPolicy!.outputs.resourceId
     diagnosticSettings: appGatewayDiagnosticSettings
     lock: appGatewayLock
     roleAssignments: appGatewayRoleAssignments
