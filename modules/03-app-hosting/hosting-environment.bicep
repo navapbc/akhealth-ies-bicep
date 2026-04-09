@@ -156,17 +156,6 @@ module appServiceEnvironment_configurations_customDnsSuffix './hosting-environme
   }
 }
 
-resource appServiceEnvironment_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: appServiceEnvironment
-}
-
 #disable-next-line use-recent-api-versions // This is the most recent API version at the time of development.
 resource appServiceEnvironment_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
@@ -224,3 +213,14 @@ output name string = appServiceEnvironment.name
 
 @description('The location the resource was deployed into.')
 output location string = appServiceEnvironment.location
+
+resource appServiceEnvironment_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: appServiceEnvironment
+}

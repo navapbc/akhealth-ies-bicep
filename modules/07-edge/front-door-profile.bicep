@@ -145,17 +145,6 @@ resource profile 'Microsoft.Cdn/profiles@2025-06-01' = {
   tags: tags
 }
 
-resource profile_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(config.?lock ?? {}) && config.?lock.?kind != 'None') {
-  name: config.?lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: config.?lock.?kind ?? ''
-    notes: config.?lock.?notes ?? (config.?lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: profile
-}
-
 resource profile_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
     name: roleAssignment.?name ?? guid(profile.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
@@ -470,4 +459,15 @@ type secretType = {
 
   @description('Optional. Indicates whether to use the latest version of the secret.')
   useLatestVersion: bool?
+}
+
+resource profile_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(config.?lock ?? {}) && config.?lock.?kind != 'None') {
+  name: config.?lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: config.?lock.?kind ?? ''
+    notes: config.?lock.?notes ?? (config.?lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: profile
 }

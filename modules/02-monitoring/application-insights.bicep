@@ -218,17 +218,6 @@ resource appInsights_roleAssignments 'Microsoft.Authorization/roleAssignments@20
   }
 ]
 
-resource appInsights_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: appInsights
-}
-
 resource appInsights_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in resolvedDiagnosticSettings: {
     name: diagnosticSetting.?name ?? '${resolvedName}-diagnosticSettings'
@@ -278,3 +267,14 @@ output instrumentationKey string = appInsights.properties.InstrumentationKey
 
 @description('Application Insights Connection String.')
 output connectionString string = appInsights.properties.ConnectionString
+
+resource appInsights_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: appInsights
+}
