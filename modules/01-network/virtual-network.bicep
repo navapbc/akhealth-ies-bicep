@@ -47,14 +47,12 @@ import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 param diagnosticSettings diagnosticSettingFullType[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags object?
 
 
@@ -271,13 +269,10 @@ resource virtualNetwork_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the virtual network was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The resource ID of the virtual network.')
 output resourceId string = virtualNetwork.id
 
-@description('The name of the virtual network.')
 output name string = virtualNetwork.name
 
 @description('The names of the deployed subnets.')
@@ -288,7 +283,6 @@ output subnetResourceIds array = [
   for (subnet, index) in (subnets ?? []): virtualNetwork_subnets[index].outputs.resourceId
 ]
 
-@description('The location the resource was deployed into.')
 output location string = virtualNetwork.location
 
 // =============== //

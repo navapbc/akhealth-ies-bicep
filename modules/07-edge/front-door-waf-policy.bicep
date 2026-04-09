@@ -133,16 +133,12 @@ resource frontDoorWAFPolicy_roleAssignments 'Microsoft.Authorization/roleAssignm
   }
 ]
 
-@description('The name of the Front Door WAF policy.')
 output name string = frontDoorWAFPolicy.name
 
-@description('The resource ID of the Front Door WAF policy.')
 output resourceId string = frontDoorWAFPolicy.id
 
-@description('The resource group the Front Door WAF policy was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = frontDoorWAFPolicy.location
 
 // =============== //

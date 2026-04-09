@@ -26,11 +26,8 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2025-08-0
   }
 }
 
-@description('The name of the deployed database.')
 output name string = database.name
 
-@description('The resource ID of the deployed database.')
 output resourceId string = database.id
 
-@description('The resource group name of the deployed database.')
 output resourceGroupName string = resourceGroup().name

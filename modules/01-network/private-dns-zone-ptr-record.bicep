@@ -84,11 +84,8 @@ resource PTR_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 ]
 
-@description('The name of the deployed PTR record.')
 output name string = PTR.name
 
-@description('The resource ID of the deployed PTR record.')
 output resourceId string = PTR.id
 
-@description('The resource group of the deployed PTR record.')
 output resourceGroupName string = resourceGroup().name

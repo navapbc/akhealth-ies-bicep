@@ -26,11 +26,8 @@ resource configuration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations
   }
 }
 
-@description('The name of the deployed configuration.')
 output name string = configuration.name
 
-@description('The resource ID of the deployed configuration.')
 output resourceId string = configuration.id
 
-@description('The resource group name of the deployed configuration.')
 output resourceGroupName string = resourceGroup().name

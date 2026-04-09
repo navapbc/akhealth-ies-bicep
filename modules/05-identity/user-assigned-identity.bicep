@@ -19,14 +19,12 @@ param workloadDescription string = ''
 param location string = resourceGroup().location
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30'>.tags?
 
 
@@ -106,10 +104,8 @@ resource userAssignedIdentity_roleAssignments 'Microsoft.Authorization/roleAssig
   }
 ]
 
-@description('The name of the user assigned identity.')
 output name string = userAssignedIdentity.name
 
-@description('The resource ID of the user assigned identity.')
 output resourceId string = userAssignedIdentity.id
 
 @description('The principal ID (object ID) of the user assigned identity.')
@@ -118,10 +114,8 @@ output principalId string = userAssignedIdentity.properties.principalId
 @description('The client ID (application ID) of the user assigned identity.')
 output clientId string = userAssignedIdentity.properties.clientId
 
-@description('The resource group the user assigned identity was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = userAssignedIdentity.location
 
 resource userAssignedIdentity_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

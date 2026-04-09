@@ -1,6 +1,5 @@
 import { lockType } from './avm-common-types.bicep'
 
-@description('Optional. The lock settings of the service.')
 param lock lockType
 
 @description('Required. The name of the Resource Group.')

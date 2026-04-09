@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile Custom Domains.'
 @description('Required. The name of the custom domain.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Required. The host name of the domain. Must be a domain name.')
@@ -89,13 +89,10 @@ resource customDomain 'Microsoft.Cdn/profiles/customDomains@2025-06-01' = {
   }
 }
 
-@description('The name of the custom domain.')
 output name string = customDomain.name
 
-@description('The resource id of the custom domain.')
 output resourceId string = customDomain.id
 
-@description('The name of the resource group the custom domain was created in.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The DNS validation records.')

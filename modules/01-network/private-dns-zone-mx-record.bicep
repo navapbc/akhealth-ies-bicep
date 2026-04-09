@@ -84,11 +84,8 @@ resource MX_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01'
   }
 ]
 
-@description('The name of the deployed MX record.')
 output name string = MX.name
 
-@description('The resource ID of the deployed MX record.')
 output resourceId string = MX.id
 
-@description('The resource group of the deployed MX record.')
 output resourceGroupName string = resourceGroup().name

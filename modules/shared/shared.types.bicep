@@ -476,10 +476,8 @@ type appServiceSlotConfigType = {
   @description('Optional. The extensions configuration.')
   extensions: resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties[]?
 
-  @description('Optional. The lock settings of the service.')
   lock: lockType?
 
-  @description('Optional. Tags of the resource.')
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
 
   @description('Optional. Array of role assignments to create.')

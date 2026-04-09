@@ -67,7 +67,6 @@ param networkAcls networkAclsType?
 param publicNetworkAccess string
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -406,19 +405,15 @@ resource keyVault_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-
 // =========== //
 // Outputs     //
 // =========== //
-@description('The resource ID of the key vault.')
 output resourceId string = keyVault.id
 
-@description('The name of the resource group the key vault was created in.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the key vault.')
 output name string = keyVault.name
 
 @description('The URI of the key vault.')
 output uri string = keyVault.properties.vaultUri
 
-@description('The location the resource was deployed into.')
 output location string = keyVault.location
 
 @description('The private endpoints of the key vault.')

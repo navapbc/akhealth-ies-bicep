@@ -98,7 +98,6 @@ import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.b
 param managedIdentities managedIdentityOnlySysAssignedType?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -106,7 +105,6 @@ import { builtInRoleNames } from '../shared/role-definitions.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.tags?
 
 import { diagnosticSettingMetricsOnlyType } from '../shared/avm-common-types.bicep'
@@ -229,16 +227,12 @@ resource appServicePlan_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the app service plan was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the app service plan.')
 output name string = appServicePlan.name
 
-@description('The resource ID of the app service plan.')
 output resourceId string = appServicePlan.id
 
-@description('The location the resource was deployed into.')
 output location string = appServicePlan.location
 
 @description('The principal ID of the system assigned identity.')

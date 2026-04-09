@@ -36,11 +36,8 @@ resource administrator 'Microsoft.DBforPostgreSQL/flexibleServers/administrators
   }
 }
 
-@description('The name of the deployed administrator.')
 output name string = administrator.name
 
-@description('The resource ID of the deployed administrator.')
 output resourceId string = administrator.id
 
-@description('The resource group of the deployed administrator.')
 output resourceGroupName string = resourceGroup().name

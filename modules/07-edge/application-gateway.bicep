@@ -174,7 +174,6 @@ var identity = hasSystemAssignedIdentity
   : null
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -424,16 +423,12 @@ resource applicationGateway_roleAssignments 'Microsoft.Authorization/roleAssignm
   }
 ]
 
-@description('The name of the application gateway.')
 output name string = applicationGateway.name
 
-@description('The resource ID of the application gateway.')
 output resourceId string = applicationGateway.id
 
-@description('The resource group the application gateway was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = applicationGateway.location
 
 @description('The private endpoints of the resource.')

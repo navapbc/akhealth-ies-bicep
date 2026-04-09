@@ -40,7 +40,6 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags object?
 
 import { lockType } from '../shared/avm-common-types.bicep'
@@ -226,16 +225,12 @@ resource privateDnsZone_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the private DNS zone was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the private DNS zone.')
 output name string = privateDnsZone.name
 
-@description('The resource ID of the private DNS zone.')
 output resourceId string = privateDnsZone.id
 
-@description('The location the resource was deployed into.')
 output location string = privateDnsZone.location
 
 // ================ //

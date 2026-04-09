@@ -279,16 +279,12 @@ resource flexibleServer_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
   }
 ]
 
-@description('The name of the deployed PostgreSQL Flexible server.')
 output name string = flexibleServer.name
 
-@description('The resource ID of the deployed PostgreSQL Flexible server.')
 output resourceId string = flexibleServer.id
 
-@description('The resource group of the deployed PostgreSQL Flexible server.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = flexibleServer.location
 
 @description('The FQDN of the PostgreSQL Flexible server.')

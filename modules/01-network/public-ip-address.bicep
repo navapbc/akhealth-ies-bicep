@@ -32,7 +32,6 @@ param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'
 param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ipTags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 @description('Optional. Name of a public IP address SKU.')
@@ -58,7 +57,6 @@ param roleAssignments roleAssignmentType[]?
 @description('Optional. The idle timeout of the public IP address.')
 param idleTimeoutInMinutes int = 4
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
@@ -180,19 +178,15 @@ resource publicIpAddress_diagnosticSettings 'Microsoft.Insights/diagnosticSettin
   }
 ]
 
-@description('The resource group the public IP address was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the public IP address.')
 output name string = publicIpAddress.name
 
-@description('The resource ID of the public IP address.')
 output resourceId string = publicIpAddress.id
 
 @description('The public IP address of the public IP address resource.')
 output ipAddress string = publicIpAddress.properties.?ipAddress ?? ''
 
-@description('The location the resource was deployed into.')
 output location string = publicIpAddress.location
 
 resource publicIpAddress_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile AFD Endpoint.'
 @description('Required. The name of the AFD Endpoint.')
 param name string
 
-@description('Conditional. The name of the parent CDN profile. Required if the template is used in a standalone deployment.')
+@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
 @description('Optional. The location of the AFD Endpoint.')
@@ -69,16 +69,12 @@ module afdEndpoint_routes './front-door-afd-route.bicep' = [
   }
 ]
 
-@description('The name of the AFD Endpoint.')
 output name string = afdEndpoint.name
 
-@description('The resource id of the AFD Endpoint.')
 output resourceId string = afdEndpoint.id
 
-@description('The name of the resource group the endpoint was created in.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = afdEndpoint.location
 
 @description('The list of routes assigned to the AFD endpoint.')

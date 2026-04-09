@@ -90,7 +90,6 @@ param extensions extensionType[]?
 import {
   lockType
 } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 
@@ -118,7 +117,6 @@ param solutionApplicationInsightsComponent {
   resourceGroupName: string
 }?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/sites@2025-03-01'>.tags?
 
 
@@ -623,19 +621,15 @@ module app_privateEndpoints '../01-network/private-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the site.')
 output name string = app.name
 
-@description('The resource ID of the site.')
 output resourceId string = app.id
 
-@description('The resource group the site was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The principal ID of the system assigned identity. Returns an empty string when no system-assigned identity is present.')
 output systemAssignedMIPrincipalId string = app.?identity.?principalId ?? ''
 
-@description('The location the resource was deployed into.')
 output location string = app.location
 
 @description('Default hostname of the app.')
@@ -811,7 +805,6 @@ type slotType = {
   @description('Optional. The extensions configuration.')
   extensions: resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties[]?
 
-  @description('Optional. The lock settings of the service.')
   lock: lockType?
 
   @description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
@@ -823,7 +816,6 @@ type slotType = {
   @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
   defaultPrivateDnsZoneName: string?
 
-  @description('Optional. Tags of the resource.')
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
 
   @description('Optional. Array of role assignments to create.')

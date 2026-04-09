@@ -32,7 +32,6 @@ param customRules resourceInput<'Microsoft.Network/ApplicationGatewayWebApplicat
 param policySettings resourceInput<'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2025-05-01'>.properties.policySettings?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -108,16 +107,12 @@ resource applicationGatewayWAFPolicy_roleAssignments 'Microsoft.Authorization/ro
   }
 ]
 
-@description('The name of the application gateway WAF policy.')
 output name string = applicationGatewayWAFPolicy.name
 
-@description('The resource ID of the application gateway WAF policy.')
 output resourceId string = applicationGatewayWAFPolicy.id
 
-@description('The resource group the application gateway WAF policy was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = applicationGatewayWAFPolicy.location
 
 resource applicationGatewayWAFPolicy_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

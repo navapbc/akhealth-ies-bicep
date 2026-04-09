@@ -19,11 +19,9 @@ param workloadDescription string = ''
 param location string = resourceGroup().location
 
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.tags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -202,16 +200,12 @@ resource appServiceEnvironment_roleAssignments 'Microsoft.Authorization/roleAssi
 // Outputs      //
 // ============ //
 
-@description('The resource ID of the App Service Environment.')
 output resourceId string = appServiceEnvironment.id
 
-@description('The resource group the App Service Environment was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the App Service Environment.')
 output name string = appServiceEnvironment.name
 
-@description('The location the resource was deployed into.')
 output location string = appServiceEnvironment.location
 
 resource appServiceEnvironment_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

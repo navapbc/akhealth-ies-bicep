@@ -31,13 +31,10 @@ resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
   }
 }
 
-@description('The name of the private endpoint DNS zone group.')
 output name string = privateDnsZoneGroup.name
 
-@description('The resource ID of the private endpoint DNS zone group.')
 output resourceId string = privateDnsZoneGroup.id
 
-@description('The resource group the private endpoint DNS zone group was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 // ================ //

@@ -94,14 +94,12 @@ param ingestionMode string?
 param location string = resourceGroup().location
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Insights/components@2020-02-02'>.tags?
 
 
@@ -247,19 +245,15 @@ resource appInsights_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2
   }
 ]
 
-@description('The name of the application insights component.')
 output name string = appInsights.name
 
-@description('The resource ID of the application insights component.')
 output resourceId string = appInsights.id
 
-@description('The resource group the application insights component was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The application ID of the application insights component.')
 output applicationId string = appInsights.properties.AppId
 
-@description('The location the resource was deployed into.')
 output location string = appInsights.location
 
 @description('Application Insights Instrumentation key. A read-only value that applications can use to identify the destination for all telemetry sent to Azure Application Insights. This value will be supplied upon construction of each new Application Insights component.')

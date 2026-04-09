@@ -84,11 +84,8 @@ resource AAAA_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-0
   }
 ]
 
-@description('The name of the deployed AAAA record.')
 output name string = AAAA.name
 
-@description('The resource ID of the deployed AAAA record.')
 output resourceId string = AAAA.id
 
-@description('The resource group of the deployed AAAA record.')
 output resourceGroupName string = resourceGroup().name

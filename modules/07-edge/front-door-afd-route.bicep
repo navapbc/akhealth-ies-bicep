@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile AFD Endpoint route.'
 @description('Required. The name of the route.')
 param name string
 
-@description('Required. The name of the parent CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Required. The name of the AFD endpoint.')
@@ -114,11 +114,8 @@ resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
   }
 }
 
-@description('The name of the route.')
 output name string = route.name
 
-@description('The ID of the route.')
 output resourceId string = route.id
 
-@description('The name of the resource group the route was created in.')
 output resourceGroupName string = resourceGroup().name

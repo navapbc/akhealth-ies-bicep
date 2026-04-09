@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile Origin Group.'
 @description('Required. The name of the origin group.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Optional. Health probe settings to the origin that is used to determine the health of the origin.')
@@ -66,16 +66,12 @@ module originGroup_origins './front-door-origin-group-origin.bicep' = [
   }
 ]
 
-@description('The name of the origin group.')
 output name string = originGroup.name
 
-@description('The resource id of the origin group.')
 output resourceId string = originGroup.id
 
-@description('The name of the resource group the origin group was created in.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = profile.location
 
 // =============== //

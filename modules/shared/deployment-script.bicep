@@ -85,7 +85,6 @@ param storageAccountReference storageAccountReferenceType?
 param timeout string?
 
 import { lockType } from './avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from './avm-common-types.bicep'
@@ -205,16 +204,12 @@ resource deploymentScriptLogs 'Microsoft.Resources/deploymentScripts/logs@2023-0
 // Outputs          //
 // ================ //
 
-@description('The resource ID of the deployment script.')
 output resourceId string = deploymentScript.id
 
-@description('The resource group the deployment script was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the deployment script.')
 output name string = deploymentScript.name
 
-@description('The location the resource was deployed into.')
 output location string = deploymentScript.location
 
 @description('The output of the deployment script.')

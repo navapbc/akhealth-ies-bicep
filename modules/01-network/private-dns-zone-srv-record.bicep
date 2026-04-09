@@ -84,11 +84,8 @@ resource SRV_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 ]
 
-@description('The name of the deployed SRV record.')
 output name string = SRV.name
 
-@description('The resource ID of the deployed SRV record.')
 output resourceId string = SRV.id
 
-@description('The resource group of the deployed SRV record.')
 output resourceGroupName string = resourceGroup().name

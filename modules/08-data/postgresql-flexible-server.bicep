@@ -261,13 +261,10 @@ module flexibleServerPublic './postgresql-flexible-server-server.bicep' = if (ne
   }
 }
 
-@description('The name of the PostgreSQL flexible server.')
 output name string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?name! : flexibleServerPublic.?outputs.?name!
 
-@description('The resource ID of the PostgreSQL flexible server.')
 output resourceId string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceId! : flexibleServerPublic.?outputs.?resourceId!
 
-@description('The resource group the PostgreSQL flexible server was deployed into.')
 output resourceGroupName string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceGroupName! : flexibleServerPublic.?outputs.?resourceGroupName!
 
 @description('The location of the PostgreSQL flexible server.')

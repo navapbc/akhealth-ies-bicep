@@ -45,11 +45,8 @@ resource rule 'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01' = {
   }
 }
 
-@description('The name of the rule.')
 output name string = rule.name
 
-@description('The resource id of the rule.')
 output resourceId string = rule.id
 
-@description('The name of the resource group the custom domain was created in.')
 output resourceGroupName string = resourceGroup().name

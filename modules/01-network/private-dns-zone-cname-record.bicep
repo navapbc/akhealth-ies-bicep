@@ -84,11 +84,8 @@ resource CNAME_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 ]
 
-@description('The name of the deployed CNAME record.')
 output name string = CNAME.name
 
-@description('The resource ID of the deployed CNAME record.')
 output resourceId string = CNAME.id
 
-@description('The resource group of the deployed CNAME record.')
 output resourceGroupName string = resourceGroup().name

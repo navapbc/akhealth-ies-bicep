@@ -21,7 +21,6 @@ param workloadDescription string = ''
 param location string = deployment().location
 
 import { lockType } from './avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from './avm-common-types.bicep'
@@ -60,11 +59,8 @@ module resourceGroup_roleAssignments './resource-group-role-assignments.bicep' =
   scope: resourceGroup
 }
 
-@description('The name of the resource group.')
 output name string = resourceGroup.name
 
-@description('The resource ID of the resource group.')
 output resourceId string = resourceGroup.id
 
-@description('The location the resource was deployed into.')
 output location string = resourceGroup.location

@@ -18,7 +18,7 @@ param workloadDescription string = ''
 @description('Optional. Location for name derivation.')
 param location string = resourceGroup().location
 
-@description('Conditional. The name of the parent CDN profile. Required if the template is used in a standalone deployment.')
+@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
 @description('Required. Resource ID of WAF Policy.')
@@ -56,13 +56,10 @@ resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-06-01' =
   }
 }
 
-@description('The name of the secret.')
 output name string = securityPolicies.name
 
-@description('The resource ID of the secret.')
 output resourceId string = securityPolicies.id
 
-@description('The name of the resource group the secret was created in.')
 output resourceGroupName string = resourceGroup().name
 
 // =============== //

@@ -163,16 +163,12 @@ resource workspace_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@202
   }
 ]
 
-@description('The resource group the Log Analytics workspace was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The resource ID of the Log Analytics workspace.')
 output resourceId string = workspace.id
 
-@description('The name of the Log Analytics workspace.')
 output name string = workspace.name
 
-@description('The location the Log Analytics workspace was deployed into.')
 output location string = workspace.location
 
 resource workspace_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

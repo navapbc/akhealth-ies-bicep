@@ -83,7 +83,6 @@ param configs configType[]?
 param extensions object[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 @description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
@@ -95,7 +94,6 @@ param defaultPrivateEndpointSubnetResourceId string = ''
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -439,19 +437,15 @@ module slot_privateEndpoints '../01-network/private-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the slot.')
 output name string = slot.name
 
-@description('The resource ID of the slot.')
 output resourceId string = slot.id
 
-@description('The resource group the slot was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The principal ID of the system assigned identity.')
 output systemAssignedMIPrincipalId string? = slot.?identity.?principalId
 
-@description('The location the resource was deployed into.')
 output location string = slot.location
 
 @description('The private endpoints of the slot.')

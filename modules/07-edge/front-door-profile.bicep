@@ -277,19 +277,15 @@ module profile_afdEndpoints './front-door-afd-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the CDN profile.')
 output name string = profile.name
 
-@description('The resource ID of the CDN profile.')
 output resourceId string = profile.id
 
-@description('The resource group where the CDN profile is deployed.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The type of the CDN profile.')
+@description('The resource type of the Front Door profile.')
 output profileType string = profile.type
 
-@description('The location the resource was deployed into.')
 output location string = profile.location
 
 @description('The principal ID of the system assigned identity.')

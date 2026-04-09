@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile rule set.'
 @description('Required. The name of the rule set.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Optinal. The rules to apply to the rule set.')
@@ -35,13 +35,10 @@ module ruleSet_rules './front-door-rule.bicep' = [
   }
 ]
 
-@description('The name of the rule set.')
 output name string = ruleSet.name
 
-@description('The resource id of the rule set.')
 output resourceId string = ruleSet.id
 
-@description('The name of the resource group the custom domain was created in.')
 output resourceGroupName string = resourceGroup().name
 
 // =============== //

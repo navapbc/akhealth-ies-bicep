@@ -18,7 +18,6 @@ import { diagnosticSettingLogsOnlyType } from '../shared/avm-common-types.bicep'
 param diagnosticSettings diagnosticSettingLogsOnlyType[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -141,16 +140,12 @@ resource networkSecurityGroup_roleAssignments 'Microsoft.Authorization/roleAssig
   }
 ]
 
-@description('The resource group the network security group was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The resource ID of the network security group.')
 output resourceId string = networkSecurityGroup.id
 
-@description('The name of the network security group.')
 output name string = networkSecurityGroup.name
 
-@description('The location the resource was deployed into.')
 output location string = networkSecurityGroup.location
 
 // =============== //

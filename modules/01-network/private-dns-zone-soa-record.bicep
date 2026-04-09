@@ -84,11 +84,8 @@ resource SOA_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 ]
 
-@description('The name of the deployed SOA record.')
 output name string = SOA.name
 
-@description('The resource ID of the deployed SOA record.')
 output resourceId string = SOA.id
 
-@description('The resource group of the deployed SOA record.')
 output resourceGroupName string = resourceGroup().name

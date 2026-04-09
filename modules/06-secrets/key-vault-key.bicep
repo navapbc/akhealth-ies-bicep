@@ -189,11 +189,8 @@ output keyUri string = key.properties.keyUri
 @description('The uri with version of the key.')
 output keyUriWithVersion string = key.properties.keyUriWithVersion
 
-@description('The name of the key.')
 output name string = key.name
 
-@description('The resource ID of the key.')
 output resourceId string = key.id
 
-@description('The name of the resource group the key was created in.')
 output resourceGroupName string = resourceGroup().name

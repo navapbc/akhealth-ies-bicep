@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile Origin.'
 @description('Required. The name of the origion.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Required. The name of the group.')
@@ -66,11 +66,8 @@ resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01' = {
   }
 }
 
-@description('The name of the origin.')
 output name string = origin.name
 
-@description('The resource id of the origin.')
 output resourceId string = origin.id
 
-@description('The name of the resource group the origin was created in.')
 output resourceGroupName string = resourceGroup().name

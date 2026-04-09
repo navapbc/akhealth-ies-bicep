@@ -36,11 +36,8 @@ resource msdeploy 'Microsoft.Web/sites/slots/extensions@2025-03-01' = {
   properties: properties
 }
 
-@description('The name of the extension.')
 output name string = msdeploy.name
 
-@description('The resource ID of the extension.')
 output resourceId string = msdeploy.id
 
-@description('The resource group the extensino was deployed into.')
 output resourceGroupName string = resourceGroup().name
