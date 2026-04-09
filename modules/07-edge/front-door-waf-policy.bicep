@@ -2,6 +2,7 @@ metadata name = 'Front Door Web Application Firewall (WAF) Policies'
 metadata description = 'This module deploys a Front Door Web Application Firewall (WAF) Policy.'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
+import { frontDoorConfigType } from '../shared/shared.types.bicep'
 
 @description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
@@ -18,62 +19,11 @@ param workloadDescription string = ''
 @description('Optional. Location for all resources.')
 param location string = 'global'
 
-@allowed([
-  'Standard_AzureFrontDoor'
-  'Premium_AzureFrontDoor'
-])
-@description('Optional. The pricing tier of the WAF profile.')
-param sku string = 'Standard_AzureFrontDoor'
+@description('Required. Declared Front Door configuration for this workload.')
+param config frontDoorConfigType
 
 @description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01'>.tags?
-
-
-@description('Optional. Describes the managedRules structure.')
-param managedRules managedRulesType = {
-  managedRuleSets: [
-    {
-      ruleSetType: 'Microsoft_DefaultRuleSet'
-      ruleSetVersion: '2.1'
-      ruleGroupOverrides: []
-      exclusions: []
-      ruleSetAction: 'Block'
-    }
-    {
-      ruleSetType: 'Microsoft_BotManagerRuleSet'
-      ruleSetVersion: '1.0'
-      ruleGroupOverrides: []
-      exclusions: []
-    }
-  ]
-}
-
-@description('Optional. The custom rules inside the policy.')
-param customRules customRulesType = {
-  rules: [
-    {
-      name: 'ApplyGeoFilter'
-      priority: 100
-      enabledState: 'Enabled'
-      ruleType: 'MatchRule'
-      action: 'Block'
-      matchConditions: [
-        {
-          matchVariable: 'RemoteAddr'
-          operator: 'GeoMatch'
-          negateCondition: true
-          matchValue: ['ZZ']
-        }
-      ]
-    }
-  ]
-}
-
-@description('Optional. The PolicySettings for policy.')
-param policySettings object = {
-  enabledState: 'Enabled'
-  mode: 'Prevention'
-}
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. The lock settings of the service.')
@@ -91,6 +41,40 @@ var derivedName = take(
   128
 )
 var resolvedName = derivedName
+var resolvedCustomRules = config.enableDefaultWafMethodBlock
+  ? {
+      rules: [
+        {
+          name: 'BlockMethod'
+          enabledState: 'Enabled'
+          action: 'Block'
+          ruleType: 'MatchRule'
+          priority: 10
+          rateLimitDurationInMinutes: 1
+          rateLimitThreshold: 100
+          matchConditions: [
+            {
+              matchVariable: 'RequestMethod'
+              operator: 'Equal'
+              negateCondition: true
+              matchValue: [
+                'GET'
+                'OPTIONS'
+                'HEAD'
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  : config.wafCustomRules
+var resolvedManagedRules = config.sku == 'Premium_AzureFrontDoor'
+  ? {
+      managedRuleSets: config.wafManagedRuleSets
+    }
+  : {
+      managedRuleSets: []
+    }
 
 var builtInRoleNames = {
   Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
@@ -121,13 +105,13 @@ resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPo
   name: resolvedName
   location: location
   sku: {
-    name: sku
+    name: config.sku
   }
   tags: tags
   properties: {
-    customRules: customRules
-    managedRules: sku == 'Premium_AzureFrontDoor' ? managedRules : { managedRuleSets: [] }
-    policySettings: policySettings
+    customRules: resolvedCustomRules
+    managedRules: resolvedManagedRules
+    policySettings: config.wafPolicySettings
   }
 }
 

@@ -636,33 +636,6 @@ var shouldDeployFrontDoor = frontDoorSelected
 var frontDoorSettings = frontDoorConfig
 var autoApproveAfdPrivateEndpoint = frontDoorSettings.autoApprovePrivateEndpoint
 var afdPeAutoApproverIsolationScope = frontDoorSettings.afdPeAutoApproverIsolationScope
-var frontDoorWafCustomRules = frontDoorSettings.enableDefaultWafMethodBlock
-  ? {
-      rules: [
-        {
-          name: 'BlockMethod'
-          enabledState: 'Enabled'
-          action: 'Block'
-          ruleType: 'MatchRule'
-          priority: 10
-          rateLimitDurationInMinutes: 1
-          rateLimitThreshold: 100
-          matchConditions: [
-            {
-              matchVariable: 'RequestMethod'
-              operator: 'Equal'
-              negateCondition: true
-              matchValue: [
-                'GET'
-                'OPTIONS'
-                'HEAD'
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  : frontDoorSettings.wafCustomRules
 
 module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDeployFrontDoor) {
   name: '${uniqueString(deployment().name, location)}-afd-waf'
@@ -673,13 +646,8 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDe
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
     location: 'global'
+    config: frontDoorSettings
     tags: tags
-    sku: any(frontDoorSettings.sku)
-    policySettings: frontDoorSettings.wafPolicySettings
-    customRules: frontDoorWafCustomRules
-    managedRules: {
-      managedRuleSets: frontDoorSettings.wafManagedRuleSets
-    }
   }
 }
 
@@ -691,56 +659,14 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoo
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
-    sku: any(frontDoorSettings.sku)
     location: 'global'
-    originResponseTimeoutSeconds: frontDoorSettings.originResponseTimeoutSeconds
-    managedIdentities: frontDoorSettings.managedIdentities
-    diagnosticSettings: frontDoorSettings.diagnosticSettings
-    lock: frontDoorSettings.?lock
-    roleAssignments: frontDoorSettings.roleAssignments
-    customDomains: frontDoorSettings.customDomains
-    ruleSets: frontDoorSettings.ruleSets
-    secrets: frontDoorSettings.secrets
-    originGroups: [
-      for originGroup in frontDoorSettings.originGroups: {
-        name: originGroup.name
-        authentication: originGroup.?authentication
-        healthProbeSettings: originGroup.?healthProbeSettings
-        loadBalancingSettings: originGroup.loadBalancingSettings
-        sessionAffinityState: any(originGroup.sessionAffinityState)
-        trafficRestorationTimeToHealedOrNewEndpointsInMinutes: originGroup.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
-        origins: map(originGroup.origins, origin => {
-            name: origin.name
-            hostName: webAppSite.outputs.defaultHostname
-            httpPort: origin.httpPort
-            httpsPort: origin.httpsPort
-            priority: origin.priority
-            weight: origin.weight
-            enabledState: any(origin.enabledState)
-            enforceCertificateNameCheck: origin.enforceCertificateNameCheck
-            originHostHeader: webAppSite.outputs.defaultHostname
-            sharedPrivateLinkResource: origin.?sharedPrivateLink != null
-              ? {
-                  privateLink: {
-                    id: webAppSite.outputs.resourceId
-                  }
-                  privateLinkLocation: webAppSite.outputs.location
-                  requestMessage: origin.?sharedPrivateLink.?requestMessage
-                  groupId: origin.?sharedPrivateLink.?groupId
-                }
-              : null
-          })
-      }
-    ]
-    afdEndpoints: frontDoorSettings.afdEndpoints
+    config: frontDoorSettings
+    workloadOriginHostName: webAppSite.outputs.defaultHostname
+    workloadOriginResourceId: webAppSite.outputs.resourceId
+    workloadOriginLocation: webAppSite.outputs.location
     tags: tags
   }
 }
-
-#disable-next-line BCP318
-var frontDoorSecurityPolicyDomains = !empty(frontDoorSettings.customDomains)
-  ? afd.outputs.customDomainSecurityPolicyDomains
-  : afd.outputs.afdEndpointSecurityPolicyDomains
 
 module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (shouldDeployFrontDoor) {
   name: '${uniqueString(deployment().name, location)}-afd-security-policy'
@@ -755,7 +681,10 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
     wafPolicyResourceId: frontDoorWaf.outputs.resourceId
     associations: [
       {
-        domains: frontDoorSecurityPolicyDomains
+        domains: concat(
+          afd.outputs.customDomainSecurityPolicyDomains,
+          afd.outputs.afdDefaultLinkedSecurityPolicyDomains
+        )
         patternsToMatch: frontDoorSettings.securityPatternsToMatch
       }
     ]

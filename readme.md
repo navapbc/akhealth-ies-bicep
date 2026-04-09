@@ -6,14 +6,14 @@ This folder contains a local and reorganized  version of the App Service LZA tem
 
 Modules are organized by deployment area and deployment order to keep flow obvious and legibile:
 
-- `01-network`
-- `02-monitoring`
-- `03-app-hosting`
-- `04-application`
-- `05-identity`
-- `06-secrets`
-- `07-edge`
-- `shared`
+- 01-network
+- 02-monitoring
+- 03-app-hosting
+- 04-application
+- 05-identity
+- 06-secrets
+- 07-edge
+- shared
 
 Deployment Example:
 
@@ -65,14 +65,14 @@ Considerations: Use Microsoft CAF abbreviations where Microsoft publishes one. M
 
 For resource types that don't have an official CAF abbreviation, this repo uses the following local conventions:
 
-- `fdsecp` for `Microsoft.Cdn/profiles/securityPolicies`
-- `fder` for `Microsoft.Cdn/profiles/afdEndpoints/routes`
-- `fdog` for `Microsoft.Cdn/profiles/originGroups`
-- `fdorg` for `Microsoft.Cdn/profiles/originGroups/origins`
-- `fdrset` for `Microsoft.Cdn/profiles/ruleSets`
-- `fdrul` for `Microsoft.Cdn/profiles/ruleSets/rules`
-- `fdcdom` for `Microsoft.Cdn/profiles/customDomains`
-- `fdsecr` for `Microsoft.Cdn/profiles/secrets`
+- fdsecp for Microsoft.Cdn/profiles/securityPolicies
+- fder for Microsoft.Cdn/profiles/afdEndpoints/routes
+- fdog for Microsoft.Cdn/profiles/originGroups
+- fdorg for Microsoft.Cdn/profiles/originGroups/origins
+- fdrset for Microsoft.Cdn/profiles/ruleSets
+- fdrul for Microsoft.Cdn/profiles/ruleSets/rules
+- fdcdom for Microsoft.Cdn/profiles/customDomains
+- fdsecr for Microsoft.Cdn/profiles/secrets
 
 
 TODO:
