@@ -125,25 +125,25 @@ var resourceGroupName = take('rg-${systemAbbreviation}-${regionAbbreviation}-${e
 // Shared Network Links     //
 // ======================== //
 
-var virtualNetworkLinks = [
+var spokePrivateDnsZoneLinks = [
   {
     name: networking.outputs.vnetSpokeName
     virtualNetworkResourceId: networking.outputs.vnetSpokeResourceId
     registrationEnabled: false
   }
 ]
-var hubVirtualNetworkLink = hubPeeringConfig != null
+var optionalHubPrivateDnsZoneLink = hubPeeringConfig != null
   ? {
       name: hubPeeringConfig!.virtualNetworkName
       virtualNetworkResourceId: hubPeeringConfig!.virtualNetworkResourceId
       registrationEnabled: false
     }
   : null
-var postgreSqlPrivateDnsZoneVirtualNetworkLinks = concat(
-  virtualNetworkLinks,
-  hubVirtualNetworkLink != null
+var postgreSqlPrivateDnsZoneLinks = concat(
+  spokePrivateDnsZoneLinks,
+  optionalHubPrivateDnsZoneLink != null
       ? [
-          hubVirtualNetworkLink
+          optionalHubPrivateDnsZoneLink
         ]
     : []
 )
@@ -231,36 +231,19 @@ module networking 'modules/01-network/network.bicep' = {
 // ======================== //
 
 var existingAppServicePlanId = servicePlanConfig.existingPlanId
-var deployPlan = empty(existingAppServicePlanId)
-var resolvedServerFarmResourceId = appServicePlan.?outputs.?resourceId ?? existingAppServicePlanId
-var isLinux = servicePlanConfig.kind =~ 'linux'
-var isWindowsContainer = contains(appServiceConfig.kind, 'container') && contains(appServiceConfig.kind, 'windows')
-var appServiceSystemAssignedIdentityEnabled = appServiceConfig.managedIdentities.?systemAssigned ?? false
-var resolvedWebAppClientCertMode = appServiceConfig.clientCertEnabled ? appServiceConfig.?clientCertMode : null
-var webAppPublishingCredentialPolicies = appServiceConfig.disableBasicPublishingCredentials
-  ? [
-      {
-        name: 'ftp'
-        allow: false
-      }
-      {
-        name: 'scm'
-        allow: false
-      }
-    ]
-  : null
-var webAppVirtualNetworkSubnetResourceId = !deployAseV3 && !servicePlanConfig.isCustomMode
+var useExistingAppServicePlan = !empty(existingAppServicePlanId)
+var deployPlan = !useExistingAppServicePlan
+var appServicePlanResourceId = useExistingAppServicePlan
+  ? existingAppServicePlanId
+  : appServicePlan!.outputs.resourceId
+var useSolutionWebAppSubnetIntegration = !deployAseV3 && !servicePlanConfig.isCustomMode
+var webAppVirtualNetworkSubnetResourceId = useSolutionWebAppSubnetIntegration
   ? networking.outputs.snetAppSvcResourceId
   : null
-var webAppPrivateDnsZoneName = 'privatelink.azurewebsites.net'
-var keyVaultPrivateDnsZoneName = 'privatelink.vaultcore.azure.net'
 
 // ======================== //
 // ASE                      //
 // ======================== //
-
-var aseDedicatedHostCount = aseConfig.dedicatedHostCount != 0 ? aseConfig.dedicatedHostCount : null
-var aseDnsSuffix = !empty(aseConfig.dnsSuffix) ? aseConfig.dnsSuffix : null
 
 module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-avm'
@@ -275,7 +258,7 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
     subnetResourceId: networking.outputs.snetAppSvcResourceId
     subnetName: networking.outputs.snetAppSvcName
     clusterSettings: aseConfig.clusterSettings
-    dedicatedHostCount: aseDedicatedHostCount
+    dedicatedHostCount: aseConfig.dedicatedHostCount
     frontEndScaleFactor: aseConfig.frontEndScaleFactor
     internalLoadBalancingMode: aseConfig.internalLoadBalancingMode
     zoneRedundant: aseConfig.zoneRedundant
@@ -289,7 +272,7 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
     }
     customDnsSuffixCertificateUrl: aseConfig.customDnsSuffixCertificateUrl
     customDnsSuffix: aseConfig.customDnsSuffix
-    dnsSuffix: aseDnsSuffix
+    dnsSuffix: aseConfig.dnsSuffix
     upgradePreference: aseConfig.upgradePreference
     ipsslAddressCount: aseConfig.ipsslAddressCount
     multiSize: aseConfig.multiSize
@@ -315,7 +298,7 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
   scope: spokeResourceGroup
   params: {
     name: '${aseEnvironment!.outputs.name}.appserviceenvironment.net'
-    virtualNetworkLinks: virtualNetworkLinks
+    virtualNetworkLinks: spokePrivateDnsZoneLinks
     tags: tags
     a: [
       {
@@ -401,15 +384,14 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
     skuName: servicePlanConfig.sku
     skuCapacity: servicePlanConfig.skuCapacity
     zoneRedundant: servicePlanConfig.zoneRedundant
-    kind: isLinux ? 'Linux' : 'Windows'
+    servicePlanKind: servicePlanConfig.kind
+    workloadKind: appServiceConfig.kind
     perSiteScaling: servicePlanConfig.perSiteScaling
     maximumElasticWorkerCount: servicePlanConfig.maximumElasticWorkerCount
     elasticScaleEnabled: servicePlanConfig.elasticScaleEnabled
-    reserved: isLinux
     targetWorkerCount: servicePlanConfig.targetWorkerCount
     targetWorkerSize: servicePlanConfig.targetWorkerSize
     workerTierName: servicePlanConfig.workerTierName
-    hyperV: isWindowsContainer
     appServiceEnvironmentResourceId: aseEnvironment.?outputs.?resourceId ?? null
     virtualNetworkSubnetId: servicePlanConfig.isCustomMode ? networking.outputs.snetAppSvcResourceId : servicePlanConfig.virtualNetworkSubnetId
     isCustomMode: servicePlanConfig.isCustomMode
@@ -438,14 +420,14 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
     location: location
-    serverFarmResourceId: resolvedServerFarmResourceId
+    serverFarmResourceId: appServicePlanResourceId
     siteConfig: appServiceConfig.siteConfig
     httpsOnly: appServiceConfig.httpsOnly
     clientAffinityEnabled: appServiceConfig.clientAffinityEnabled
     clientAffinityProxyEnabled: appServiceConfig.clientAffinityProxyEnabled
     clientAffinityPartitioningEnabled: appServiceConfig.clientAffinityPartitioningEnabled
     clientCertEnabled: appServiceConfig.clientCertEnabled
-    clientCertMode: resolvedWebAppClientCertMode
+    clientCertMode: appServiceConfig.?clientCertMode
     clientCertExclusionPaths: appServiceConfig.?clientCertExclusionPaths
     publicNetworkAccess: appServiceConfig.publicNetworkAccess
     redundancyMode: appServiceConfig.redundancyMode
@@ -473,7 +455,7 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     hostNamesDisabled: appServiceConfig.?hostNamesDisabled
     reserved: appServiceConfig.reserved
     extendedLocation: appServiceConfig.?extendedLocation
-    basicPublishingCredentialsPolicies: webAppPublishingCredentialPolicies
+    disableBasicPublishingCredentials: appServiceConfig.disableBasicPublishingCredentials
     diagnosticSettings: appServiceConfig.diagnosticSettings
     lock: appServiceConfig.?lock
     roleAssignments: appServiceConfig.?roleAssignments
@@ -487,8 +469,7 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     slots: appServiceConfig.slots
     enableDefaultPrivateEndpoint: webAppPrivateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
-    defaultPrivateDnsZoneName: webAppPrivateDnsZoneName
-    defaultPrivateDnsZoneVirtualNetworkLinks: virtualNetworkLinks
+    defaultPrivateDnsZoneVirtualNetworkLinks: spokePrivateDnsZoneLinks
     tags: tags
   }
 }
@@ -497,13 +478,11 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
 // Front Door               //
 // ======================== //
 
-var frontDoorSelected = networkingOption == 'frontDoor'
-var shouldDeployFrontDoor = frontDoorSelected
-var frontDoorSettings = frontDoorConfig
-var autoApproveAfdPrivateEndpoint = frontDoorSettings.autoApprovePrivateEndpoint
-var afdPeAutoApproverIsolationScope = frontDoorSettings.afdPeAutoApproverIsolationScope
+var useFrontDoorIngress = spokeNetworkConfig.ingressOption == 'frontDoor'
+var autoApproveAfdPrivateEndpoint = frontDoorConfig.autoApprovePrivateEndpoint
+var afdPeAutoApproverIsolationScope = frontDoorConfig.afdPeAutoApproverIsolationScope
 
-module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDeployFrontDoor) {
+module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-waf'
   scope: spokeResourceGroup
   params: {
@@ -511,12 +490,12 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (shouldDe
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
-    config: frontDoorSettings
+    config: frontDoorConfig
     tags: tags
   }
 }
 
-module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoor) {
+module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd'
   scope: spokeResourceGroup
   params: {
@@ -525,7 +504,7 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoo
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
     location: 'global'
-    config: frontDoorSettings
+    config: frontDoorConfig
     workloadOriginHostName: webAppSite.outputs.defaultHostname
     workloadOriginResourceId: webAppSite.outputs.resourceId
     workloadOriginLocation: webAppSite.outputs.location
@@ -533,7 +512,7 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (shouldDeployFrontDoo
   }
 }
 
-module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (shouldDeployFrontDoor) {
+module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-security-policy'
   scope: spokeResourceGroup
   params: {
@@ -550,13 +529,13 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
           afd!.outputs.customDomainSecurityPolicyDomains,
           afd!.outputs.afdDefaultLinkedSecurityPolicyDomains
         )
-        patternsToMatch: frontDoorSettings.securityPatternsToMatch
+        patternsToMatch: frontDoorConfig.securityPatternsToMatch
       }
     ]
   }
 }
 
-module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-afd-uami'
   scope: spokeResourceGroup
   dependsOn: [
@@ -573,7 +552,7 @@ module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bic
   }
 }
 
-module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assignments.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assignments.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-afd-uami-rbac'
   scope: spokeResourceGroup
   params: {
@@ -587,7 +566,7 @@ module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assig
   }
 }
 
-module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoApproveAfdPrivateEndpoint && shouldDeployFrontDoor && webAppPrivateNetworkingEnabled) {
+module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-autoApproveAfdPe'
   scope: spokeResourceGroup
   params: {
@@ -625,51 +604,9 @@ module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoAppro
 // Application Gateway      //
 // ======================== //
 
-var appGatewaySettings = appGatewayConfig
-var appGatewaySslCertificates = appGatewaySettings.sslCertificates
-var appGatewayManagedIdentities = appGatewaySettings.managedIdentities
-var appGatewayTrustedRootCertificates = appGatewaySettings.trustedRootCertificates
-var appGatewaySku = appGatewaySettings.sku
-var appGatewayCapacity = appGatewaySettings.capacity
-var appGatewayAutoscaleMinCapacity = appGatewaySettings.autoscaleMinCapacity
-var appGatewayAutoscaleMaxCapacity = appGatewaySettings.autoscaleMaxCapacity
-var appGatewayAvailabilityZones = appGatewaySettings.availabilityZones
-var appGatewaySslPolicyType = appGatewaySettings.sslPolicyType
-var appGatewaySslPolicyName = appGatewayConfig.sslPolicyName
-var appGatewaySslPolicyMinProtocolVersion = appGatewaySettings.sslPolicyMinProtocolVersion
-var appGatewaySslPolicyCipherSuites = appGatewaySettings.sslPolicyCipherSuites
-var appGatewayRoleAssignments = appGatewaySettings.roleAssignments
-var appGatewayAuthenticationCertificates = appGatewaySettings.authenticationCertificates
-var appGatewayCustomErrorConfigurations = appGatewaySettings.customErrorConfigurations
-var appGatewayEnableFips = appGatewaySettings.enableFips
-var appGatewayEnableHttp2 = appGatewaySettings.enableHttp2
-var appGatewayEnableRequestBuffering = appGatewaySettings.enableRequestBuffering
-var appGatewayEnableResponseBuffering = appGatewaySettings.enableResponseBuffering
-var appGatewayLoadDistributionPolicies = appGatewaySettings.loadDistributionPolicies
-var appGatewayPrivateEndpoints = appGatewaySettings.privateEndpoints
-var appGatewayPrivateLinkConfigurations = appGatewaySettings.privateLinkConfigurations
-var appGatewayRedirectConfigurations = appGatewaySettings.redirectConfigurations
-var appGatewayRewriteRuleSets = appGatewaySettings.rewriteRuleSets
-var appGatewayGatewayIPConfigurations = appGatewaySettings.gatewayIPConfigurations
-var appGatewayFrontendIPConfigurations = appGatewaySettings.frontendIPConfigurations
-var appGatewayFrontendPorts = appGatewaySettings.frontendPorts
-var appGatewayBackendAddressPools = appGatewaySettings.backendAddressPools
-var appGatewayBackendHttpSettingsCollection = appGatewaySettings.backendHttpSettingsCollection
-var appGatewayProbes = appGatewaySettings.probes
-var appGatewayHttpListeners = appGatewaySettings.httpListeners
-var appGatewaySslProfiles = appGatewaySettings.sslProfiles
-var appGatewayTrustedClientCertificates = appGatewaySettings.trustedClientCertificates
-var appGatewayUrlPathMaps = appGatewaySettings.urlPathMaps
-var appGatewayBackendSettingsCollection = appGatewaySettings.backendSettingsCollection
-var appGatewayListeners = appGatewaySettings.listeners
-var appGatewayRoutingRules = appGatewaySettings.routingRules
-var appGatewayRequestRoutingRules = appGatewaySettings.requestRoutingRules
-var appGatewayLock = appGatewaySettings.?lock
-var appGatewayDiagnosticSettings = appGatewaySettings.diagnosticSettings
-var appGatewayWafPolicySettings = appGatewaySettings.wafPolicySettings
-var appGatewayWafManagedRuleSets = appGatewaySettings.wafManagedRuleSets
+var useApplicationGatewayIngress = networkingOption == 'applicationGateway'
 
-module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = if (networkingOption == 'applicationGateway') {
+module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appgw-waf'
   scope: spokeResourceGroup
   params: {
@@ -680,13 +617,13 @@ module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = i
     location: location
     tags: tags
     managedRules: {
-      managedRuleSets: appGatewayWafManagedRuleSets
+      managedRuleSets: appGatewayConfig.wafManagedRuleSets
     }
-    policySettings: appGatewayWafPolicySettings
+    policySettings: appGatewayConfig.wafPolicySettings
   }
 }
 
-module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption == 'applicationGateway') {
+module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appGw'
   scope: spokeResourceGroup
   params: {
@@ -696,68 +633,53 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (networkingOption 
     workloadDescription: workloadDescription
     location: location
     tags: tags
-    sku: appGatewaySku
-    capacity: appGatewayCapacity
-    autoscaleMinCapacity: appGatewayAutoscaleMinCapacity
-    autoscaleMaxCapacity: appGatewayAutoscaleMaxCapacity
-    enableHttp2: appGatewayEnableHttp2
-    enableFips: appGatewayEnableFips
-    enableRequestBuffering: appGatewayEnableRequestBuffering
-    enableResponseBuffering: appGatewayEnableResponseBuffering
-    availabilityZones: appGatewayAvailabilityZones
+    sku: appGatewayConfig.sku
+    capacity: appGatewayConfig.capacity
+    autoscaleMinCapacity: appGatewayConfig.autoscaleMinCapacity
+    autoscaleMaxCapacity: appGatewayConfig.autoscaleMaxCapacity
+    enableHttp2: appGatewayConfig.enableHttp2
+    enableFips: appGatewayConfig.enableFips
+    enableRequestBuffering: appGatewayConfig.enableRequestBuffering
+    enableResponseBuffering: appGatewayConfig.enableResponseBuffering
+    availabilityZones: appGatewayConfig.availabilityZones
     firewallPolicyResourceId: appGwWafPolicy!.outputs.resourceId
-    diagnosticSettings: appGatewayDiagnosticSettings
-    lock: appGatewayLock
-    roleAssignments: appGatewayRoleAssignments
-    managedIdentities: appGatewayManagedIdentities
-    sslCertificates: appGatewaySslCertificates
-    trustedRootCertificates: appGatewayTrustedRootCertificates
-    sslPolicyType: appGatewaySslPolicyType
-    sslPolicyName: any(appGatewaySslPolicyName)
-    sslPolicyMinProtocolVersion: appGatewaySslPolicyMinProtocolVersion
-    sslPolicyCipherSuites: appGatewaySslPolicyCipherSuites
-    authenticationCertificates: appGatewayAuthenticationCertificates
-    customErrorConfigurations: appGatewayCustomErrorConfigurations
-    loadDistributionPolicies: appGatewayLoadDistributionPolicies
-    gatewayIPConfigurations: appGatewayGatewayIPConfigurations
-    frontendIPConfigurations: appGatewayFrontendIPConfigurations
-    frontendPorts: appGatewayFrontendPorts
-    backendAddressPools: appGatewayBackendAddressPools
-    backendHttpSettingsCollection: appGatewayBackendHttpSettingsCollection
-    probes: appGatewayProbes
-    httpListeners: appGatewayHttpListeners
-    privateEndpoints: appGatewayPrivateEndpoints
-    privateLinkConfigurations: appGatewayPrivateLinkConfigurations
-    redirectConfigurations: appGatewayRedirectConfigurations
-    rewriteRuleSets: appGatewayRewriteRuleSets
-    sslProfiles: appGatewaySslProfiles
-    trustedClientCertificates: appGatewayTrustedClientCertificates
-    urlPathMaps: appGatewayUrlPathMaps
-    backendSettingsCollection: appGatewayBackendSettingsCollection
-    listeners: appGatewayListeners
-    routingRules: appGatewayRoutingRules
-    requestRoutingRules: appGatewayRequestRoutingRules
+    diagnosticSettings: appGatewayConfig.diagnosticSettings
+    lock: appGatewayConfig.?lock
+    roleAssignments: appGatewayConfig.roleAssignments
+    managedIdentities: appGatewayConfig.managedIdentities
+    sslCertificates: appGatewayConfig.sslCertificates
+    trustedRootCertificates: appGatewayConfig.trustedRootCertificates
+    sslPolicyType: appGatewayConfig.sslPolicyType
+    sslPolicyName: appGatewayConfig.sslPolicyName
+    sslPolicyMinProtocolVersion: appGatewayConfig.sslPolicyMinProtocolVersion
+    sslPolicyCipherSuites: appGatewayConfig.sslPolicyCipherSuites
+    authenticationCertificates: appGatewayConfig.authenticationCertificates
+    customErrorConfigurations: appGatewayConfig.customErrorConfigurations
+    loadDistributionPolicies: appGatewayConfig.loadDistributionPolicies
+    gatewayIPConfigurations: appGatewayConfig.gatewayIPConfigurations
+    frontendIPConfigurations: appGatewayConfig.frontendIPConfigurations
+    frontendPorts: appGatewayConfig.frontendPorts
+    backendAddressPools: appGatewayConfig.backendAddressPools
+    backendHttpSettingsCollection: appGatewayConfig.backendHttpSettingsCollection
+    probes: appGatewayConfig.probes
+    httpListeners: appGatewayConfig.httpListeners
+    privateEndpoints: appGatewayConfig.privateEndpoints
+    privateLinkConfigurations: appGatewayConfig.privateLinkConfigurations
+    redirectConfigurations: appGatewayConfig.redirectConfigurations
+    rewriteRuleSets: appGatewayConfig.rewriteRuleSets
+    sslProfiles: appGatewayConfig.sslProfiles
+    trustedClientCertificates: appGatewayConfig.trustedClientCertificates
+    urlPathMaps: appGatewayConfig.urlPathMaps
+    backendSettingsCollection: appGatewayConfig.backendSettingsCollection
+    listeners: appGatewayConfig.listeners
+    routingRules: appGatewayConfig.routingRules
+    requestRoutingRules: appGatewayConfig.requestRoutingRules
   }
 }
 
 // ======================== //
 // Supporting Services      //
 // ======================== //
-
-var keyVaultEnablePurgeProtection = keyVaultConfig.enablePurgeProtection
-var keyVaultSoftDeleteRetentionInDays = keyVaultConfig.softDeleteRetentionInDays
-var keyVaultSecrets = keyVaultConfig.?secrets
-var keyVaultKeys = keyVaultConfig.?keys
-var keyVaultEnableVaultForTemplateDeployment = keyVaultConfig.enableVaultForTemplateDeployment
-var keyVaultEnableVaultForDiskEncryption = keyVaultConfig.enableVaultForDiskEncryption
-var keyVaultCreateMode = keyVaultConfig.createMode
-var keyVaultSku = keyVaultConfig.sku
-var keyVaultEnableVaultForDeployment = keyVaultConfig.enableVaultForDeployment
-var resolvedKeyVaultNetworkAcls = keyVaultConfig.networkAcls
-var resolvedKeyVaultPublicNetworkAccess = keyVaultConfig.publicNetworkAccess
-var keyVaultLock = keyVaultConfig.?lock
-var keyVaultRoleAssignments = keyVaultConfig.roleAssignments
-var keyVaultDiagnosticSettings = keyVaultConfig.diagnosticSettings
 
 @description('Azure Key Vault used to hold items like TLS certs and application secrets that your workload will need.')
 module keyVault 'modules/06-secrets/key-vault.bicep' = {
@@ -770,37 +692,23 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
     workloadDescription: workloadDescription
     location: location
     tags: tags
-    sku: keyVaultSku
-    networkAcls: resolvedKeyVaultNetworkAcls
-    softDeleteRetentionInDays: keyVaultSoftDeleteRetentionInDays
-    enablePurgeProtection: keyVaultEnablePurgeProtection
-    publicNetworkAccess: resolvedKeyVaultPublicNetworkAccess
-    enableVaultForDeployment: keyVaultEnableVaultForDeployment
-    enableVaultForTemplateDeployment: keyVaultEnableVaultForTemplateDeployment
-    enableVaultForDiskEncryption: keyVaultEnableVaultForDiskEncryption
-    createMode: keyVaultCreateMode
-    secrets: keyVaultSecrets
-    keys: keyVaultKeys
+    sku: keyVaultConfig.sku
+    networkAcls: keyVaultConfig.networkAcls
+    softDeleteRetentionInDays: keyVaultConfig.softDeleteRetentionInDays
+    enablePurgeProtection: keyVaultConfig.enablePurgeProtection
+    publicNetworkAccess: keyVaultConfig.publicNetworkAccess
+    enableVaultForDeployment: keyVaultConfig.enableVaultForDeployment
+    enableVaultForTemplateDeployment: keyVaultConfig.enableVaultForTemplateDeployment
+    enableVaultForDiskEncryption: keyVaultConfig.enableVaultForDiskEncryption
+    createMode: keyVaultConfig.createMode
+    secrets: keyVaultConfig.?secrets
+    keys: keyVaultConfig.?keys
     enableDefaultPrivateEndpoint: privateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.snetPeResourceId
-    defaultPrivateDnsZoneName: keyVaultPrivateDnsZoneName
-    defaultPrivateDnsZoneVirtualNetworkLinks: concat(
-      [
-        {
-          name: networking.outputs.vnetSpokeName
-          virtualNetworkResourceId: networking.outputs.vnetSpokeResourceId
-          registrationEnabled: false
-        }
-      ],
-      hubVirtualNetworkLink != null
-        ? [
-            hubVirtualNetworkLink!
-          ]
-        : []
-    )
-    diagnosticSettings: keyVaultDiagnosticSettings
-    lock: keyVaultLock
-    roleAssignments: keyVaultRoleAssignments
+    defaultPrivateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
+    diagnosticSettings: keyVaultConfig.diagnosticSettings
+    lock: keyVaultConfig.?lock
+    roleAssignments: keyVaultConfig.roleAssignments
   }
 }
 
@@ -814,7 +722,7 @@ var postgreSqlRoleAssignments = concat(
     ? [
         {
           roleDefinitionIdOrName: 'Reader'
-          principalId: appServiceSystemAssignedIdentityEnabled
+          principalId: appServiceConfig.managedIdentities.?systemAssigned ?? false
             ? webAppSite.outputs.systemAssignedMIPrincipalId
             : fail('postgresqlConfig.grantAppServiceIdentityReaderRole requires appServiceConfig.managedIdentities.systemAssigned to be true.')
           principalType: 'ServicePrincipal'
@@ -849,7 +757,7 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     publicNetworkAccess: postgresqlConfig.publicNetworkAccess
     privateAccessMode: postgresqlConfig.privateAccessMode
     delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.snetPostgreSqlResourceId : null
-    privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneVirtualNetworkLinks
+    privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
     databases: postgresqlConfig.databases
     configurations: postgresqlConfig.configurations
     diagnosticSettings: postgresqlConfig.diagnosticSettings
@@ -894,7 +802,7 @@ output webAppLocation string = webAppSite.outputs.location
 output webAppManagedIdentityPrincipalId string = webAppSite.outputs.systemAssignedMIPrincipalId
 
 @description('The resource ID of the App Service Plan used (either created or pre-existing).')
-output appServicePlanResourceId string = resolvedServerFarmResourceId
+output appServicePlanResourceId string = appServicePlanResourceId
 
 @description('The Internal ingress IP of the ASE. Null when ASE is not deployed.')
 output internalInboundIpAddress string? = aseLookup.?outputs.?internalInboundIpAddress

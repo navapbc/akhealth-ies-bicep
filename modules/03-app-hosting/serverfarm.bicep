@@ -33,11 +33,15 @@ param skuName string
 @description('Required. Number of workers associated with the App Service Plan.')
 param skuCapacity int
 
-@description('Optional. Kind of server OS.')
-param kind resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.kind
+@description('Required. Operating system family for the plan.')
+@allowed([
+  'windows'
+  'linux'
+])
+param servicePlanKind string
 
-@description('Conditional. Defaults to false when creating Windows/app App Service Plan. Required if creating a Linux App Service Plan and must be set to true.')
-param reserved resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.reserved
+@description('Required. App workload kind used to determine plan-specific hosting behavior.')
+param workloadKind string
 
 @description('Optional. The Resource ID of the App Service Environment to use for the App Service Plan.')
 param appServiceEnvironmentResourceId string?
@@ -67,9 +71,6 @@ param targetWorkerSize int
 
 @description('Optional. Zone Redundant server farms can only be used on Premium or ElasticPremium SKU tiers within ZRS Supported regions (https://learn.microsoft.com/en-us/azure/storage/common/redundancy-regions-zrs).')
 param zoneRedundant resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.zoneRedundant
-
-@description('Optional. If Hyper-V container app service plan true, false otherwise.')
-param hyperV resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.hyperV?
 
 @description('Optional. The resource ID of the subnet to integrate the App Service Plan with for VNet integration.')
 param virtualNetworkSubnetId string?
@@ -118,6 +119,9 @@ var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 40)
 var resolvedName = derivedName
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
+var isLinux = servicePlanKind =~ 'linux'
+var isWindowsContainer = contains(workloadKind, 'container') && contains(workloadKind, 'windows')
+var planKind = isLinux ? 'Linux' : 'Windows'
 var identity = hasSystemAssignedIdentity
   ? {
       type: 'SystemAssigned'
@@ -148,7 +152,7 @@ var customModeStorageMounts = isCustomMode ? storageMounts : null
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
   name: resolvedName
-  kind: kind
+  kind: planKind
   location: location
   tags: tags
   identity: identity
@@ -171,11 +175,11 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
     perSiteScaling: perSiteScaling
     maximumElasticWorkerCount: maximumElasticWorkerCount
     elasticScaleEnabled: elasticScaleEnabled
-    reserved: reserved
+    reserved: isLinux
     targetWorkerCount: targetWorkerCount
     targetWorkerSizeId: targetWorkerSize
     zoneRedundant: zoneRedundant
-    hyperV: hyperV
+    hyperV: isWindowsContainer
     isCustomMode: isCustomMode
     network: planNetwork
     rdpEnabled: customModeRdpEnabled

@@ -837,7 +837,7 @@ type appGatewayConfigType = {
   sslPolicyType: ('Custom' | 'CustomV2' | 'Predefined')
 
   @description('Required. Predefined SSL policy name. Use an empty string when not applicable.')
-  sslPolicyName: string
+  sslPolicyName: ('' | 'AppGwSslPolicy20150501' | 'AppGwSslPolicy20170401' | 'AppGwSslPolicy20170401S' | 'AppGwSslPolicy20220101' | 'AppGwSslPolicy20220101S')
 
   @description('Required. Minimum TLS protocol version.')
   sslPolicyMinProtocolVersion: ('TLSv1_2' | 'TLSv1_3')

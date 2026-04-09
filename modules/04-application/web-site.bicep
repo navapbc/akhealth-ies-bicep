@@ -169,6 +169,9 @@ param redundancyMode resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.
 @description('Optional. The site publishing credential policy names which are associated with the sites.')
 param basicPublishingCredentialsPolicies basicPublishingCredentialsPolicyType[]?
 
+@description('Optional. When true, disable FTP and SCM basic publishing credentials using the standard site policies.')
+param disableBasicPublishingCredentials bool = false
+
 @description('Optional. Whether or not public network access is allowed for this resource. For security reasons it should be disabled. If not specified, it will be disabled by default if private endpoints are set.')
 param publicNetworkAccess resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.publicNetworkAccess?
 
@@ -238,6 +241,19 @@ var supportsServerFarmSettings = !empty(serverFarmResourceId)
 var resolvedServerFarmId = contains(managedEnvironmentSupportedKinds, kind) && !empty(managedEnvironmentResourceId)
   ? null
   : serverFarmResourceId
+var resolvedClientCertMode = clientCertEnabled ? clientCertMode : null
+var resolvedBasicPublishingCredentialsPolicies = disableBasicPublishingCredentials
+  ? [
+      {
+        name: 'ftp'
+        allow: false
+      }
+      {
+        name: 'scm'
+        allow: false
+      }
+    ]
+  : basicPublishingCredentialsPolicies
 var resolvedHostingEnvironmentProfile = !empty(appServiceEnvironmentResourceId)
   ? {
       id: appServiceEnvironmentResourceId
@@ -272,7 +288,7 @@ resource app 'Microsoft.Web/sites@2025-03-01' = {
     functionAppConfig: functionAppConfig
     clientCertEnabled: clientCertEnabled
     clientCertExclusionPaths: clientCertExclusionPaths
-    clientCertMode: !empty(serverFarmResourceId) ? clientCertMode : null
+    clientCertMode: !empty(serverFarmResourceId) ? resolvedClientCertMode : null
     cloningInfo: cloningInfo
     containerSize: containerSize
     dailyMemoryTimeQuota: dailyMemoryTimeQuota
@@ -352,7 +368,7 @@ var resolvedSlots = [
     extensions: slot.?extensions ?? extensions
     diagnosticSettings: slot.?diagnosticSettings
     roleAssignments: slot.?roleAssignments
-    basicPublishingCredentialsPolicies: slot.?basicPublishingCredentialsPolicies ?? basicPublishingCredentialsPolicies
+    basicPublishingCredentialsPolicies: slot.?basicPublishingCredentialsPolicies ?? resolvedBasicPublishingCredentialsPolicies
     lock: slot.?lock ?? lock
     enableDefaultPrivateEndpoint: shouldCreateDefaultPrivateEndpoint
     defaultPrivateEndpointSubnetResourceId: defaultPrivateEndpointSubnetResourceId
@@ -395,10 +411,10 @@ module app_slots './web-site-slot.bicep' = [
       appName: slot.appName
       location: slot.location
       kind: slot.kind
-      serverFarmResourceId: slot.serverFarmResourceId
+      serverFarmResourceId: slot.?serverFarmResourceId
       managedEnvironmentResourceId: slot.managedEnvironmentResourceId
       httpsOnly: slot.httpsOnly
-      appServiceEnvironmentResourceId: slot.appServiceEnvironmentResourceId
+      appServiceEnvironmentResourceId: slot.?appServiceEnvironmentResourceId
       clientAffinityEnabled: slot.clientAffinityEnabled
       clientAffinityProxyEnabled: slot.clientAffinityProxyEnabled
       clientAffinityPartitioningEnabled: slot.clientAffinityPartitioningEnabled
@@ -448,7 +464,7 @@ module app_slots './web-site-slot.bicep' = [
 ]
 
 module app_basicPublishingCredentialsPolicies './web-site-basic-publishing-credentials-policy.bicep' = [
-  for (basicPublishingCredentialsPolicy, index) in (basicPublishingCredentialsPolicies ?? []): {
+  for (basicPublishingCredentialsPolicy, index) in (resolvedBasicPublishingCredentialsPolicies ?? []): {
     name: '${uniqueString(deployment().name, location)}-Site-Publish-Cred-${index}'
     params: {
       webAppName: app.name

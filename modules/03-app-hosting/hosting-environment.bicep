@@ -90,6 +90,8 @@ var derivedName = take(
   60
 )
 var resolvedName = derivedName
+var resolvedDedicatedHostCount = dedicatedHostCount != 0 ? dedicatedHostCount : null
+var resolvedDnsSuffix = !empty(dnsSuffix) ? dnsSuffix : null
 
 var builtInRoleNames = {
   Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
@@ -127,8 +129,8 @@ resource appServiceEnvironment 'Microsoft.Web/hostingEnvironments@2025-03-01' = 
   tags: tags
   properties: {
     clusterSettings: clusterSettings
-    dedicatedHostCount: dedicatedHostCount
-    dnsSuffix: dnsSuffix
+    dedicatedHostCount: resolvedDedicatedHostCount
+    dnsSuffix: resolvedDnsSuffix
     frontEndScaleFactor: frontEndScaleFactor
     internalLoadBalancingMode: internalLoadBalancingMode
     ipsslAddressCount: ipsslAddressCount
