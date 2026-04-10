@@ -7,6 +7,9 @@ param name string
 @description('Conditional. The name of the parent site resource. Required if the template is used in a standalone deployment.')
 param appName string
 
+@description('Required. Instance number used to keep module-owned resource names aligned with the workload naming contract.')
+param instanceNumber string
+
 @description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
 
@@ -211,8 +214,8 @@ var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZo
 // App Service slots use the sites-<slot-name> subresource for Private Link.
 // Ref: https://learn.microsoft.com/en-us/azure/app-service/overview-private-endpoint
 var defaultPrivateEndpointService = 'sites-${name}'
-var defaultPrivateEndpointName = take('pep-${appName}-${name}', 80)
-var defaultPrivateLinkServiceConnectionName = take('plsc-${appName}-${name}', 80)
+var defaultPrivateEndpointName = take('pep-${appName}-${name}-${instanceNumber}', 80)
+var defaultPrivateLinkServiceConnectionName = take('plsc-${appName}-${name}-${instanceNumber}', 80)
 var resolvedSlotPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {

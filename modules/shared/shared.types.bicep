@@ -207,8 +207,8 @@ type servicePlanConfigType = {
   @description('Required. Deploy the plan in a zone redundant manner.')
   zoneRedundant: bool
 
-  @description('Required. Kind of server OS: "windows" or "linux".')
-  kind: ('windows' | 'linux')
+  @description('Required. Operating system family for the App Service Plan: "windows" or "linux".')
+  osFamily: ('windows' | 'linux')
 
   @description('Required. Resource ID of an existing App Service Plan. Use an empty string to create a new plan.')
   existingPlanId: string

@@ -77,7 +77,7 @@ param servicePlanConfig = {
   sku: 'B1'
   skuCapacity: 1
   zoneRedundant: false
-  kind: 'windows'
+  osFamily: 'windows'
   existingPlanId: ''
   workerTierName: ''
   elasticScaleEnabled: false

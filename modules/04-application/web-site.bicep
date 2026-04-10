@@ -412,6 +412,7 @@ module app_slots './web-site-slot.bicep' = [
       appName: slot.appName
       location: slot.location
       kind: slot.kind
+      instanceNumber: instanceNumber
       serverFarmResourceId: slot.?serverFarmResourceId
       managedEnvironmentResourceId: slot.managedEnvironmentResourceId
       httpsOnly: slot.httpsOnly

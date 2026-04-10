@@ -77,3 +77,20 @@ For resource types that don't have an official CAF abbreviation, this repo uses 
 
 TODO:
 - Add staged/layered testing to test modules in layers, and respective layers by module, to enable
+
+## Resource Groups and Naming
+
+For resource groups, we will break the scheme just a small bit, because resource groups are moreso containers and less dedicated resources.
+
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber
+
+## Resource Group Names Examples
+
+rg-iep-eus-dev-network-01
+rg-iep-eus-dev-network-edge-01
+rg-iep-eus-dev-network-private-01
+rg-iep-eus-dev-hosting-01
+rg-iep-eus-dev-data-01
+rg-iep-eus-dev-operations-01
+
+

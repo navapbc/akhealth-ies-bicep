@@ -38,7 +38,7 @@ param skuCapacity int
   'windows'
   'linux'
 ])
-param servicePlanKind string
+param servicePlanOsFamily string
 
 @description('Required. App workload kind used to determine plan-specific hosting behavior.')
 param workloadKind string
@@ -117,7 +117,7 @@ var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 40)
 var resolvedName = derivedName
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
-var isLinux = servicePlanKind =~ 'linux'
+var isLinux = servicePlanOsFamily =~ 'linux'
 var isWindowsContainer = contains(workloadKind, 'container') && contains(workloadKind, 'windows')
 var planKind = isLinux ? 'Linux' : 'Windows'
 var identity = hasSystemAssignedIdentity

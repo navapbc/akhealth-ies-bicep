@@ -384,7 +384,7 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
     skuName: servicePlanConfig.sku
     skuCapacity: servicePlanConfig.skuCapacity
     zoneRedundant: servicePlanConfig.zoneRedundant
-    servicePlanKind: servicePlanConfig.kind
+    servicePlanOsFamily: servicePlanConfig.osFamily
     workloadKind: appServiceConfig.kind
     perSiteScaling: servicePlanConfig.perSiteScaling
     maximumElasticWorkerCount: servicePlanConfig.maximumElasticWorkerCount
