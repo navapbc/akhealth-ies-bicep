@@ -283,7 +283,7 @@ type privateEndpointSingleServiceType = {
   roleAssignments: roleAssignmentType[]?
 
   @description('Optional. Tags to be applied on all resources/Resource Groups in this deployment.')
-  tags: resourceInput<'Microsoft.Network/privateEndpoints@2024-07-01'>.tags?
+  tags: resourceInput<'Microsoft.Network/privateEndpoints@2025-05-01'>.tags?
 
   }
 
@@ -340,7 +340,7 @@ type privateEndpointMultiServiceType = {
   roleAssignments: roleAssignmentType[]?
 
   @description('Optional. Tags to be applied on all resources/resource groups in this deployment.')
-  tags: resourceInput<'Microsoft.Network/privateEndpoints@2024-07-01'>.tags?
+  tags: resourceInput<'Microsoft.Network/privateEndpoints@2025-05-01'>.tags?
 
   }
 

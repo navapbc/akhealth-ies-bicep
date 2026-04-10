@@ -40,7 +40,6 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags object?
 
 import { lockType } from '../shared/avm-common-types.bicep'
@@ -78,7 +77,7 @@ var formattedRoleAssignments = [
 ]
 
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: name
   location: location
   tags: tags
@@ -210,17 +209,6 @@ module privateDnsZone_virtualNetworkLinks './private-dns-zone-link.bicep' = [
   }
 ]
 
-resource privateDnsZone_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: privateDnsZone
-}
-
 resource privateDnsZone_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
     name: roleAssignment.?name ?? guid(privateDnsZone.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
@@ -237,16 +225,12 @@ resource privateDnsZone_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the private DNS zone was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the private DNS zone.')
 output name string = privateDnsZone.name
 
-@description('The resource ID of the private DNS zone.')
 output resourceId string = privateDnsZone.id
 
-@description('The location the resource was deployed into.')
 output location string = privateDnsZone.location
 
 // ================ //
@@ -403,4 +387,15 @@ type txtType = {
 
   @description('Optional. The list of TXT records in the record set.')
   txtRecords: resourceInput<'Microsoft.Network/privateDnsZones/TXT@2024-06-01'>.properties.txtRecords?
+}
+
+resource privateDnsZone_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: privateDnsZone
 }

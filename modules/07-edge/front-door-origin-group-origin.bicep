@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile Origin.'
 @description('Required. The name of the origion.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Required. The name of the group.')
@@ -36,21 +36,21 @@ param originHostHeader string
 param priority int
 
 @description('Optional. The properties of the private link resource for private origin.')
-param sharedPrivateLinkResource resourceInput<'Microsoft.Cdn/profiles/originGroups/origins@2025-04-15'>.properties.sharedPrivateLinkResource?
+param sharedPrivateLinkResource resourceInput<'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01'>.properties.sharedPrivateLinkResource?
 
 @description('Optional. Weight of the origin in given origin group for load balancing. Must be between 1 and 1000.')
 param weight int
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 
-  resource originGroup 'originGroups@2025-04-15' existing = {
+  resource originGroup 'originGroups@2025-06-01' existing = {
     name: originGroupName
   }
 }
 
-resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2025-04-15' = {
+resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01' = {
   name: name
   parent: profile::originGroup
   properties: {
@@ -66,11 +66,8 @@ resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2025-04-15' = {
   }
 }
 
-@description('The name of the origin.')
 output name string = origin.name
 
-@description('The resource id of the origin.')
 output resourceId string = origin.id
 
-@description('The name of the resource group the origin was created in.')
 output resourceGroupName string = resourceGroup().name

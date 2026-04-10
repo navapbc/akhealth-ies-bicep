@@ -174,7 +174,6 @@ var identity = hasSystemAssignedIdentity
   : null
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -194,7 +193,7 @@ param listeners resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'
 param routingRules resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.routingRules = []
 
 var resourceAbbreviation = 'agw'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',
@@ -304,17 +303,6 @@ resource applicationGateway 'Microsoft.Network/applicationGateways@2025-05-01' =
       : {})
   )
   zones: map(availabilityZones, zone => '${zone}')
-}
-
-resource applicationGateway_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: applicationGateway
 }
 
 resource applicationGateway_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
@@ -435,16 +423,12 @@ resource applicationGateway_roleAssignments 'Microsoft.Authorization/roleAssignm
   }
 ]
 
-@description('The name of the application gateway.')
 output name string = applicationGateway.name
 
-@description('The resource ID of the application gateway.')
 output resourceId string = applicationGateway.id
 
-@description('The resource group the application gateway was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = applicationGateway.location
 
 @description('The private endpoints of the resource.')
@@ -485,4 +469,15 @@ type privateEndpointOutputType = {
 
   @description('The IDs of the network interfaces associated with the private endpoint.')
   networkInterfaceResourceIds: string[]
+}
+
+resource applicationGateway_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: applicationGateway
 }

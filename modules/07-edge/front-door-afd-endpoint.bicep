@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile AFD Endpoint.'
 @description('Required. The name of the AFD Endpoint.')
 param name string
 
-@description('Conditional. The name of the parent CDN profile. Required if the template is used in a standalone deployment.')
+@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
 @description('Optional. The location of the AFD Endpoint.')
@@ -32,12 +32,11 @@ param enabledState string
 @description('Optional. The list of routes for this AFD Endpoint.')
 param routes routeType[]?
 
-
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-04-15' = {
+resource afdEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01' = {
   name: name
   parent: profile
   location: location
@@ -70,16 +69,12 @@ module afdEndpoint_routes './front-door-afd-route.bicep' = [
   }
 ]
 
-@description('The name of the AFD Endpoint.')
 output name string = afdEndpoint.name
 
-@description('The resource id of the AFD Endpoint.')
 output resourceId string = afdEndpoint.id
 
-@description('The name of the resource group the endpoint was created in.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = afdEndpoint.location
 
 @description('The list of routes assigned to the AFD endpoint.')
@@ -99,7 +94,7 @@ type routeType = {
   name: string
 
   @description('Optional. The caching configuration for this route. To disable caching, do not provide a cacheConfiguration object.')
-  cacheConfiguration: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.cacheConfiguration?
+  cacheConfiguration: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.cacheConfiguration?
 
   @description('Optional. The names of the custom domains.')
   customDomainNames: string[]?
@@ -123,11 +118,11 @@ type routeType = {
   originPath: string?
 
   @description('Optional. The route patterns of the rule.')
-  patternsToMatch: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.patternsToMatch?
+  patternsToMatch: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.patternsToMatch?
 
   @description('Optional. The names of the rule sets of the rule.')
   ruleSets: string[]?
 
   @description('Optional. The supported protocols of the rule.')
-  supportedProtocols: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-04-15'>.properties.supportedProtocols?
+  supportedProtocols: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.supportedProtocols?
 }

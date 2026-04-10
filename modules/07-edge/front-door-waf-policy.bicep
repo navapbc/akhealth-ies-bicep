@@ -2,6 +2,7 @@ metadata name = 'Front Door Web Application Firewall (WAF) Policies'
 metadata description = 'This module deploys a Front Door Web Application Firewall (WAF) Policy.'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
+import { frontDoorConfigType } from '../shared/shared.types.bicep'
 
 @description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
@@ -15,65 +16,11 @@ param instanceNumber string
 @description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
 
-@description('Optional. Location for all resources.')
-param location string = 'global'
-
-@allowed([
-  'Standard_AzureFrontDoor'
-  'Premium_AzureFrontDoor'
-])
-@description('Optional. The pricing tier of the WAF profile.')
-param sku string = 'Standard_AzureFrontDoor'
+@description('Required. Declared Front Door configuration for this workload.')
+param config frontDoorConfigType
 
 @description('Optional. Resource tags.')
-param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-03-01'>.tags?
-
-
-@description('Optional. Describes the managedRules structure.')
-param managedRules managedRulesType = {
-  managedRuleSets: [
-    {
-      ruleSetType: 'Microsoft_DefaultRuleSet'
-      ruleSetVersion: '2.1'
-      ruleGroupOverrides: []
-      exclusions: []
-      ruleSetAction: 'Block'
-    }
-    {
-      ruleSetType: 'Microsoft_BotManagerRuleSet'
-      ruleSetVersion: '1.0'
-      ruleGroupOverrides: []
-      exclusions: []
-    }
-  ]
-}
-
-@description('Optional. The custom rules inside the policy.')
-param customRules customRulesType = {
-  rules: [
-    {
-      name: 'ApplyGeoFilter'
-      priority: 100
-      enabledState: 'Enabled'
-      ruleType: 'MatchRule'
-      action: 'Block'
-      matchConditions: [
-        {
-          matchVariable: 'RemoteAddr'
-          operator: 'GeoMatch'
-          negateCondition: true
-          matchValue: ['ZZ']
-        }
-      ]
-    }
-  ]
-}
-
-@description('Optional. The PolicySettings for policy.')
-param policySettings object = {
-  enabledState: 'Enabled'
-  mode: 'Prevention'
-}
+param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01'>.tags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. The lock settings of the service.')
@@ -84,13 +31,48 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 var resourceAbbreviation = 'fdfp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var resourceLocation = 'global'
+var regionAbbreviation = regionAbbreviations[resourceLocation]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   replace('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', '-', ''),
   128
 )
 var resolvedName = derivedName
+var resolvedCustomRules = config.enableDefaultWafMethodBlock
+  ? {
+      rules: [
+        {
+          name: 'BlockMethod'
+          enabledState: 'Enabled'
+          action: 'Block'
+          ruleType: 'MatchRule'
+          priority: 10
+          rateLimitDurationInMinutes: 1
+          rateLimitThreshold: 100
+          matchConditions: [
+            {
+              matchVariable: 'RequestMethod'
+              operator: 'Equal'
+              negateCondition: true
+              matchValue: [
+                'GET'
+                'OPTIONS'
+                'HEAD'
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  : config.wafCustomRules
+var resolvedManagedRules = config.sku == 'Premium_AzureFrontDoor'
+  ? {
+      managedRuleSets: config.wafManagedRuleSets
+    }
+  : {
+      managedRuleSets: []
+    }
 
 var builtInRoleNames = {
   Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
@@ -117,29 +99,18 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2024-02-01' = {
+resource frontDoorWAFPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01' = {
   name: resolvedName
-  location: location
+  location: resourceLocation
   sku: {
-    name: sku
+    name: config.sku
   }
   tags: tags
   properties: {
-    customRules: customRules
-    managedRules: sku == 'Premium_AzureFrontDoor' ? managedRules : { managedRuleSets: [] }
-    policySettings: policySettings
+    customRules: resolvedCustomRules
+    managedRules: resolvedManagedRules
+    policySettings: config.wafPolicySettings
   }
-}
-
-resource frontDoorWAFPolicy_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: frontDoorWAFPolicy
 }
 
 resource frontDoorWAFPolicy_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -162,16 +133,12 @@ resource frontDoorWAFPolicy_roleAssignments 'Microsoft.Authorization/roleAssignm
   }
 ]
 
-@description('The name of the Front Door WAF policy.')
 output name string = frontDoorWAFPolicy.name
 
-@description('The resource ID of the Front Door WAF policy.')
 output resourceId string = frontDoorWAFPolicy.id
 
-@description('The resource group the Front Door WAF policy was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = frontDoorWAFPolicy.location
 
 // =============== //
@@ -237,4 +204,15 @@ type customRulesRuleType = {
 
   @description('Required. Describes type of rule.')
   ruleType: 'MatchRule' | 'RateLimitRule'
+}
+
+resource frontDoorWAFPolicy_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: frontDoorWAFPolicy
 }

@@ -79,11 +79,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' existing = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' existing = {
   name: keyVaultName
 }
 
-resource secret 'Microsoft.KeyVault/vaults/secrets@2024-11-01' = {
+resource secret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   name: name
   parent: keyVault
   tags: tags
@@ -114,10 +114,8 @@ resource secret_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04
   }
 ]
 
-@description('The name of the secret.')
 output name string = secret.name
 
-@description('The resource ID of the secret.')
 output resourceId string = secret.id
 
 @description('The uri of the secret.')
@@ -126,5 +124,4 @@ output secretUri string = secret.properties.secretUri
 @description('The uri with version of the secret.')
 output secretUriWithVersion string = secret.properties.secretUriWithVersion
 
-@description('The name of the resource group the secret was created in.')
 output resourceGroupName string = resourceGroup().name

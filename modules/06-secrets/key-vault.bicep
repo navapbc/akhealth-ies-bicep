@@ -67,7 +67,6 @@ param networkAcls networkAclsType?
 param publicNetworkAccess string
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -75,17 +74,13 @@ import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 
 import {
-  keyVaultPrivateEndpointType
   virtualNetworkLinkType
 } from '../shared/shared.types.bicep'
-@description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
-param privateEndpoints keyVaultPrivateEndpointType[]?
-
-@description('Optional. When true and no explicit private endpoints are provided, the module creates the default private endpoint wiring for the vault.')
+@description('Optional. When true, the module creates the standard private endpoint wiring for the vault.')
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
-param defaultPrivateEndpointSubnetResourceId string = ''
+param defaultPrivateEndpointSubnetResourceId string?
 
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.vaultcore.azure.net'
@@ -161,7 +156,7 @@ var builtInRoleNames = {
 }
 
 var resourceAbbreviation = 'kv'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 24)
 var resolvedName = derivedName
@@ -186,7 +181,10 @@ var resolvedKeyVaultNetworkAcls = !empty(networkAcls ?? {})
       ipRules: networkAcls.?ipRules ?? []
     }
   : null
-var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint && empty(privateEndpoints ?? [])
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'keyvault'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -199,7 +197,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         resourceGroupName: resourceGroup().name
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
         service: 'vault'
-        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
         isManualConnection: false
         manualConnectionRequestMessage: null
         customDnsConfigs: null
@@ -220,7 +218,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         }
       }
     ]
-  : (privateEndpoints ?? [])
+  : []
 
 module keyVault_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-KeyVault-DefaultPrivateDnsZone'
@@ -255,7 +253,7 @@ var resolvedKeys = [
 // Dependencies //
 // ============ //
 
-resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
   name: resolvedName
   location: location
   tags: tags
@@ -276,17 +274,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
     networkAcls: resolvedKeyVaultNetworkAcls
     publicNetworkAccess: publicNetworkAccess
   }
-}
-
-resource keyVault_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: keyVault
 }
 
 resource keyVault_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
@@ -421,19 +408,15 @@ resource keyVault_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-
 // =========== //
 // Outputs     //
 // =========== //
-@description('The resource ID of the key vault.')
 output resourceId string = keyVault.id
 
-@description('The name of the resource group the key vault was created in.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the key vault.')
 output name string = keyVault.name
 
 @description('The URI of the key vault.')
 output uri string = keyVault.properties.vaultUri
 
-@description('The location the resource was deployed into.')
 output location string = keyVault.location
 
 @description('The private endpoints of the key vault.')
@@ -611,4 +594,15 @@ type keyType = {
 
   @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
+}
+
+resource keyVault_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: keyVault
 }

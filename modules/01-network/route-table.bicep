@@ -8,21 +8,19 @@ param name string
 param location string = resourceGroup().location
 
 @description('Optional. An array of routes to be established within the hub route table.')
-param routes resourceInput<'Microsoft.Network/routeTables@2024-07-01'>.properties.routes?
+param routes resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.properties.routes?
 
 @description('Optional. Switch to disable BGP route propagation.')
 param disableBgpRoutePropagation bool = false
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
-param tags resourceInput<'Microsoft.Network/routeTables@2024-07-01'>.tags?
+param tags resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.tags?
 
 
 var builtInRoleNames = {
@@ -54,7 +52,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource routeTable 'Microsoft.Network/routeTables@2024-07-01' = {
+resource routeTable 'Microsoft.Network/routeTables@2025-05-01' = {
   name: name
   location: location
   tags: tags
@@ -62,17 +60,6 @@ resource routeTable 'Microsoft.Network/routeTables@2024-07-01' = {
     routes: routes
     disableBgpRoutePropagation: disableBgpRoutePropagation
   }
-}
-
-resource routeTable_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: routeTable
 }
 
 resource routeTable_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -91,14 +78,21 @@ resource routeTable_roleAssignments 'Microsoft.Authorization/roleAssignments@202
   }
 ]
 
-@description('The resource group the route table was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the route table.')
 output name string = routeTable.name
 
-@description('The resource ID of the route table.')
 output resourceId string = routeTable.id
 
-@description('The location the resource was deployed into.')
 output location string = routeTable.location
+
+resource routeTable_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: routeTable
+}

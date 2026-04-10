@@ -26,11 +26,8 @@ resource configuration 'Microsoft.Web/hostingEnvironments/configurations@2025-03
   }
 }
 
-@description('The name of the configuration.')
 output name string = configuration.name
 
-@description('The resource ID of the deployed configuration.')
 output resourceId string = configuration.id
 
-@description('The resource group of the deployed configuration.')
 output resourceGroupName string = resourceGroup().name

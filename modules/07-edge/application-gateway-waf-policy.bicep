@@ -32,15 +32,14 @@ param customRules resourceInput<'Microsoft.Network/ApplicationGatewayWebApplicat
 param policySettings resourceInput<'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2025-05-01'>.properties.policySettings?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-var resourceAbbreviation = 'waf'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var resourceAbbreviation = 'agwfp'
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',
@@ -88,17 +87,6 @@ resource applicationGatewayWAFPolicy 'Microsoft.Network/ApplicationGatewayWebApp
   }
 }
 
-resource applicationGatewayWAFPolicy_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: applicationGatewayWAFPolicy
-}
-
 resource applicationGatewayWAFPolicy_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
     name: roleAssignment.?name ?? guid(
@@ -119,14 +107,21 @@ resource applicationGatewayWAFPolicy_roleAssignments 'Microsoft.Authorization/ro
   }
 ]
 
-@description('The name of the application gateway WAF policy.')
 output name string = applicationGatewayWAFPolicy.name
 
-@description('The resource ID of the application gateway WAF policy.')
 output resourceId string = applicationGatewayWAFPolicy.id
 
-@description('The resource group the application gateway WAF policy was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = applicationGatewayWAFPolicy.location
+
+resource applicationGatewayWAFPolicy_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: applicationGatewayWAFPolicy
+}

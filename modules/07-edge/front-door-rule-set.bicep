@@ -4,18 +4,18 @@ metadata description = 'This module deploys a CDN Profile rule set.'
 @description('Required. The name of the rule set.')
 param name string
 
-@description('Required. The name of the CDN profile.')
+@description('Required. The name of the parent Front Door profile.')
 param profileName string
 
 @description('Optinal. The rules to apply to the rule set.')
 param rules ruleType[]?
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource ruleSet 'Microsoft.Cdn/profiles/ruleSets@2025-04-15' = {
+resource ruleSet 'Microsoft.Cdn/profiles/ruleSets@2025-06-01' = {
   name: name
   parent: profile
 }
@@ -35,13 +35,10 @@ module ruleSet_rules './front-door-rule.bicep' = [
   }
 ]
 
-@description('The name of the rule set.')
 output name string = ruleSet.name
 
-@description('The resource id of the rule set.')
 output resourceId string = ruleSet.id
 
-@description('The name of the resource group the custom domain was created in.')
 output resourceGroupName string = resourceGroup().name
 
 // =============== //
@@ -58,10 +55,10 @@ type ruleType = {
   order: int
 
   @description('Optional. A list of actions that are executed when all the conditions of a rule are satisfied.')
-  actions: resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15'>.properties.actions?
+  actions: resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01'>.properties.actions?
 
   @description('Optional. A list of conditions that must be matched for the actions to be executed.')
-  conditions: resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-04-15'>.properties.conditions?
+  conditions: resourceInput<'Microsoft.Cdn/profiles/ruleSets/rules@2025-06-01'>.properties.conditions?
 
   @description('Optional. If this rule is a match should the rules engine continue running the remaining rules or stop. If not present, defaults to Continue.')
   matchProcessingBehavior: 'Continue' | 'Stop' | null

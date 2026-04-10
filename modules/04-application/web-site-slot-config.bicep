@@ -71,7 +71,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   scope: resourceGroup(applicationInsightsReference!.resourceGroupName)
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccount) {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' existing = if (hasStorageAccount) {
   name: storageAccountReference!.name
   scope: resourceGroup(storageAccountReference!.resourceGroupName)
 }
@@ -91,11 +91,8 @@ resource config 'Microsoft.Web/sites/slots/config@2025-03-01' = {
   properties: expandedProperties
 }
 
-@description('The name of the site config.')
 output name string = config.name
 
-@description('The resource ID of the site config.')
 output resourceId string = config.id
 
-@description('The resource group the site config was deployed into.')
 output resourceGroupName string = resourceGroup().name

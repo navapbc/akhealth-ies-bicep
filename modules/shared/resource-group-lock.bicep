@@ -1,6 +1,5 @@
 import { lockType } from './avm-common-types.bicep'
 
-@description('Optional. The lock settings of the service.')
 param lock lockType
 
 @description('Required. The name of the Resource Group.')
@@ -10,6 +9,6 @@ resource resourceGroup_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!em
   name: lock.?name ?? 'lock-${name}'
   properties: {
     level: lock.?kind ?? ''
-    notes: lock.?kind == 'CanNotDelete' ? 'Cannot delete resource or child resources.' : 'Cannot delete or modify the resource or child resources.'
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete' ? 'Cannot delete resource or child resources.' : 'Cannot delete or modify the resource or child resources.')
   }
 }

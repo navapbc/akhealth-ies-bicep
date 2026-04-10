@@ -38,14 +38,10 @@ resource basicPublishingCredentialsPolicy 'Microsoft.Web/sites/slots/basicPublis
   }
 }
 
-@description('The name of the basic publishing credential policy.')
 output name string = basicPublishingCredentialsPolicy.name
 
-@description('The resource ID of the basic publishing credential policy.')
 output resourceId string = basicPublishingCredentialsPolicy.id
 
-@description('The name of the resource group the basic publishing credential policy was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = basicPublishingCredentialsPolicy.location

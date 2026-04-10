@@ -3,13 +3,14 @@ using '../main.bicep'
 // Starter parameter file
 // Add or override more configuration blocks here as needed.
 
-param workloadName = '456ERT'
+param workloadName = '878RVZ'
 param location = 'eastus2'
 param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
-param instanceNumber = '001'
+param instanceNumber = '002'
 param workloadDescription = ''
+param existingLogAnalyticsID = null
 
 param deployPrivateNetworking = true
 param deployPostgreSql = true
@@ -76,7 +77,7 @@ param servicePlanConfig = {
   sku: 'B1'
   skuCapacity: 1
   zoneRedundant: false
-  kind: 'windows'
+  osFamily: 'windows'
   existingPlanId: ''
   workerTierName: ''
   elasticScaleEnabled: false
@@ -125,7 +126,6 @@ param appServiceConfig = {
   diagnosticSettings: []
   slots: []
   configs: []
-  privateEndpoints: []
 
   // Example app settings configuration. Keep final literal settings in
   // `properties`. Use `useSolutionApplicationInsights` when you want this
@@ -163,23 +163,6 @@ param appServiceConfig = {
   //     }
   //     hyperV: false
   //     customDomainVerificationId: 'custom-domain-verification-id'
-  //     privateEndpoints: [
-  //       {
-  //         name: 'webApp-slot'
-  //         resourceGroupSubscriptionId: '<subscription-id>'
-  //         resourceGroupName: '<rg>'
-  //         subnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>'
-  //         privateDnsZoneGroup: {
-  //           name: 'webApp-slot'
-  //           privateDnsZoneGroupConfigs: [
-  //             {
-  //               name: 'privatelink.azurewebsites.net'
-  //               privateDnsZoneResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net'
-  //             }
-  //           ]
-  //         }
-  //       }
-  //     ]
   //   }
   // ]
 }
@@ -201,19 +184,6 @@ param appServiceConfig = {
 //     ipRules: []
 //     virtualNetworkRules: []
 //   }
-//   privateEndpoints: [
-//     {
-//       name: 'keyvault-pep'
-//       subnetResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>'
-//       privateDnsZoneGroup: {
-//         privateDnsZoneGroupConfigs: [
-//           {
-//             privateDnsZoneResourceId: '/subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net'
-//           }
-//         ]
-//       }
-//     }
-//   ]
 // }
 
 param keyVaultConfig = {
@@ -229,7 +199,6 @@ param keyVaultConfig = {
     bypass: 'AzureServices'
     defaultAction: 'Deny'
   }
-  privateEndpoints: []
   roleAssignments: []
   diagnosticSettings: []
 }

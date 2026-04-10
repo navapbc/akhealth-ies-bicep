@@ -33,11 +33,15 @@ param skuName string
 @description('Required. Number of workers associated with the App Service Plan.')
 param skuCapacity int
 
-@description('Optional. Kind of server OS.')
-param kind resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.kind
+@description('Required. Operating system family for the plan.')
+@allowed([
+  'windows'
+  'linux'
+])
+param servicePlanOsFamily string
 
-@description('Conditional. Defaults to false when creating Windows/app App Service Plan. Required if creating a Linux App Service Plan and must be set to true.')
-param reserved resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.reserved
+@description('Required. App workload kind used to determine plan-specific hosting behavior.')
+param workloadKind string
 
 @description('Optional. The Resource ID of the App Service Environment to use for the App Service Plan.')
 param appServiceEnvironmentResourceId string?
@@ -68,9 +72,6 @@ param targetWorkerSize int
 @description('Optional. Zone Redundant server farms can only be used on Premium or ElasticPremium SKU tiers within ZRS Supported regions (https://learn.microsoft.com/en-us/azure/storage/common/redundancy-regions-zrs).')
 param zoneRedundant resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.zoneRedundant
 
-@description('Optional. If Hyper-V container app service plan true, false otherwise.')
-param hyperV resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.properties.hyperV?
-
 @description('Optional. The resource ID of the subnet to integrate the App Service Plan with for VNet integration.')
 param virtualNetworkSubnetId string?
 
@@ -97,7 +98,6 @@ import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.b
 param managedIdentities managedIdentityOnlySysAssignedType?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -105,7 +105,6 @@ import { builtInRoleNames } from '../shared/role-definitions.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/serverfarms@2025-03-01'>.tags?
 
 import { diagnosticSettingMetricsOnlyType } from '../shared/avm-common-types.bicep'
@@ -113,11 +112,14 @@ import { diagnosticSettingMetricsOnlyType } from '../shared/avm-common-types.bic
 param diagnosticSettings diagnosticSettingMetricsOnlyType[]?
 
 var resourceAbbreviation = 'asp'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 40)
 var resolvedName = derivedName
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
+var isLinux = servicePlanOsFamily =~ 'linux'
+var isWindowsContainer = contains(workloadKind, 'container') && contains(workloadKind, 'windows')
+var planKind = isLinux ? 'Linux' : 'Windows'
 var identity = hasSystemAssignedIdentity
   ? {
       type: 'SystemAssigned'
@@ -148,7 +150,7 @@ var customModeStorageMounts = isCustomMode ? storageMounts : null
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
   name: resolvedName
-  kind: kind
+  kind: planKind
   location: location
   tags: tags
   identity: identity
@@ -171,11 +173,11 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
     perSiteScaling: perSiteScaling
     maximumElasticWorkerCount: maximumElasticWorkerCount
     elasticScaleEnabled: elasticScaleEnabled
-    reserved: reserved
+    reserved: isLinux
     targetWorkerCount: targetWorkerCount
     targetWorkerSizeId: targetWorkerSize
     zoneRedundant: zoneRedundant
-    hyperV: hyperV
+    hyperV: isWindowsContainer
     isCustomMode: isCustomMode
     network: planNetwork
     rdpEnabled: customModeRdpEnabled
@@ -209,17 +211,6 @@ resource appServicePlan_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
   }
 ]
 
-resource appServicePlan_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: appServicePlan
-}
-
 resource appServicePlan_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
     name: roleAssignment.?name ?? guid(appServicePlan.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
@@ -236,17 +227,24 @@ resource appServicePlan_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the app service plan was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the app service plan.')
 output name string = appServicePlan.name
 
-@description('The resource ID of the app service plan.')
 output resourceId string = appServicePlan.id
 
-@description('The location the resource was deployed into.')
 output location string = appServicePlan.location
 
 @description('The principal ID of the system assigned identity.')
 output systemAssignedMIPrincipalId string? = appServicePlan.?identity.?principalId
+
+resource appServicePlan_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: appServicePlan
+}

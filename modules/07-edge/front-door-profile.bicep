@@ -2,6 +2,7 @@ metadata name = 'CDN Profiles'
 metadata description = 'This module deploys a CDN Profile.'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
+import { frontDoorConfigType } from '../shared/shared.types.bicep'
 
 @description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
@@ -18,71 +19,69 @@ param workloadDescription string = ''
 @description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
 
-@allowed([
-  'Premium_AzureFrontDoor'
-  'StandardPlus_955BandWidth_ChinaCdn'
-  'StandardPlus_AvgBandWidth_ChinaCdn'
-  'StandardPlus_ChinaCdn'
-  'Standard_955BandWidth_ChinaCdn'
-  'Standard_AvgBandWidth_ChinaCdn'
-  'Standard_AzureFrontDoor'
-  'Standard_ChinaCdn'
-  'Standard_Microsoft'
-])
-@description('Required. The pricing tier (defines a CDN provider, feature list and rate) of the CDN profile.')
-param sku string
+@description('Required. Declared Front Door configuration for this workload.')
+param config frontDoorConfigType
 
-@description('Optional. Send and receive timeout on forwarding request to the origin.')
-param originResponseTimeoutSeconds int = 60
+@description('Required. Default hostname of the workload web app that Front Door routes to.')
+param workloadOriginHostName string
 
-@description('Optional. Endpoint properties (see [ref](https://learn.microsoft.com/en-us/azure/templates/microsoft.cdn/profiles/endpoints?pivots=deployment-language-bicep#endpointproperties) for details).')
-param endpoint endpointType?
+@description('Required. Resource ID of the workload web app that Front Door private-link origins target.')
+param workloadOriginResourceId string
 
-@description('Optional. Array of secret objects.')
-param secrets secretType[]?
-
-@description('Optional. Array of custom domain objects.')
-param customDomains customDomainType[]?
-
-@description('Conditional. Array of origin group objects. Required if the afdEndpoints is specified.')
-param originGroups originGroupType[]?
-
-@description('Optional. Array of rule set objects.')
-param ruleSets ruleSetType[]?
-
-@description('Optional. Array of AFD endpoint objects.')
-param afdEndpoints afdEndpointType[]?
+@description('Required. Location of the workload web app.')
+param workloadOriginLocation string
 
 @description('Optional. Endpoint tags.')
 param tags resourceInput<'Microsoft.Cdn/profiles@2025-06-01'>.tags?
 
-import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
-@description('Optional. The managed identity definition for this resource.')
-param managedIdentities managedIdentityOnlySysAssignedType?
-
-import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
-param lock lockType?
-
-import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
-param roleAssignments roleAssignmentType[]?
-
-
-import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
-param diagnosticSettings diagnosticSettingFullType[]?
-
 var resourceAbbreviation = 'afd'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var endpointResourceAbbreviation = 'fde'
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',
   260
 )
 var resolvedName = derivedName
-var resolvedOriginGroups = originGroups ?? []
-var resolvedAfdEndpoints = afdEndpoints ?? []
+var resolvedOriginGroups = [
+  for originGroup in config.originGroups: {
+    name: originGroup.name
+    authentication: originGroup.?authentication
+    healthProbeSettings: originGroup.?healthProbeSettings
+    loadBalancingSettings: originGroup.loadBalancingSettings
+    sessionAffinityState: originGroup.sessionAffinityState
+    trafficRestorationTimeToHealedOrNewEndpointsInMinutes: originGroup.trafficRestorationTimeToHealedOrNewEndpointsInMinutes
+    origins: map(originGroup.origins, origin => {
+        name: origin.name
+        hostName: workloadOriginHostName
+        httpPort: origin.httpPort
+        httpsPort: origin.httpsPort
+        priority: origin.priority
+        weight: origin.weight
+        enabledState: origin.enabledState
+        enforceCertificateNameCheck: origin.enforceCertificateNameCheck
+        originHostHeader: workloadOriginHostName
+        sharedPrivateLinkResource: origin.?sharedPrivateLink != null
+          ? {
+              privateLink: {
+                id: workloadOriginResourceId
+              }
+              privateLinkLocation: workloadOriginLocation
+              requestMessage: origin.?sharedPrivateLink.?requestMessage
+              groupId: origin.?sharedPrivateLink.?groupId
+            }
+          : null
+      })
+  }
+]
+var resolvedAfdEndpoints = [
+  for afdEndpoint in config.afdEndpoints: union(afdEndpoint, {
+    resolvedName: take(
+      '${endpointResourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${afdEndpoint.name}-${instanceNumber}',
+      260
+    )
+  })
+]
 
 var builtInRoleNames = {
   'CDN Endpoint Contributor': subscriptionResourceId(
@@ -114,8 +113,8 @@ var builtInRoleNames = {
   )
 }
 
-var roleAssignmentsToApply = roleAssignments ?? []
-var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
+var roleAssignmentsToApply = config.roleAssignments
+var hasSystemAssignedIdentity = config.managedIdentities.?systemAssigned ?? false
 var formattedRoleAssignments = [
   for (roleAssignment, index) in roleAssignmentsToApply: union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -138,23 +137,12 @@ resource profile 'Microsoft.Cdn/profiles@2025-06-01' = {
   location: location
   identity: identity
   sku: {
-    name: sku
+    name: config.sku
   }
   properties: {
-    originResponseTimeoutSeconds: originResponseTimeoutSeconds
+    originResponseTimeoutSeconds: config.originResponseTimeoutSeconds
   }
   tags: tags
-}
-
-resource profile_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: profile
 }
 
 resource profile_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -174,7 +162,7 @@ resource profile_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
 ]
 
 resource profile_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
-  for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
+  for (diagnosticSetting, index) in (config.diagnosticSettings ?? []): {
     name: diagnosticSetting.?name ?? '${resolvedName}-diagnosticSettings'
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
@@ -202,19 +190,8 @@ resource profile_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-
   }
 ]
 
-module profile_endpoint './front-door-endpoint.bicep' = if (!empty(endpoint)) {
-  name: '${uniqueString(deployment().name, location)}-Profile-Endpoint'
-  params: {
-    profileName: profile.name
-    name: endpoint.?name ?? '${profile.name}-endpoint'
-    properties: endpoint!.properties
-    location: location
-    tags: endpoint.?tags ?? tags
-  }
-}
-
 module profile_secrets './front-door-secret.bicep' = [
-  for (secret, index) in (secrets ?? []): {
+  for (secret, index) in (config.secrets ?? []): {
     name: '${uniqueString(deployment().name)}-Profile-Secret-${index}'
     params: {
       name: secret.name
@@ -229,7 +206,7 @@ module profile_secrets './front-door-secret.bicep' = [
 ]
 
 module profile_customDomains './front-door-custom-domain.bicep' = [
-  for (customDomain, index) in (customDomains ?? []): {
+  for (customDomain, index) in (config.customDomains ?? []): {
     name: '${uniqueString(deployment().name)}-CustomDomain-${index}'
     dependsOn: [
       profile_secrets
@@ -267,7 +244,7 @@ module profile_originGroups './front-door-origin-group.bicep' = [
 ]
 
 module profile_ruleSets './front-door-rule-set.bicep' = [
-  for (ruleSet, index) in (ruleSets ?? []): {
+  for (ruleSet, index) in (config.ruleSets ?? []): {
     name: '${uniqueString(deployment().name)}-Profile-RuleSet-${index}'
     dependsOn: [
       profile_originGroups
@@ -289,7 +266,7 @@ module profile_afdEndpoints './front-door-afd-endpoint.bicep' = [
       profile_ruleSets
     ]
     params: {
-      name: afdEndpoint.name
+      name: afdEndpoint.resolvedName
       location: location
       profileName: profile.name
       autoGeneratedDomainNameLabelScope: afdEndpoint.autoGeneratedDomainNameLabelScope
@@ -300,36 +277,23 @@ module profile_afdEndpoints './front-door-afd-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the CDN profile.')
 output name string = profile.name
 
-@description('The resource ID of the CDN profile.')
 output resourceId string = profile.id
 
-@description('The resource group where the CDN profile is deployed.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The type of the CDN profile.')
+@description('The resource type of the Front Door profile.')
 output profileType string = profile.type
 
-@description('The location the resource was deployed into.')
 output location string = profile.location
-
-@description('The name of the CDN profile endpoint.')
-output endpointName string? = profile_endpoint.?outputs.?name
-
-@description('The resource ID of the CDN profile endpoint.')
-output endpointId string? = profile_endpoint.?outputs.?resourceId
-
-@description('The uri of the CDN profile endpoint.')
-output uri string? = profile_endpoint.?outputs.?uri
 
 @description('The principal ID of the system assigned identity.')
 output systemAssignedMIPrincipalId string? = profile.?identity.?principalId
 
 @description('The list of records required for custom domains validation.')
 output dnsValidation dnsValidationOutputType[] = [
-  for (customDomain, index) in (customDomains ?? []): profile_customDomains[index].outputs.dnsValidation
+  for (customDomain, index) in (config.customDomains ?? []): profile_customDomains[index].outputs.dnsValidation
 ]
 
 @description('The list of AFD endpoint host names.')
@@ -342,22 +306,34 @@ output afdEndpointResourceIds string[] = [
   for (afdEndpoint, index) in resolvedAfdEndpoints: profile_afdEndpoints[index].outputs.resourceId
 ]
 
-@description('The list of AFD endpoint domain associations for Front Door security policy.')
-output afdEndpointSecurityPolicyDomains array = [
-  for (afdEndpoint, index) in resolvedAfdEndpoints: {
-    id: profile_afdEndpoints[index].outputs.resourceId
-  }
+var afdEndpointsWithDefaultDomainLinks = [
+  for afdEndpoint in resolvedAfdEndpoints: contains(
+    map((afdEndpoint.routes ?? []), route => route.linkToDefaultDomain),
+    'Enabled'
+  )
 ]
+
+var afdDefaultLinkedSecurityPolicyDomainIndexes = filter(
+  range(0, length(resolvedAfdEndpoints)),
+  index => afdEndpointsWithDefaultDomainLinks[index]
+)
 
 @description('The list of custom domain resource IDs.')
 output customDomainResourceIds string[] = [
-  for (customDomain, index) in (customDomains ?? []): profile_customDomains[index].outputs.resourceId
+  for (customDomain, index) in (config.customDomains ?? []): profile_customDomains[index].outputs.resourceId
 ]
 
 @description('The list of custom domain associations for Front Door security policy.')
 output customDomainSecurityPolicyDomains array = [
-  for (customDomain, index) in (customDomains ?? []): {
+  for (customDomain, index) in (config.customDomains ?? []): {
     id: profile_customDomains[index].outputs.resourceId
+  }
+]
+
+@description('The list of AFD endpoint domain associations for routes that still link to the default endpoint domain.')
+output afdDefaultLinkedSecurityPolicyDomains array = [
+  for index in afdDefaultLinkedSecurityPolicyDomainIndexes: {
+    id: profile_afdEndpoints[index].outputs.resourceId
   }
 ]
 
@@ -408,14 +384,14 @@ type ruleSetType = {
 @export()
 @description('The type of the AFD Endpoint.')
 type afdEndpointType = {
-  @description('Required. The name of the AFD Endpoint.')
+  @description('Required. Local endpoint descriptor used to derive the final AFD endpoint resource name.')
   name: string
 
   @description('Optional. The list of routes for this AFD Endpoint.')
   routes: routeType[]?
 
   @description('Optional. The tags for the AFD Endpoint.')
-  tags: resourceInput<'Microsoft.Cdn/profiles/endpoints@2025-06-01'>.tags?
+  tags: resourceInput<'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01'>.tags?
 
   @description('Optional. The scope of the auto-generated domain name label.')
   autoGeneratedDomainNameLabelScope: 'NoReuse' | 'ResourceGroupReuse' | 'SubscriptionReuse' | 'TenantReuse'
@@ -459,19 +435,6 @@ type customDomainType = {
 }
 
 @export()
-@description('The type of and endpoint.')
-type endpointType = {
-  @description('Required. Name of the endpoint under the profile which is unique globally.')
-  name: string
-
-  @description('Required. Endpoint properties (see https://learn.microsoft.com/en-us/azure/templates/microsoft.cdn/profiles/endpoints?pivots=deployment-language-bicep#endpointproperties for details).')
-  properties: resourceInput<'microsoft.cdn/profiles/endpoints@2025-04-15'>.properties
-
-  @description('Optional. Endpoint tags.')
-  tags: resourceInput<'microsoft.cdn/profiles/endpoints@2025-04-15'>.tags?
-}
-
-@export()
 @description('The type of a secret.')
 type secretType = {
   @description('Required. The name of the secret.')
@@ -492,4 +455,15 @@ type secretType = {
 
   @description('Optional. Indicates whether to use the latest version of the secret.')
   useLatestVersion: bool?
+}
+
+resource profile_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(config.?lock ?? {}) && config.?lock.?kind != 'None') {
+  name: config.?lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: config.?lock.?kind ?? ''
+    notes: config.?lock.?notes ?? (config.?lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: profile
 }

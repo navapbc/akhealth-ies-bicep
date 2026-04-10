@@ -18,7 +18,7 @@ param location string
 param administrators administratorType[]
 
 @description('Required. Authentication configuration for the server.')
-param authConfig resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview'>.properties.authConfig
+param authConfig resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.properties.authConfig
 
 @description('Required. The SKU name for the server.')
 param skuName string
@@ -133,7 +133,7 @@ param roleAssignments roleAssignmentType[]
 param diagnosticSettings diagnosticSettingFullType[]
 
 @description('Optional. Tags for the server.')
-param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview'>.tags?
+param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.tags?
 
 var privateAccessEnabled = delegatedSubnetResourceId != null
 var privateDnsZoneProvided = privateDnsZoneArmResourceId != null
@@ -160,7 +160,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-preview' = {
+resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01' = {
   name: name
   location: location
   tags: tags
@@ -194,17 +194,6 @@ resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-06-01-pr
     }
     version: version
   }
-}
-
-resource flexibleServer_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: flexibleServer
 }
 
 resource flexibleServer_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -290,16 +279,12 @@ resource flexibleServer_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
   }
 ]
 
-@description('The name of the deployed PostgreSQL Flexible server.')
 output name string = flexibleServer.name
 
-@description('The resource ID of the deployed PostgreSQL Flexible server.')
 output resourceId string = flexibleServer.id
 
-@description('The resource group of the deployed PostgreSQL Flexible server.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The location the resource was deployed into.')
 output location string = flexibleServer.location
 
 @description('The FQDN of the PostgreSQL Flexible server.')
@@ -345,4 +330,15 @@ type configurationType = {
 
   @description('Optional. The value of the configuration.')
   value: string?
+}
+
+resource flexibleServer_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: flexibleServer
 }

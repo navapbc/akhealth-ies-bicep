@@ -85,7 +85,6 @@ param storageAccountReference storageAccountReferenceType?
 param timeout string?
 
 import { lockType } from './avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from './avm-common-types.bicep'
@@ -98,8 +97,8 @@ param roleAssignments roleAssignmentType[]?
 // Variables   //
 // =========== //
 
-var resourceAbbreviation = 'dps'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var resourceAbbreviation = 'script'
+var regionAbbreviation = regionAbbreviations[location]
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 90)
 
 var formattedRoleAssignments = [
@@ -141,7 +140,7 @@ var deploymentScriptAzPowerShellVersion = kind == 'AzurePowerShell' ? azPowerShe
 var deploymentScriptAzCliVersion = kind == 'AzureCLI' ? azCliVersion : null
 var forceUpdateTag = runOnce ? resourceGroup().name : baseTime
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2025-01-01' existing = if (hasStorageAccountReference) {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' existing = if (hasStorageAccountReference) {
   name: storageAccountReference!.name
   scope: resourceGroup(storageAccountReference!.subscriptionId, storageAccountReference!.resourceGroupName)
 }
@@ -180,17 +179,6 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   }
 }
 
-resource deploymentScript_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${derivedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: deploymentScript
-}
-
 resource deploymentScript_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
     name: roleAssignment.?name ?? guid(deploymentScript.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
@@ -216,16 +204,12 @@ resource deploymentScriptLogs 'Microsoft.Resources/deploymentScripts/logs@2023-0
 // Outputs          //
 // ================ //
 
-@description('The resource ID of the deployment script.')
 output resourceId string = deploymentScript.id
 
-@description('The resource group the deployment script was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the deployment script.')
 output name string = deploymentScript.name
 
-@description('The location the resource was deployed into.')
 output location string = deploymentScript.location
 
 @description('The output of the deployment script.')
@@ -265,3 +249,14 @@ type storageAccountReferenceType = {
   @description('Required. The storage account name.')
   name: string
 }?
+
+resource deploymentScript_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${derivedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: deploymentScript
+}

@@ -89,20 +89,15 @@ param extensions extensionType[]?
 
 import {
   lockType
-  privateEndpointSingleServiceType
 } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
-
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
-@description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
-param privateEndpoints privateEndpointSingleServiceType[]?
 
-@description('Optional. When true and no explicit private endpoints are provided, the module creates the default private endpoint wiring for the site.')
+@description('Optional. When true, the module creates the standard private endpoint wiring for the site.')
 param enableDefaultPrivateEndpoint bool = false
 
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
-param defaultPrivateEndpointSubnetResourceId string = ''
+param defaultPrivateEndpointSubnetResourceId string?
 
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
@@ -122,7 +117,6 @@ param solutionApplicationInsightsComponent {
   resourceGroupName: string
 }?
 
-@description('Optional. Tags of the resource.')
 param tags resourceInput<'Microsoft.Web/sites@2025-03-01'>.tags?
 
 
@@ -172,6 +166,9 @@ param redundancyMode resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.
 
 @description('Optional. The site publishing credential policy names which are associated with the sites.')
 param basicPublishingCredentialsPolicies basicPublishingCredentialsPolicyType[]?
+
+@description('Optional. When true, disable FTP and SCM basic publishing credentials using the standard site policies.')
+param disableBasicPublishingCredentials bool = false
 
 @description('Optional. Whether or not public network access is allowed for this resource. For security reasons it should be disabled. If not specified, it will be disabled by default if private endpoints are set.')
 param publicNetworkAccess resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.publicNetworkAccess?
@@ -234,7 +231,7 @@ var formattedRoleAssignments = [
 ]
 
 var resourceAbbreviation = 'app'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 60)
 var resolvedName = derivedName
@@ -242,13 +239,29 @@ var supportsServerFarmSettings = !empty(serverFarmResourceId)
 var resolvedServerFarmId = contains(managedEnvironmentSupportedKinds, kind) && !empty(managedEnvironmentResourceId)
   ? null
   : serverFarmResourceId
+var resolvedClientCertMode = clientCertEnabled ? clientCertMode : null
+var resolvedBasicPublishingCredentialsPolicies = disableBasicPublishingCredentials
+  ? [
+      {
+        name: 'ftp'
+        allow: false
+      }
+      {
+        name: 'scm'
+        allow: false
+      }
+    ]
+  : basicPublishingCredentialsPolicies
 var resolvedHostingEnvironmentProfile = !empty(appServiceEnvironmentResourceId)
   ? {
       id: appServiceEnvironmentResourceId
     }
   : null
 var resolvedSitePublicNetworkAccess = supportsServerFarmSettings ? publicNetworkAccess : null
-var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint && empty(privateEndpoints ?? [])
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
 var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'appservice'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -276,7 +289,7 @@ resource app 'Microsoft.Web/sites@2025-03-01' = {
     functionAppConfig: functionAppConfig
     clientCertEnabled: clientCertEnabled
     clientCertExclusionPaths: clientCertExclusionPaths
-    clientCertMode: !empty(serverFarmResourceId) ? clientCertMode : null
+    clientCertMode: !empty(serverFarmResourceId) ? resolvedClientCertMode : null
     cloningInfo: cloningInfo
     containerSize: containerSize
     dailyMemoryTimeQuota: dailyMemoryTimeQuota
@@ -356,9 +369,11 @@ var resolvedSlots = [
     extensions: slot.?extensions ?? extensions
     diagnosticSettings: slot.?diagnosticSettings
     roleAssignments: slot.?roleAssignments
-    basicPublishingCredentialsPolicies: slot.?basicPublishingCredentialsPolicies ?? basicPublishingCredentialsPolicies
+    basicPublishingCredentialsPolicies: slot.?basicPublishingCredentialsPolicies ?? resolvedBasicPublishingCredentialsPolicies
     lock: slot.?lock ?? lock
-    privateEndpoints: slot.?privateEndpoints ?? []
+    enableDefaultPrivateEndpoint: shouldCreateDefaultPrivateEndpoint
+    defaultPrivateEndpointSubnetResourceId: defaultPrivateEndpointSubnetResourceId
+    defaultPrivateDnsZoneName: defaultPrivateDnsZoneName
     tags: slot.?tags ?? tags
     clientCertEnabled: slot.?clientCertEnabled
     clientCertExclusionPaths: slot.?clientCertExclusionPaths
@@ -391,15 +406,17 @@ var resolvedSlots = [
 module app_slots './web-site-slot.bicep' = [
   for (slot, index) in resolvedSlots: {
     name: '${uniqueString(deployment().name, location)}-Slot-${slot.name}'
+    dependsOn: shouldCreateDefaultPrivateEndpoint ? [app_defaultPrivateDnsZone] : []
     params: {
       name: slot.name
       appName: slot.appName
       location: slot.location
       kind: slot.kind
-      serverFarmResourceId: slot.serverFarmResourceId
+      instanceNumber: instanceNumber
+      serverFarmResourceId: slot.?serverFarmResourceId
       managedEnvironmentResourceId: slot.managedEnvironmentResourceId
       httpsOnly: slot.httpsOnly
-      appServiceEnvironmentResourceId: slot.appServiceEnvironmentResourceId
+      appServiceEnvironmentResourceId: slot.?appServiceEnvironmentResourceId
       clientAffinityEnabled: slot.clientAffinityEnabled
       clientAffinityProxyEnabled: slot.clientAffinityProxyEnabled
       clientAffinityPartitioningEnabled: slot.clientAffinityPartitioningEnabled
@@ -416,7 +433,9 @@ module app_slots './web-site-slot.bicep' = [
       roleAssignments: slot.roleAssignments
       basicPublishingCredentialsPolicies: slot.basicPublishingCredentialsPolicies
       lock: slot.lock
-      privateEndpoints: slot.privateEndpoints
+      enableDefaultPrivateEndpoint: slot.enableDefaultPrivateEndpoint
+      defaultPrivateEndpointSubnetResourceId: slot.?defaultPrivateEndpointSubnetResourceId
+      defaultPrivateDnsZoneName: slot.defaultPrivateDnsZoneName
       tags: slot.tags
       clientCertEnabled: slot.clientCertEnabled
       clientCertExclusionPaths: slot.clientCertExclusionPaths
@@ -447,7 +466,7 @@ module app_slots './web-site-slot.bicep' = [
 ]
 
 module app_basicPublishingCredentialsPolicies './web-site-basic-publishing-credentials-policy.bicep' = [
-  for (basicPublishingCredentialsPolicy, index) in (basicPublishingCredentialsPolicies ?? []): {
+  for (basicPublishingCredentialsPolicy, index) in (resolvedBasicPublishingCredentialsPolicies ?? []): {
     name: '${uniqueString(deployment().name, location)}-Site-Publish-Cred-${index}'
     params: {
       webAppName: app.name
@@ -457,17 +476,6 @@ module app_basicPublishingCredentialsPolicies './web-site-basic-publishing-crede
     }
   }
 ]
-
-resource app_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${resolvedName}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: app
-}
 
 #disable-next-line use-recent-api-versions // This is the latest API version for this resource as of the time of development.
 resource app_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
@@ -524,7 +532,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         location: location
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
         service: 'sites'
-        subnetResourceId: defaultPrivateEndpointSubnetResourceId
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
         privateDnsZoneGroup: {
           privateDnsZoneGroupConfigs: [
             {
@@ -535,7 +543,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
         }
       }
     ]
-  : (privateEndpoints ?? [])
+  : []
 
 module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-Site-DefaultPrivateDnsZone'
@@ -617,19 +625,15 @@ module app_privateEndpoints '../01-network/private-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the site.')
 output name string = app.name
 
-@description('The resource ID of the site.')
 output resourceId string = app.id
 
-@description('The resource group the site was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The principal ID of the system assigned identity. Returns an empty string when no system-assigned identity is present.')
 output systemAssignedMIPrincipalId string = app.?identity.?principalId ?? ''
 
-@description('The location the resource was deployed into.')
 output location string = app.location
 
 @description('Default hostname of the app.')
@@ -805,13 +809,17 @@ type slotType = {
   @description('Optional. The extensions configuration.')
   extensions: resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties[]?
 
-  @description('Optional. The lock settings of the service.')
   lock: lockType?
 
-  @description('Optional. Configuration details for private endpoints.')
-  privateEndpoints: privateEndpointSingleServiceType[]?
+  @description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
+  enableDefaultPrivateEndpoint: bool?
 
-  @description('Optional. Tags of the resource.')
+  @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
+  defaultPrivateEndpointSubnetResourceId: string?
+
+  @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
+  defaultPrivateDnsZoneName: string?
+
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
 
   @description('Optional. Array of role assignments to create.')
@@ -912,4 +920,15 @@ type basicPublishingCredentialsPolicyType = {
 
   @description('Optional. Location for all Resources.')
   location: string?
+}
+
+resource app_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${resolvedName}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: app
 }

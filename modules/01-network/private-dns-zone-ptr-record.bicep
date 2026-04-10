@@ -54,11 +54,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
   name: privateDnsZoneName
 }
 
-resource PTR 'Microsoft.Network/privateDnsZones/PTR@2020-06-01' = {
+resource PTR 'Microsoft.Network/privateDnsZones/PTR@2024-06-01' = {
   name: name
   parent: privateDnsZone
   properties: {
@@ -84,11 +84,8 @@ resource PTR_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 ]
 
-@description('The name of the deployed PTR record.')
 output name string = PTR.name
 
-@description('The resource ID of the deployed PTR record.')
 output resourceId string = PTR.id
 
-@description('The resource group of the deployed PTR record.')
 output resourceGroupName string = resourceGroup().name

@@ -54,11 +54,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
   name: privateDnsZoneName
 }
 
-resource A 'Microsoft.Network/privateDnsZones/A@2020-06-01' = {
+resource A 'Microsoft.Network/privateDnsZones/A@2024-06-01' = {
   name: name
   parent: privateDnsZone
   properties: {
@@ -84,11 +84,8 @@ resource A_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 ]
 
-@description('The name of the deployed A record.')
 output name string = A.name
 
-@description('The resource ID of the deployed A record.')
 output resourceId string = A.id
 
-@description('The resource group of the deployed A record.')
 output resourceGroupName string = resourceGroup().name

@@ -18,7 +18,7 @@ param workloadDescription string = ''
 @description('Optional. Location for name derivation.')
 param location string = resourceGroup().location
 
-@description('Conditional. The name of the parent CDN profile. Required if the template is used in a standalone deployment.')
+@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
 @description('Required. Resource ID of WAF Policy.')
@@ -28,8 +28,8 @@ param wafPolicyResourceId string
 @description('Required. Waf associations (see https://learn.microsoft.com/en-us/azure/templates/microsoft.cdn/profiles/securitypolicies?pivots=deployment-language-bicep#securitypolicywebapplicationfirewallassociation for details).')
 param associations associationsType[]
 
-var resourceAbbreviation = 'secpol'
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var resourceAbbreviation = 'fdsecp'
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',
@@ -38,11 +38,11 @@ var derivedName = take(
 var resolvedName = derivedName
 
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-04-15' = {
+resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-06-01' = {
   name: resolvedName
   parent: profile
   properties: {
@@ -56,13 +56,10 @@ resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-04-15' =
   }
 }
 
-@description('The name of the secret.')
 output name string = securityPolicies.name
 
-@description('The resource ID of the secret.')
 output resourceId string = securityPolicies.id
 
-@description('The name of the resource group the secret was created in.')
 output resourceGroupName string = resourceGroup().name
 
 // =============== //

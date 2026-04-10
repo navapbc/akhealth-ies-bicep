@@ -93,11 +93,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-01-01' existing = {
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' existing = {
   name: virtualNetworkName
 }
 
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+resource subnet 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' = {
   name: name
   parent: virtualNetwork
   properties: {
@@ -159,13 +159,10 @@ resource subnet_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04
   }
 ]
 
-@description('The resource group the virtual network peering was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the virtual network peering.')
 output name string = subnet.name
 
-@description('The resource ID of the virtual network peering.')
 output resourceId string = subnet.id
 
 @description('The address prefix for the subnet.')

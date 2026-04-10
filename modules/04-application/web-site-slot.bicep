@@ -7,6 +7,9 @@ param name string
 @description('Conditional. The name of the parent site resource. Required if the template is used in a standalone deployment.')
 param appName string
 
+@description('Required. Instance number used to keep module-owned resource names aligned with the workload naming contract.')
+param instanceNumber string
+
 @description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
 
@@ -83,14 +86,17 @@ param configs configType[]?
 param extensions object[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
-import { privateEndpointSingleServiceType } from '../shared/avm-common-types.bicep'
-@description('Optional. Configuration details for private endpoints.')
-param privateEndpoints privateEndpointSingleServiceType[]?
+@description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
+param enableDefaultPrivateEndpoint bool = false
 
-@description('Optional. Tags of the resource.')
+@description('Optional. Subnet resource ID for the module-owned default private endpoint.')
+param defaultPrivateEndpointSubnetResourceId string?
+
+@description('Optional. Private DNS zone name for the module-owned default private endpoint.')
+param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
+
 param tags resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
@@ -200,27 +206,47 @@ var formattedRoleAssignments = [
   })
 ]
 
-var resolvedSlotPrivateEndpoints = [
-  for (privateEndpoint, index) in (privateEndpoints ?? []): {
-    resourceGroupName: privateEndpoint.resourceGroupName
-    resourceGroupSubscriptionId: privateEndpoint.resourceGroupSubscriptionId
-    name: privateEndpoint.name
-    service: privateEndpoint.service
-    isManualConnection: privateEndpoint.?isManualConnection == true
-    privateLinkServiceConnectionName: privateEndpoint.privateLinkServiceConnectionName
-    subnetResourceId: privateEndpoint.subnetResourceId
-    location: privateEndpoint.location
-    lock: privateEndpoint.?lock ?? lock
-    privateDnsZoneGroup: privateEndpoint.?privateDnsZoneGroup
-    roleAssignments: privateEndpoint.?roleAssignments
-    tags: privateEndpoint.?tags ?? tags
-    customDnsConfigs: privateEndpoint.?customDnsConfigs
-    ipConfigurations: privateEndpoint.?ipConfigurations
-    applicationSecurityGroupResourceIds: privateEndpoint.?applicationSecurityGroupResourceIds
-    customNetworkInterfaceName: privateEndpoint.?customNetworkInterfaceName
-    manualConnectionRequestMessage: privateEndpoint.?manualConnectionRequestMessage
-  }
-]
+var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
+var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
+  ? true
+  : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
+var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
+// App Service slots use the sites-<slot-name> subresource for Private Link.
+// Ref: https://learn.microsoft.com/en-us/azure/app-service/overview-private-endpoint
+var defaultPrivateEndpointService = 'sites-${name}'
+var defaultPrivateEndpointName = take('pep-${appName}-${name}-${instanceNumber}', 80)
+var defaultPrivateLinkServiceConnectionName = take('plsc-${appName}-${name}-${instanceNumber}', 80)
+var resolvedSlotPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
+  ? [
+      {
+        resourceGroupName: resourceGroup().name
+        resourceGroupSubscriptionId: subscription().subscriptionId
+        name: defaultPrivateEndpointName
+        service: defaultPrivateEndpointService
+        isManualConnection: false
+        privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
+        subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
+        location: location
+        lock: lock
+        privateDnsZoneGroup: {
+          name: name
+          privateDnsZoneGroupConfigs: [
+            {
+              name: defaultPrivateDnsZoneName
+              privateDnsZoneResourceId: defaultPrivateDnsZoneResourceId
+            }
+          ]
+        }
+        roleAssignments: null
+        tags: tags
+        customDnsConfigs: null
+        ipConfigurations: null
+        applicationSecurityGroupResourceIds: null
+        customNetworkInterfaceName: null
+        manualConnectionRequestMessage: null
+      }
+    ]
+  : []
 
 resource app 'Microsoft.Web/sites@2025-03-01' existing = {
   name: appName
@@ -324,17 +350,6 @@ module app_extensions './web-site-slot-extension.bicep' = [
   }
 ]
 
-resource slot_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: slot
-}
-
 #disable-next-line use-recent-api-versions // This is the latest API version for this resource as of the time of development.
 resource slot_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
@@ -428,19 +443,15 @@ module slot_privateEndpoints '../01-network/private-endpoint.bicep' = [
   }
 ]
 
-@description('The name of the slot.')
 output name string = slot.name
 
-@description('The resource ID of the slot.')
 output resourceId string = slot.id
 
-@description('The resource group the slot was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
 @description('The principal ID of the system assigned identity.')
 output systemAssignedMIPrincipalId string? = slot.?identity.?principalId
 
-@description('The location the resource was deployed into.')
 output location string = slot.location
 
 @description('The private endpoints of the slot.')
@@ -1854,4 +1865,15 @@ type basicPublishingCredentialsPolicyType = {
 
   @description('Optional. Location for all Resources.')
   location: string?
+}
+
+resource slot_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: slot
 }

@@ -54,11 +54,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
   name: privateDnsZoneName
 }
 
-resource TXT 'Microsoft.Network/privateDnsZones/TXT@2020-06-01' = {
+resource TXT 'Microsoft.Network/privateDnsZones/TXT@2024-06-01' = {
   name: name
   parent: privateDnsZone
   properties: {
@@ -84,11 +84,8 @@ resource TXT_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 ]
 
-@description('The name of the deployed TXT record.')
 output name string = TXT.name
 
-@description('The resource ID of the deployed TXT record.')
 output resourceId string = TXT.id
 
-@description('The resource group of the deployed TXT record.')
 output resourceGroupName string = resourceGroup().name

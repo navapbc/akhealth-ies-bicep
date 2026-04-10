@@ -160,7 +160,7 @@ param virtualNetworkBgpCommunity string?
 
 var deployAppGw = networkingOption == 'applicationGateway'
 
-var regionAbbreviation = regionAbbreviations[?location] ?? location
+var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var sharedNamePrefix = '${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}'
 var sharedNameSuffix = '${workloadSegment}-${instanceNumber}'
@@ -192,9 +192,19 @@ var resourceNames = {
   routeEgressLockdown: egressLockdownRouteName
 }
 
-var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfig.?subnetAddressSpace
-var subnetSpokeAppGwAddressSpace = applicationGatewayConfig.?subnetAddressSpace
-var firewallInternalIp = egressFirewallConfig.?internalIp
+var applicationGatewayConfigIsValid = networkingOption != 'applicationGateway' || applicationGatewayConfig != null
+  ? true
+  : fail('When networkingOption is "applicationGateway", applicationGatewayConfig must be provided.')
+var postgreSqlPrivateAccessConfigIsValid = !deployPostgreSqlPrivateAccess || postgreSqlPrivateAccessConfig != null
+  ? true
+  : fail('When deployPostgreSqlPrivateAccess is true, postgreSqlPrivateAccessConfig must be provided.')
+var egressFirewallConfigIsValid = !enableEgressLockdown || egressFirewallConfig != null
+  ? true
+  : fail('When enableEgressLockdown is true, egressFirewallConfig must be provided.')
+
+var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfigIsValid ? postgreSqlPrivateAccessConfig.?subnetAddressSpace : null
+var subnetSpokeAppGwAddressSpace = applicationGatewayConfigIsValid ? applicationGatewayConfig.?subnetAddressSpace : null
+var firewallInternalIp = egressFirewallConfigIsValid ? egressFirewallConfig.?internalIp : null
 
 var udrRoutes = [
   {
@@ -489,20 +499,20 @@ output snetAppSvcResourceId string = vnetSpoke.outputs.subnetResourceIds[0]
 @description('The name of the App Service subnet.')
 output snetAppSvcName string = vnetSpoke.outputs.subnetNames[0]
 
-@description('The resource ID of the private endpoint subnet.')
-output snetPeResourceId string = deployPrivateNetworking ? vnetSpoke.outputs.subnetResourceIds[1] : ''
+@description('The resource ID of the private endpoint subnet. Null if not deployed.')
+output snetPeResourceId string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetResourceIds[1] : null
 
-@description('The name of the private endpoint subnet.')
-output snetPeName string = deployPrivateNetworking ? vnetSpoke.outputs.subnetNames[1] : ''
+@description('The name of the private endpoint subnet. Null if not deployed.')
+output snetPeName string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetNames[1] : null
 
-@description('The resource ID of the PostgreSQL delegated subnet. Empty if not deployed.')
-output snetPostgreSqlResourceId string = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetResourceIds[postgreSqlSubnetIndex] : ''
+@description('The resource ID of the PostgreSQL delegated subnet. Null if not deployed.')
+output snetPostgreSqlResourceId string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetResourceIds[postgreSqlSubnetIndex] : null
 
-@description('The name of the PostgreSQL delegated subnet. Empty if not deployed.')
-output snetPostgreSqlName string = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetNames[postgreSqlSubnetIndex] : ''
+@description('The name of the PostgreSQL delegated subnet. Null if not deployed.')
+output snetPostgreSqlName string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetNames[postgreSqlSubnetIndex] : null
 
-@description('The resource ID of the Application Gateway subnet. Empty if not deployed.')
-output snetAppGwResourceId string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[appGatewaySubnetIndex] : ''
+@description('The resource ID of the Application Gateway subnet. Null if not deployed.')
+output snetAppGwResourceId string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[appGatewaySubnetIndex] : null
 
-@description('The name of the Application Gateway subnet. Empty if not deployed.')
-output snetAppGwName string = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[appGatewaySubnetIndex] : ''
+@description('The name of the Application Gateway subnet. Null if not deployed.')
+output snetAppGwName string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[appGatewaySubnetIndex] : null

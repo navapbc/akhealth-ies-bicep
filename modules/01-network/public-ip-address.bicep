@@ -8,7 +8,7 @@ param name string
 param publicIpPrefixResourceId string?
 
 @description('Optional. The public IP address allocation method.')
-param publicIPAllocationMethod resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.publicIPAllocationMethod = 'Static'
+param publicIPAllocationMethod resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAllocationMethod = 'Static'
 
 @description('Optional. A list of availability zones denoting the IP allocated for the resource needs to come from.')
 @allowed([
@@ -23,29 +23,28 @@ param availabilityZones int[] = [
 ]
 
 @description('Optional. IP address version.')
-param publicIPAddressVersion resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.publicIPAddressVersion = 'IPv4'
+param publicIPAddressVersion resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAddressVersion = 'IPv4'
 
 @description('Optional. The DNS settings of the public IP address.')
-param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.dnsSettings?
+param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.dnsSettings?
 
 @description('Optional. The list of tags associated with the public IP address.')
-param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.ipTags?
+param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ipTags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 @description('Optional. Name of a public IP address SKU.')
-param skuName resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.sku.name = 'Standard'
+param skuName resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.name = 'Standard'
 
 @description('Optional. Tier of a public IP address SKU.')
-param skuTier resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.sku.tier = 'Regional'
+param skuTier resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.tier = 'Regional'
 
 @description('Optional. The DDoS protection plan configuration associated with the public IP address.')
-param ddosSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.ddosSettings?
+param ddosSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ddosSettings?
 
 @description('Optional. The delete option for the public IP address.')
-param deleteOption resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.properties.deleteOption?
+param deleteOption resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.deleteOption?
 
 @description('Optional. Location for all resources.')
 param location string = resourceGroup().location
@@ -58,8 +57,7 @@ param roleAssignments roleAssignmentType[]?
 @description('Optional. The idle timeout of the public IP address.')
 param idleTimeoutInMinutes int = 4
 
-@description('Optional. Tags of the resource.')
-param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-01-01'>.tags?
+param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 @description('Optional. The diagnostic settings of the service.')
@@ -110,7 +108,7 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource publicIpAddress 'Microsoft.Network/publicIPAddresses@2025-01-01' = {
+resource publicIpAddress 'Microsoft.Network/publicIPAddresses@2025-05-01' = {
   name: name
   location: location
   tags: tags
@@ -133,17 +131,6 @@ resource publicIpAddress 'Microsoft.Network/publicIPAddresses@2025-01-01' = {
     ipTags: ipTags
     deleteOption: deleteOption
   }
-}
-
-resource publicIpAddress_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: publicIpAddress
 }
 
 resource publicIpAddress_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -191,17 +178,24 @@ resource publicIpAddress_diagnosticSettings 'Microsoft.Insights/diagnosticSettin
   }
 ]
 
-@description('The resource group the public IP address was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The name of the public IP address.')
 output name string = publicIpAddress.name
 
-@description('The resource ID of the public IP address.')
 output resourceId string = publicIpAddress.id
 
 @description('The public IP address of the public IP address resource.')
 output ipAddress string = publicIpAddress.properties.?ipAddress ?? ''
 
-@description('The location the resource was deployed into.')
 output location string = publicIpAddress.location
+
+resource publicIpAddress_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: publicIpAddress
+}

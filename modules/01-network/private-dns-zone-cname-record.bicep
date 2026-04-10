@@ -54,11 +54,11 @@ var formattedRoleAssignments = [
   })
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
   name: privateDnsZoneName
 }
 
-resource CNAME 'Microsoft.Network/privateDnsZones/CNAME@2020-06-01' = {
+resource CNAME 'Microsoft.Network/privateDnsZones/CNAME@2024-06-01' = {
   name: name
   parent: privateDnsZone
   properties: {
@@ -84,11 +84,8 @@ resource CNAME_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 ]
 
-@description('The name of the deployed CNAME record.')
 output name string = CNAME.name
 
-@description('The resource ID of the deployed CNAME record.')
 output resourceId string = CNAME.id
 
-@description('The resource group of the deployed CNAME record.')
 output resourceGroupName string = resourceGroup().name

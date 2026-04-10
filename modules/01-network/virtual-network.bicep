@@ -47,14 +47,12 @@ import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 param diagnosticSettings diagnosticSettingFullType[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the service.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
-@description('Optional. Tags of the resource.')
 param tags object?
 
 
@@ -102,7 +100,7 @@ var formattedRoleAssignments = [
 // Dependencies //
 // ============ //
 
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' = {
   name: name
   location: location
   tags: tags
@@ -149,6 +147,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   }
 }
 
+#disable-diagnostics no-unnecessary-dependson
 @batchSize(1)
 module virtualNetwork_subnets './virtual-network-subnet.bicep' = [
   for (subnet, index) in (subnets ?? []): {
@@ -200,6 +199,7 @@ module virtualNetwork_peering_local './virtual-network-peering.bicep' = [
     }
   }
 ]
+#restore-diagnostics no-unnecessary-dependson
 
 // Remote to local peering (reverse)
 module virtualNetwork_peering_remote './virtual-network-peering.bicep' = [
@@ -223,17 +223,6 @@ module virtualNetwork_peering_remote './virtual-network-peering.bicep' = [
     }
   }
 ]
-
-resource virtualNetwork_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
-  name: lock.?name ?? 'lock-${name}'
-  properties: {
-    level: lock.?kind ?? ''
-    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
-      ? 'Cannot delete resource or child resources.'
-      : 'Cannot delete or modify the resource or child resources.')
-  }
-  scope: virtualNetwork
-}
 
 resource virtualNetwork_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
@@ -280,13 +269,10 @@ resource virtualNetwork_roleAssignments 'Microsoft.Authorization/roleAssignments
   }
 ]
 
-@description('The resource group the virtual network was deployed into.')
 output resourceGroupName string = resourceGroup().name
 
-@description('The resource ID of the virtual network.')
 output resourceId string = virtualNetwork.id
 
-@description('The name of the virtual network.')
 output name string = virtualNetwork.name
 
 @description('The names of the deployed subnets.')
@@ -297,7 +283,6 @@ output subnetResourceIds array = [
   for (subnet, index) in (subnets ?? []): virtualNetwork_subnets[index].outputs.resourceId
 ]
 
-@description('The location the resource was deployed into.')
 output location string = virtualNetwork.location
 
 // =============== //
@@ -417,4 +402,15 @@ type subnetType = {
 
   @description('Optional. Set this property to Tenant to allow sharing subnet with other subscriptions in your AAD tenant. This property can only be set if defaultOutboundAccess is set to false, both properties can only be set if subnet is empty.')
   sharingScope: ('DelegatedServices' | 'Tenant')?
+}
+
+resource virtualNetwork_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
+  name: lock.?name ?? 'lock-${name}'
+  properties: {
+    level: lock.?kind ?? ''
+    notes: lock.?notes ?? (lock.?kind == 'CanNotDelete'
+      ? 'Cannot delete resource or child resources.'
+      : 'Cannot delete or modify the resource or child resources.')
+  }
+  scope: virtualNetwork
 }

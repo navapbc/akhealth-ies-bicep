@@ -9,4 +9,5 @@ var regionAbbreviations object = {
   northcentralus: 'ncus'
   southcentralus: 'scus'
   westcentralus: 'wcus'
+  global: 'global'
 }

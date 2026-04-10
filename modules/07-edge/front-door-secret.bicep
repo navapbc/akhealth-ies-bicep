@@ -4,7 +4,7 @@ metadata description = 'This module deploys a CDN Profile Secret.'
 @description('Required. The name of the secret.')
 param name string
 
-@description('Conditional. The name of the parent CDN profile. Required if the template is used in a standalone deployment.')
+@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
 @allowed([
@@ -35,11 +35,11 @@ var resolvedSecretSourceResourceId = type == 'CustomerCertificate'
       : fail('Front Door CustomerCertificate secrets require secretSourceResourceId to be declared explicitly.'))
   : null
 
-resource profile 'Microsoft.Cdn/profiles@2025-04-15' existing = {
+resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
 }
 
-resource secret 'Microsoft.Cdn/profiles/secrets@2025-04-15' = {
+resource secret 'Microsoft.Cdn/profiles/secrets@2025-06-01' = {
   name: name
   parent: profile
   properties: {
@@ -59,11 +59,8 @@ resource secret 'Microsoft.Cdn/profiles/secrets@2025-04-15' = {
   }
 }
 
-@description('The name of the secret.')
 output name string = secret.name
 
-@description('The resource ID of the secret.')
 output resourceId string = secret.id
 
-@description('The name of the resource group the secret was created in.')
 output resourceGroupName string = resourceGroup().name
