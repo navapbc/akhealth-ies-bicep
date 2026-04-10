@@ -79,13 +79,13 @@ param servicePlanConfig = {
   zoneRedundant: false
   osFamily: 'windows'
   existingPlanId: ''
-  workerTierName: ''
+  workerTierName: null
   elasticScaleEnabled: false
   maximumElasticWorkerCount: 1
   perSiteScaling: false
   targetWorkerCount: 1
   targetWorkerSize: 0
-  virtualNetworkSubnetId: ''
+  virtualNetworkSubnetId: null
   isCustomMode: false
   rdpEnabled: false
   installScripts: []

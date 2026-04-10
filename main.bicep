@@ -391,9 +391,9 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
     elasticScaleEnabled: servicePlanConfig.elasticScaleEnabled
     targetWorkerCount: servicePlanConfig.targetWorkerCount
     targetWorkerSize: servicePlanConfig.targetWorkerSize
-    workerTierName: servicePlanConfig.workerTierName
+    workerTierName: servicePlanConfig.?workerTierName
     appServiceEnvironmentResourceId: aseEnvironment.?outputs.?resourceId ?? null
-    virtualNetworkSubnetId: servicePlanConfig.isCustomMode ? networking.outputs.snetAppSvcResourceId : servicePlanConfig.virtualNetworkSubnetId
+    virtualNetworkSubnetId: servicePlanConfig.isCustomMode ? networking.outputs.snetAppSvcResourceId : servicePlanConfig.?virtualNetworkSubnetId
     isCustomMode: servicePlanConfig.isCustomMode
     rdpEnabled: servicePlanConfig.rdpEnabled
     installScripts: servicePlanConfig.installScripts
