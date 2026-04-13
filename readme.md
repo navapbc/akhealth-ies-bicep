@@ -80,9 +80,17 @@ TODO:
 
 ## Resource Groups and Naming
 
-For resource groups, we will break the scheme just a small bit, because resource groups are moreso containers and less dedicated resources.
+For resource groups, we will adjust the naming the scheme just a small bit, because resource groups are moreso containers and less dedicated resources.
 
-resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-instanceNumber (e.x. rg-iep-eus-dev-network-01)
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber (rg-iep-eus-dev-network-edge-01)
+
+This is a non-exhaustive list of example values for these:
+resourceAbbreviation = rg
+systemAbbreviation = iep
+regionAbbreviation = wus, wus2, wus3, wcus, eus, eus2
+environmentAbbreviation = dev, tst, sit, stg, uat, prd
+workloadDescription = network, hosting, data, operations
 
 ## Resource Group Names Examples
 
@@ -90,7 +98,60 @@ rg-iep-eus-dev-network-01
 rg-iep-eus-dev-network-edge-01
 rg-iep-eus-dev-network-private-01
 rg-iep-eus-dev-hosting-01
+rg-iep-eus-dev-hosting-integrations-01
 rg-iep-eus-dev-data-01
+rg-iep-eus-dev-data-integrations-01
 rg-iep-eus-dev-operations-01
 
+## Resource Group Organizing
+
+### `rg-iep-eus-dev-network-01`
+Base network fabric:
+- Virtual Network
+- Subnets
+- NSGs
+- Route Tables
+
+### `rg-iep-eus-dev-network-edge-01`
+Traffic entry and API access layer:
+- Application Gateway
+- WAF Policy
+- API Management
+- Load Balancer
+
+### `rg-iep-eus-dev-network-private-01`
+Private connectivity layer:
+- Private Endpoints
+- Private endpoint NICs
+- Private DNS zone groups / related private DNS resources
+
+### `rg-iep-eus-dev-hosting-01`
+Primary workload hosting:
+- App Service Environment
+- App Service Plans
+- Web Apps / API Apps
+- Function Apps
+- Azure Container Registry
+- Managed identities closely tied to hosting/runtime
+
+### `rg-iep-eus-dev-data-01`
+Persistent data layer:
+- PostgreSQL
+- Storage Accounts
+- Redis
+- SQL
+- Cosmos DB
+- Data Factory if treated primarily as data platform / ETL
+
+### `rg-iep-eus-dev-operations-01`
+Operational and admin support layer:
+- Log Analytics
+- Application Insights
+- Monitor / alerts / action groups
+- Automation / Runbooks
+- Service Bus
+- Event Grid
+- Logic Apps
+- Admin utilities
+- Sanctioned operator-managed support resources
 

@@ -4,6 +4,30 @@ var builtInRoleNames = {
     'Microsoft.Authorization/roleDefinitions',
     '0f37683f-2463-46b6-9ce7-9b788b988ba2'
   )
+  'Application Insights Component Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'ae349356-3a1b-4a5e-921d-050484c6347e'
+  )
+  'Application Insights Snapshot Debugger': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '08954f03-6346-4c2e-81c0-ec3a5cfae23b'
+  )
+  'CDN Endpoint Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '426e0c7f-0c7e-4658-b36f-ff54d6c29b45'
+  )
+  'CDN Endpoint Reader': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '871e35f6-b5c1-49cc-a043-bde969a0f2cd'
+  )
+  'CDN Profile Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'ec156ff8-a8d1-4d15-830c-5b80698ca432'
+  )
+  'CDN Profile Reader': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '8f96442b-4075-438f-813d-ad51ab4019af'
+  )
   Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
   'DNS Resolver Contributor': subscriptionResourceId(
     'Microsoft.Authorization/roleDefinitions',
@@ -60,6 +84,30 @@ var builtInRoleNames = {
   'Key Vault Secrets User': subscriptionResourceId(
     'Microsoft.Authorization/roleDefinitions',
     '4633458b-17de-408a-b874-0445c86b69e6'
+  )
+  'Log Analytics Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '92aaf0da-9dab-42b6-94a3-d43ce8d16293'
+  )
+  'Log Analytics Reader': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '73c42c96-874c-492b-b04d-ab87d138a893'
+  )
+  'Managed Identity Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'e40ec5ca-96e0-45a2-b4ff-59039f2c2b59'
+  )
+  'Managed Identity Operator': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'f1a07417-d97a-45cb-824c-7a7467783830'
+  )
+  'Monitoring Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '749f88d5-cbae-40b8-bcfc-e573ddc772fa'
+  )
+  'Monitoring Metrics Publisher': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '3913510d-42f4-4e42-8a64-420c390055eb'
   )
   'Network Contributor': subscriptionResourceId(
     'Microsoft.Authorization/roleDefinitions',

@@ -1,0 +1,36 @@
+# IEP Azure Resource Planning List
+This list of resources is based off of the list originally described in the Milestone 2 RFP.
+## In-scope resources for consideration
+
+| Resource | Resource provider |
+|---|---|
+| Virtual Network | `Microsoft.Network` |
+| Subnets | `Microsoft.Network` |
+| Network Security Groups | `Microsoft.Network` |
+| Route Tables | `Microsoft.Network` |
+| Private Endpoints | `Microsoft.Network` |
+| Application Gateway | `Microsoft.Network` |
+| WAF Policy for Application Gateway | `Microsoft.Network` |
+| Private DNS zone / private DNS networking objects | `Microsoft.Network` |
+| Load Balancer | `Microsoft.Network` |
+| API Management | `Microsoft.ApiManagement` |
+| App Service Environment | `Microsoft.Web` |
+| App Service Plan | `Microsoft.Web` |
+| App Service / Web App / API App | `Microsoft.Web` |
+| Azure Functions / Function App | `Microsoft.Web` |
+| Azure Container Registry | `Microsoft.ContainerRegistry` |
+| Azure Data Factory | `Microsoft.DataFactory` |
+| Service Bus | `Microsoft.ServiceBus` |
+| Event Grid | `Microsoft.EventGrid` |
+| Azure Database for PostgreSQL | `Microsoft.DBforPostgreSQL` |
+| Storage Account | `Microsoft.Storage` |
+| Log Analytics Workspace | `Microsoft.OperationalInsights` |
+| Application Insights | `Microsoft.Insights` |
+| Azure Monitor alerting / monitor resources | `Microsoft.Insights` / `Microsoft.Monitor` / `Microsoft.AlertsManagement` |
+| Key Vault | `Microsoft.KeyVault` |
+| Managed Identity | `Microsoft.ManagedIdentity` |
+| Azure Automation / Runbooks | `Microsoft.Automation` |
+| Logic Apps | `Microsoft.Logic` |
+| Azure Cache for Redis | `Microsoft.Cache` |
+| Cosmos DB | `Microsoft.DocumentDB` |
+

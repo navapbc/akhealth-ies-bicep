@@ -213,8 +213,8 @@ type servicePlanConfigType = {
   @description('Required. Resource ID of an existing App Service Plan. Use an empty string to create a new plan.')
   existingPlanId: string
 
-  @description('Required. Target worker tier name. Use an empty string when not applicable.')
-  workerTierName: string
+  @description('Optional. Target worker tier name. Use null when not applicable.')
+  workerTierName: string?
 
   @description('Required. Whether elastic scale is enabled.')
   elasticScaleEnabled: bool
@@ -231,8 +231,8 @@ type servicePlanConfigType = {
   @description('Required. The instance size of the hosting plan (0=small, 1=medium, 2=large).')
   targetWorkerSize: (0 | 1 | 2)
 
-  @description('Required. Resource ID of a subnet for App Service Plan VNet integration. Use an empty string when not applicable.')
-  virtualNetworkSubnetId: string
+  @description('Optional. Resource ID of a subnet for App Service Plan VNet integration. Use null when not applicable.')
+  virtualNetworkSubnetId: string?
 
   @description('Required. Whether the App Service Plan uses custom mode.')
   isCustomMode: bool

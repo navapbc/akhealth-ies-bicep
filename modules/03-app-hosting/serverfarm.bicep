@@ -119,7 +119,6 @@ var resolvedName = derivedName
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
 var isLinux = servicePlanOsFamily =~ 'linux'
 var isWindowsContainer = contains(workloadKind, 'container') && contains(workloadKind, 'windows')
-var planKind = isLinux ? 'Linux' : 'Windows'
 var identity = hasSystemAssignedIdentity
   ? {
       type: 'SystemAssigned'
@@ -150,7 +149,6 @@ var customModeStorageMounts = isCustomMode ? storageMounts : null
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
   name: resolvedName
-  kind: planKind
   location: location
   tags: tags
   identity: identity
@@ -187,6 +185,11 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
     storageMounts: customModeStorageMounts
   }
 }
+
+// App Service Plan `kind` is intentionally omitted.
+// Microsoft states the ASP `kind` value is meaningless at this time and that
+// `reserved` is what distinguishes Linux from Windows plans:
+// https://azure.github.io/AppService/2021/08/31/Kind-property-overview.html
 
 #disable-next-line use-recent-api-versions // The diagnostic settings API version used is the most recent available at the time of development.
 resource appServicePlan_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
