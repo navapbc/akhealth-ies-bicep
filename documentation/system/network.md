@@ -1,7 +1,7 @@
 # System subnet planning reference
 
 
-| Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Learn reference |
+| Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Microsoft reference |
 |---|---|---|---|---|---|---|---|
 | App Service Environment | `Microsoft.Web` | VNet injection / delegated subnet | Dedicated delegated subnet | `/27` | `/23` | Subnet must be empty and delegated to `Microsoft.Web/hostingEnvironments`. Microsoft recommends `/24` for production and `/23` when planning near max scale or frequent scale operations. Windows containers increase IP pressure. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
 | Virtual Network | `Microsoft.Network` | Parent address space | Overall VNet CIDR | N/A | Size to contain all required subnets | VNet is the address container for all platform subnets. | https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview |
