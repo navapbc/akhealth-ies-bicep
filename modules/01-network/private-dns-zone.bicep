@@ -1,6 +1,7 @@
 metadata name = 'Private DNS Zones'
 metadata description = 'This module deploys a Private DNS zone.'
 
+import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 
 @description('Required. Private DNS zone name.')
@@ -46,24 +47,6 @@ import { lockType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. The lock settings of the service.')
 param lock lockType?
 
-
-var builtInRoleNames = {
-  Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-  'Network Contributor': subscriptionResourceId(
-    'Microsoft.Authorization/roleDefinitions',
-    '4d97b98b-1d4f-4787-a291-c67834d212e7'
-  )
-  Owner: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
-  'Private DNS Zone Contributor': subscriptionResourceId(
-    'Microsoft.Authorization/roleDefinitions',
-    'b12aa53e-6015-4669-85d0-8515ebb3ae7f'
-  )
-  Reader: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
-  'Role Based Access Control Administrator': subscriptionResourceId(
-    'Microsoft.Authorization/roleDefinitions',
-    'f58310d9-a9f6-439a-9e8d-f62e7b41a168'
-  )
-}
 
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
