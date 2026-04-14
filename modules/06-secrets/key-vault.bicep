@@ -83,6 +83,9 @@ param enableDefaultPrivateEndpoint bool = false
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
 param defaultPrivateEndpointSubnetResourceId string?
 
+@description('Optional. Resource group name for the module-owned default private networking resources. When omitted, they are deployed to the current resource group.')
+param defaultPrivateNetworkingResourceGroupName string?
+
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.vaultcore.azure.net'
 
@@ -132,7 +135,8 @@ var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
 var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
   ? true
   : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
-var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
+var defaultPrivateNetworkingResolvedResourceGroupName = defaultPrivateNetworkingResourceGroupName ?? resourceGroup().name
+var defaultPrivateDnsZoneResourceId = resourceId(defaultPrivateNetworkingResolvedResourceGroupName, 'Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'keyvault'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
 var defaultPrivateLinkServiceConnectionName = 'plsc-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -141,7 +145,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
       {
         name: defaultPrivateEndpointName
         location: location
-        resourceGroupName: resourceGroup().name
+        resourceGroupName: defaultPrivateNetworkingResolvedResourceGroupName
         privateLinkServiceConnectionName: defaultPrivateLinkServiceConnectionName
         service: 'vault'
         subnetResourceId: defaultPrivateEndpointInputsAreValid ? defaultPrivateEndpointSubnetResourceId! : null
@@ -169,6 +173,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
 
 module keyVault_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-KeyVault-DefaultPrivateDnsZone'
+  scope: resourceGroup(defaultPrivateNetworkingResolvedResourceGroupName)
   params: {
     name: defaultPrivateDnsZoneName
     location: 'global'

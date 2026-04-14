@@ -94,6 +94,9 @@ param enableDefaultPrivateEndpoint bool = false
 @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
 param defaultPrivateEndpointSubnetResourceId string?
 
+@description('Optional. Resource group name for the module-owned default private networking resources. When omitted, they are deployed to the current resource group.')
+param defaultPrivateNetworkingResourceGroupName string?
+
 @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
 
@@ -210,7 +213,8 @@ var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
 var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
   ? true
   : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
-var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
+var defaultPrivateNetworkingResolvedResourceGroupName = defaultPrivateNetworkingResourceGroupName ?? resourceGroup().name
+var defaultPrivateDnsZoneResourceId = resourceId(defaultPrivateNetworkingResolvedResourceGroupName, 'Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 // App Service slots use the sites-<slot-name> subresource for Private Link.
 // Ref: https://learn.microsoft.com/en-us/azure/app-service/overview-private-endpoint
 var defaultPrivateEndpointService = 'sites-${name}'
@@ -219,7 +223,7 @@ var defaultPrivateLinkServiceConnectionName = take('plsc-${appName}-${name}-${in
 var resolvedSlotPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {
-        resourceGroupName: resourceGroup().name
+        resourceGroupName: defaultPrivateNetworkingResolvedResourceGroupName
         resourceGroupSubscriptionId: subscription().subscriptionId
         name: defaultPrivateEndpointName
         service: defaultPrivateEndpointService

@@ -16,6 +16,19 @@ import {
 // ======================== //
 
 @export()
+@description('Configuration for a solution-managed resource group.')
+type resourceGroupDefinitionType = {
+  @description('Required. Stable key used to reference this resource group in the solution.')
+  key: string
+
+  @description('Required. Workload description segment used in the resource group name.')
+  workloadDescription: string
+
+  @description('Optional. Sub-workload description segment used in the resource group name.')
+  subWorkloadDescription: string?
+}
+
+@export()
 @description('Describes a virtual network link for a private DNS zone.')
 type virtualNetworkLinkType = {
   @description('Required. The name of the virtual network link.')

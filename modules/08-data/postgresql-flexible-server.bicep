@@ -129,6 +129,9 @@ param delegatedSubnetResourceId string?
 @description('Required. Virtual network links for the module-owned PostgreSQL private DNS zone.')
 param privateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[]
 
+@description('Optional. Resource group name for the module-owned PostgreSQL private DNS zone. When omitted, the current resource group is used.')
+param privateDnsZoneResourceGroupName string?
+
 @description('Required. Databases to create on the server.')
 param databases databaseType[]
 
@@ -173,9 +176,11 @@ var privateDnsZoneLabel = take('pdz-${systemAbbreviation}-${regionAbbreviation}-
 // Azure recommends private DNS zones that end with .postgres.database.azure.com for Flexible Server private access.
 // Ref: https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-networking-private
 var derivedPrivateDnsZoneName = '${privateDnsZoneLabel}.postgres.database.azure.com'
+var resolvedPrivateDnsZoneResourceGroupName = privateDnsZoneResourceGroupName ?? resourceGroup().name
 
 module postgreSqlPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (networkingModeIsValid && privateAccessInputsAreValid && privateAccessEnabled) {
-    name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
+  name: '${uniqueString(deployment().name, location)}-postgresql-dnszone'
+  scope: resourceGroup(resolvedPrivateDnsZoneResourceGroupName)
   params: {
     name: derivedPrivateDnsZoneName
     location: 'global'

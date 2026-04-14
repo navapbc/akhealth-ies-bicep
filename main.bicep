@@ -21,6 +21,7 @@ import {
   aseConfigType
   entraGroupConfigType
   postgresqlConfigType
+  resourceGroupDefinitionType
 } from 'modules/shared/shared.types.bicep'
 
 @maxLength(10)
@@ -51,6 +52,9 @@ param deployAseV3 bool = false
 
 @description('Optional. Tags to apply to all resources.')
 param tags object = {}
+
+@description('Required. Definitions of system resource groups.')
+param resourceGroupDefinitions resourceGroupDefinitionType[]
 
 
 @description('Required. The resource ID of an existing Log Analytics workspace, or null to create one in the spoke resource group.')
@@ -112,18 +116,27 @@ var postgreSqlPrivateNetworkingEnabled = postgreSqlEnabled && deployPrivateNetwo
 var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
-
-// ======================== //
-// Naming                   //
-// ======================== //
-
 var regionAbbreviation = regionAbbreviations[location]
-var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
-var resourceGroupName = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
 
 // ======================== //
 // Shared Network Links     //
 // ======================== //
+
+var resourceGroupDefinitionKeys = [for resourceGroupDefinition in resourceGroupDefinitions: resourceGroupDefinition.key]
+
+var networkResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'network')]
+var networkEdgeResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'networkEdge')]
+var hostingResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'hosting')]
+var dataResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'data')]
+var operationsResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'operations')]
+
+var resourceGroupNameMap = {
+  network: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${networkResourceGroupDefinition.workloadDescription}${empty(networkResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${networkResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
+  networkEdge: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${networkEdgeResourceGroupDefinition.workloadDescription}${empty(networkEdgeResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${networkEdgeResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
+  hosting: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${hostingResourceGroupDefinition.workloadDescription}${empty(hostingResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${hostingResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
+  data: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${dataResourceGroupDefinition.workloadDescription}${empty(dataResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${dataResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
+  operations: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${operationsResourceGroupDefinition.workloadDescription}${empty(operationsResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${operationsResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
+}
 
 var spokePrivateDnsZoneLinks = [
   {
@@ -152,16 +165,24 @@ var postgreSqlPrivateDnsZoneLinks = concat(
 // Resources        //
 // ================ //
 
-resource spokeResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
-  name: resourceGroupName
-  location: location
-  tags: tags
-  properties: {}
-}
+module resourceGroups 'modules/shared/resource-group.bicep' = [
+  for resourceGroupDefinition in resourceGroupDefinitions: {
+    name: '${uniqueString(deployment().name, location, resourceGroupDefinition.key)}-rg'
+    params: {
+      systemAbbreviation: systemAbbreviation
+      environmentAbbreviation: environmentAbbreviation
+      instanceNumber: instanceNumber
+      workloadDescription: resourceGroupDefinition.workloadDescription
+      subWorkloadDescription: resourceGroupDefinition.?subWorkloadDescription ?? ''
+      location: location
+      tags: tags
+    }
+  }
+]
 
 module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bicep' = if (existingLogAnalyticsID == null) {
   name: '${uniqueString(deployment().name, location, systemAbbreviation, environmentAbbreviation, instanceNumber, 'law')}-law'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -191,7 +212,7 @@ var resolvedLogAnalyticsWorkspaceResourceId = existingLogAnalyticsID != null
 
 module networking 'modules/01-network/network.bicep' = {
   name: '${uniqueString(deployment().name, location)}-networking'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.network)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -247,7 +268,7 @@ var webAppVirtualNetworkSubnetResourceId = useSolutionWebAppSubnetIntegration
 
 module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-avm'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -287,7 +308,7 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
 // in subscription-scoped templates with conditional existing resources.
 module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-lookup'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     aseName: aseEnvironment!.outputs.name
   }
@@ -295,7 +316,7 @@ module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
 
 module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-dnszone'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.network)
   params: {
     name: '${aseEnvironment!.outputs.name}.appserviceenvironment.net'
     virtualNetworkLinks: spokePrivateDnsZoneLinks
@@ -338,7 +359,7 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
 
 module appInsights 'modules/02-monitoring/application-insights.bicep' = {
   name: '${uniqueString(deployment().name, location)}-appInsights'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -373,7 +394,7 @@ module appInsights 'modules/02-monitoring/application-insights.bicep' = {
 
 module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan) {
   name: '${uniqueString(deployment().name, location, 'webapp')}-plan'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -412,7 +433,7 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
 
 module webAppSite 'modules/04-application/web-site.bicep' = {
   name: '${uniqueString(deployment().name, location)}-webapp'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     kind: appServiceConfig.kind
     systemAbbreviation: systemAbbreviation
@@ -469,6 +490,7 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     slots: appServiceConfig.slots
     enableDefaultPrivateEndpoint: webAppPrivateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.?snetPeResourceId
+    defaultPrivateNetworkingResourceGroupName: resourceGroupNameMap.network
     defaultPrivateDnsZoneVirtualNetworkLinks: spokePrivateDnsZoneLinks
     tags: tags
   }
@@ -484,7 +506,7 @@ var afdPeAutoApproverIsolationScope = frontDoorConfig.afdPeAutoApproverIsolation
 
 module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-waf'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -497,7 +519,7 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFront
 
 module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -514,7 +536,7 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress)
 
 module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-security-policy'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -537,7 +559,7 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
 
 module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-afd-uami'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.operations)
   dependsOn: [
     afd
   ]
@@ -554,7 +576,7 @@ module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bic
 
 module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assignments.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-afd-uami-rbac'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     roleAssignments: [
       {
@@ -568,7 +590,7 @@ module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assig
 
 module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-autoApproveAfdPe'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -585,7 +607,7 @@ module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoAppro
     environmentVariables: [
       {
         name: 'ResourceGroupName'
-        value: resourceGroupName
+        value: resourceGroupNameMap.hosting
       }
     ]
     scriptContent: '''
@@ -608,7 +630,7 @@ var useApplicationGatewayIngress = networkingOption == 'applicationGateway'
 
 module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appgw-waf'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -625,7 +647,7 @@ module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = i
 
 module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appGw'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -684,7 +706,7 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGat
 @description('Azure Key Vault used to hold items like TLS certs and application secrets that your workload will need.')
 module keyVault 'modules/06-secrets/key-vault.bicep' = {
   name: '${uniqueString(deployment().name, location)}-keyVault'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -705,6 +727,7 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
     keys: keyVaultConfig.?keys
     enableDefaultPrivateEndpoint: privateNetworkingEnabled
     defaultPrivateEndpointSubnetResourceId: networking.outputs.?snetPeResourceId
+    defaultPrivateNetworkingResourceGroupName: resourceGroupNameMap.network
     defaultPrivateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
     diagnosticSettings: keyVaultConfig.diagnosticSettings
     lock: keyVaultConfig.?lock
@@ -734,7 +757,7 @@ var postgreSqlRoleAssignments = concat(
 
 module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deployPostgreSql) {
   name: '${uniqueString(deployment().name, location)}-postgresql'
-  scope: spokeResourceGroup
+  scope: resourceGroup(resourceGroupNameMap.data)
   params: {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
@@ -758,6 +781,7 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     privateAccessMode: postgresqlConfig.privateAccessMode
     delegatedSubnetResourceId: postgreSqlPrivateAccessEnabled ? networking.outputs.?snetPostgreSqlResourceId : null
     privateDnsZoneVirtualNetworkLinks: postgreSqlPrivateDnsZoneLinks
+    privateDnsZoneResourceGroupName: resourceGroupNameMap.network
     databases: postgresqlConfig.databases
     configurations: postgresqlConfig.configurations
     diagnosticSettings: postgresqlConfig.diagnosticSettings
@@ -771,8 +795,20 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
 // Outputs          //
 // ================ //
 
-@description('The name of the Spoke resource group.')
-output spokeResourceGroupName string = spokeResourceGroup.name
+@description('The name of the network resource group.')
+output networkResourceGroupName string = resourceGroupNameMap.network
+
+@description('The name of the network edge resource group.')
+output networkEdgeResourceGroupName string = resourceGroupNameMap.networkEdge
+
+@description('The name of the hosting resource group.')
+output hostingResourceGroupName string = resourceGroupNameMap.hosting
+
+@description('The name of the data resource group.')
+output dataResourceGroupName string = resourceGroupNameMap.data
+
+@description('The name of the operations resource group.')
+output operationsResourceGroupName string = resourceGroupNameMap.operations
 
 @description('The resource ID of the Spoke Virtual Network.')
 output spokeVNetResourceId string = networking.outputs.vnetSpokeResourceId

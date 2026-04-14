@@ -22,6 +22,30 @@ param tags = {
   managedBy: 'bicepparam'
 }
 
+param resourceGroupDefinitions = [
+  {
+    key: 'network'
+    workloadDescription: 'network'
+  }
+  {
+    key: 'networkEdge'
+    workloadDescription: 'network'
+    subWorkloadDescription: 'edge'
+  }
+  {
+    key: 'hosting'
+    workloadDescription: 'hosting'
+  }
+  {
+    key: 'data'
+    workloadDescription: 'data'
+  }
+  {
+    key: 'operations'
+    workloadDescription: 'operations'
+  }
+]
+
 param spokeNetworkConfig = {
   ingressOption: 'frontDoor' //options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
