@@ -182,6 +182,9 @@ module resourceGroups 'modules/shared/resource-group.bicep' = [
 
 module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bicep' = if (existingLogAnalyticsID == null) {
   name: '${uniqueString(deployment().name, location, systemAbbreviation, environmentAbbreviation, instanceNumber, 'law')}-law'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -212,6 +215,9 @@ var resolvedLogAnalyticsWorkspaceResourceId = existingLogAnalyticsID != null
 
 module networking 'modules/01-network/network.bicep' = {
   name: '${uniqueString(deployment().name, location)}-networking'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.network)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -268,6 +274,9 @@ var webAppVirtualNetworkSubnetResourceId = useSolutionWebAppSubnetIntegration
 
 module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-avm'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -308,6 +317,9 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
 // in subscription-scoped templates with conditional existing resources.
 module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-lookup'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     aseName: aseEnvironment!.outputs.name
@@ -316,6 +328,9 @@ module aseLookup 'modules/01-network/ase-lookup.bicep' = if (deployAseV3) {
 
 module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-ase-dnszone'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.network)
   params: {
     name: '${aseEnvironment!.outputs.name}.appserviceenvironment.net'
@@ -359,6 +374,9 @@ module asePrivateDnsZone 'modules/01-network/private-dns-zone.bicep' = if (deplo
 
 module appInsights 'modules/02-monitoring/application-insights.bicep' = {
   name: '${uniqueString(deployment().name, location)}-appInsights'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -394,6 +412,9 @@ module appInsights 'modules/02-monitoring/application-insights.bicep' = {
 
 module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan) {
   name: '${uniqueString(deployment().name, location, 'webapp')}-plan'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -433,6 +454,9 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
 
 module webAppSite 'modules/04-application/web-site.bicep' = {
   name: '${uniqueString(deployment().name, location)}-webapp'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     kind: appServiceConfig.kind
@@ -506,6 +530,9 @@ var afdPeAutoApproverIsolationScope = frontDoorConfig.afdPeAutoApproverIsolation
 
 module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-waf'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -519,6 +546,9 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFront
 
 module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -536,6 +566,9 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress)
 
 module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep' = if (useFrontDoorIngress) {
   name: '${uniqueString(deployment().name, location)}-afd-security-policy'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -561,6 +594,7 @@ module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bic
   name: '${uniqueString(deployment().name, location)}-afd-uami'
   scope: resourceGroup(resourceGroupNameMap.operations)
   dependsOn: [
+    resourceGroups
     afd
   ]
   params: {
@@ -576,6 +610,9 @@ module afdPeAutoApproverIdentity 'modules/05-identity/user-assigned-identity.bic
 
 module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assignments.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-afd-uami-rbac'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.hosting)
   params: {
     roleAssignments: [
@@ -590,6 +627,11 @@ module afdPeAutoApproverRoleAssignment 'modules/shared/resource-group-role-assig
 
 module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoApproveAfdPrivateEndpoint && useFrontDoorIngress && webAppPrivateNetworkingEnabled) {
   name: '${uniqueString(deployment().name, location)}-autoApproveAfdPe'
+  dependsOn: [
+    resourceGroups
+    afd
+    afdPeAutoApproverRoleAssignment
+  ]
   scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -616,10 +658,6 @@ module autoApproveAfdPe 'modules/shared/deployment-script.bicep' = if (autoAppro
     cleanupPreference: 'OnSuccess'
     retentionInterval: 'P1D'
   }
-  dependsOn: [
-    afd
-    afdPeAutoApproverRoleAssignment
-  ]
 }
 
 // ======================== //
@@ -630,6 +668,9 @@ var useApplicationGatewayIngress = networkingOption == 'applicationGateway'
 
 module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appgw-waf'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -647,6 +688,9 @@ module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = i
 
 module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGatewayIngress) {
   name: '${uniqueString(deployment().name, location)}-appGw'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.networkEdge)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -706,6 +750,9 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGat
 @description('Azure Key Vault used to hold items like TLS certs and application secrets that your workload will need.')
 module keyVault 'modules/06-secrets/key-vault.bicep' = {
   name: '${uniqueString(deployment().name, location)}-keyVault'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.operations)
   params: {
     systemAbbreviation: systemAbbreviation
@@ -757,6 +804,9 @@ var postgreSqlRoleAssignments = concat(
 
 module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deployPostgreSql) {
   name: '${uniqueString(deployment().name, location)}-postgresql'
+  dependsOn: [
+    resourceGroups
+  ]
   scope: resourceGroup(resourceGroupNameMap.data)
   params: {
     systemAbbreviation: systemAbbreviation
