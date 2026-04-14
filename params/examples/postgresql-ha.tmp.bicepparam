@@ -1,4 +1,4 @@
-using '../main.bicep'
+using '../../main.bicep'
 
 // Starter parameter file
 // Add or override more configuration blocks here as needed.
@@ -146,29 +146,35 @@ param postgresqlAdminGroupConfig = {
   displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
 }
 
-// See params/examples/main.example.bicepparam for fuller PostgreSQL HA/private
-// access and customized databases/configurations examples.
 param postgresqlConfig = {
   workloadDescription: 'postgresql'
   privateAccessMode: 'delegatedSubnet'
-  skuName: 'Standard_B1ms'
-  tier: 'Burstable'
-  availabilityZone: -1
-  highAvailabilityZone: -1
-  highAvailability: 'Disabled'
-  backupRetentionDays: 7
+  skuName: 'Standard_D2s_v3'
+  tier: 'GeneralPurpose'
+  availabilityZone: 1
+  highAvailabilityZone: 2
+  highAvailability: 'ZoneRedundant'
+  backupRetentionDays: 14
   geoRedundantBackup: 'Disabled'
-  storageSizeGB: 32
+  storageSizeGB: 128
   autoGrow: 'Enabled'
-  version: '18'
+  version: '17'
   publicNetworkAccess: 'Disabled'
   grantAppServiceIdentityReaderRole: true
   databases: [
     {
       name: 'appdb'
+      charset: 'UTF8'
+      collation: 'en_US.utf8'
     }
   ]
-  configurations: []
+  configurations: [
+    {
+      name: 'pgaudit.log'
+      source: 'user-override'
+      value: 'READ,WRITE'
+    }
+  ]
   roleAssignments: []
   diagnosticSettings: []
 }
@@ -244,8 +250,6 @@ param appGatewayConfig = {
   ]
 }
 
-// See params/examples/main.example.bicepparam for public-origin and custom
-// domain / rule-set / secret Front Door examples.
 param frontDoorConfig = {
   managedIdentities: {
     systemAssigned: true

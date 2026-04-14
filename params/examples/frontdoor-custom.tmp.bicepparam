@@ -146,8 +146,6 @@ param postgresqlAdminGroupConfig = {
   displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
 }
 
-// See params/examples/main.example.bicepparam for fuller PostgreSQL HA/private
-// access and customized databases/configurations examples.
 param postgresqlConfig = {
   workloadDescription: 'postgresql'
   privateAccessMode: 'delegatedSubnet'
@@ -244,8 +242,6 @@ param appGatewayConfig = {
   ]
 }
 
-// See params/examples/main.example.bicepparam for public-origin and custom
-// domain / rule-set / secret Front Door examples.
 param frontDoorConfig = {
   managedIdentities: {
     systemAssigned: true
@@ -272,9 +268,33 @@ param frontDoorConfig = {
       ruleGroupOverrides: []
     }
   ]
-  customDomains: []
-  ruleSets: []
-  secrets: []
+  customDomains: [
+    {
+      name: 'app-custom'
+      hostName: 'app-dev.example.org'
+      azureDnsZoneResourceId: '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-eus2-dev-001/providers/Microsoft.Network/dnsZones/example.org'
+      certificateType: 'CustomerCertificate'
+      minimumTlsVersion: 'TLS12'
+      secretName: 'app-custom-cert'
+    }
+  ]
+  ruleSets: [
+    {
+      name: 'security-headers'
+      rules: []
+    }
+  ]
+  secrets: [
+    {
+      name: 'app-custom-cert'
+      type: 'CustomerCertificate'
+      secretSourceResourceId: '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec-eus2-dev-001/providers/Microsoft.KeyVault/vaults/kv-iep-eus2-dev-001/secrets/frontdoor-cert'
+      useLatestVersion: true
+      subjectAlternativeNames: [
+        'app-dev.example.org'
+      ]
+    }
+  ]
   roleAssignments: []
   originResponseTimeoutSeconds: 120
   autoApprovePrivateEndpoint: true
@@ -321,13 +341,19 @@ param frontDoorConfig = {
         {
           name: 'default'
           originGroupName: 'app-default'
+          customDomainNames: [
+            'app-custom'
+          ]
           patternsToMatch: [
             '/*'
           ]
           forwardingProtocol: 'HttpsOnly'
-          linkToDefaultDomain: 'Enabled'
+          linkToDefaultDomain: 'Disabled'
           httpsRedirect: 'Enabled'
           enabledState: 'Enabled'
+          ruleSets: [
+            'security-headers'
+          ]
           supportedProtocols: [
             'Http'
             'Https'
