@@ -5,6 +5,7 @@ using '../../main.bicep'
 // params/main.dev.bicepparam and adjust the values for your workload.
 
 param workloadDescription = ''
+param deployAseV3 = false
 
 param spokeNetworkConfig = {
   ingressOption: 'frontDoor'

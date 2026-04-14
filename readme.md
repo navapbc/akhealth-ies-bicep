@@ -44,7 +44,7 @@ If naming is very restictive you may remove dashes. You may also remove region a
 
 When workloadDescription is not defined, the segment should be not included. It should not leave an empty segment or a double dash.
 
-example for this template set: kv-iep-wus-dev-001, app-iep-eus-dev-tasks-001
+example for this template set: kv-iep-wus2-dev-001, app-iep-wus2-dev-tasks-001
 
 ## Naming implementation
 
@@ -82,8 +82,8 @@ TODO:
 
 For resource groups, we will adjust the naming the scheme just a small bit, because resource groups are moreso containers and less dedicated resources.
 
-resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-instanceNumber (e.x. rg-iep-eus-dev-network-01)
-resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber (rg-iep-eus-dev-network-edge-01)
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-instanceNumber (e.x. rg-iep-wus2-dev-network-01)
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber (rg-iep-wus2-dev-network-edge-01)
 
 This is a non-exhaustive list of example values for these:
 resourceAbbreviation = rg
@@ -94,38 +94,40 @@ workloadDescription = network, hosting, data, operations
 
 ## Resource Group Names Examples
 
-rg-iep-eus-dev-network-01
-rg-iep-eus-dev-network-edge-01
-rg-iep-eus-dev-network-private-01
-rg-iep-eus-dev-hosting-01
-rg-iep-eus-dev-hosting-integrations-01
-rg-iep-eus-dev-data-01
-rg-iep-eus-dev-data-integrations-01
-rg-iep-eus-dev-operations-01
+rg-iep-wus2-dev-network-01
+rg-iep-wus2-dev-network-edge-01
+rg-iep-wus2-dev-network-private-01
+rg-iep-wus2-dev-hosting-01
+rg-iep-wus2-dev-hosting-integrations-01
+rg-iep-wus2-dev-data-01
+rg-iep-wus2-dev-data-integrations-01
+rg-iep-wus2-dev-operations-01
+
+
 
 ## Resource Group Organizing
 
-### `rg-iep-eus-dev-network-01`
-Base network fabric:
+### `rg-iep-wus2-env-network-01`
+Base network resources:
 - Virtual Network
 - Subnets
 - NSGs
 - Route Tables
 
-### `rg-iep-eus-dev-network-edge-01`
-Traffic entry and API access layer:
+### `rg-iep-wus2-env-network-edge-01`
+Traffic entry and API access group:
 - Application Gateway
-- WAF Policy
+- WAF Policy/Resources
 - API Management
 - Load Balancer
 
-### `rg-iep-eus-dev-network-private-01`
-Private connectivity layer:
+### `rg-iep-wus2-env-network-private-01`
+Private connectivity group:
 - Private Endpoints
 - Private endpoint NICs
 - Private DNS zone groups / related private DNS resources
 
-### `rg-iep-eus-dev-hosting-01`
+### `rg-iep-wus2-env-hosting-01`
 Primary workload hosting:
 - App Service Environment
 - App Service Plans
@@ -134,8 +136,14 @@ Primary workload hosting:
 - Azure Container Registry
 - Managed identities closely tied to hosting/runtime
 
-### `rg-iep-eus-dev-data-01`
-Persistent data layer:
+### 'rg-iep-eus-dev-env-integrations-01'
+Integration hosting:
+- Function Apps used mainly as glue/orchestration
+- App Service plans dedicated to integration workloads
+- Hosted workflow/runtime components that support app to app integration
+
+### `rg-iep-wus2-env-data-01`
+Persistent data group:
 - PostgreSQL
 - Storage Accounts
 - Redis
@@ -143,8 +151,16 @@ Persistent data layer:
 - Cosmos DB
 - Data Factory if treated primarily as data platform / ETL
 
-### `rg-iep-eus-dev-operations-01`
-Operational and admin support layer:
+### 'rg-iep-eus-env-data-integrations-01'
+Data movement and transformation:
+- Data Factory
+- ETL / ELT pipelines
+- ingestion/transformation jobs
+- data-processing Functions if primarily data-oriented
+
+
+### `rg-iep-wus2-env-operations-01`
+Operational and admin support group:
 - Log Analytics
 - Application Insights
 - Monitor / alerts / action groups
@@ -153,5 +169,4 @@ Operational and admin support layer:
 - Event Grid
 - Logic Apps
 - Admin utilities
-- Sanctioned operator-managed support resources
 

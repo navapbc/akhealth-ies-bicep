@@ -5,6 +5,9 @@
     "workloadDescription": {
       "value": ""
     },
+    "deployAseV3": {
+      "value": false
+    },
     "spokeNetworkConfig": {
       "value": {
         "ingressOption": "frontDoor",

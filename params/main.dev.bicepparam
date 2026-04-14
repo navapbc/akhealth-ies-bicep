@@ -12,6 +12,7 @@ param instanceNumber = '002'
 param workloadDescription = ''
 param existingLogAnalyticsID = null
 
+param deployAseV3 = false
 param deployPrivateNetworking = true
 param deployPostgreSql = true
 
