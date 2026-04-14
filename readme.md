@@ -151,30 +151,19 @@ General support resource group:
 - miscellaneous support resources
 - small admin utilities
 - things that do not yet justify a clearer subcategory
-
-### `rg-iep-wus2-env-operations-monitoring-01`
-Monitoring and diagnostics:
 - Log Analytics
 - Application Insights
 - alerts
 - action groups
 - dashboards/workbooks
 - monitor-focused automation
-
-### `rg-iep-wus2-env-operations-security-01`
-Security and secrets support:
 - Key Vault
 - certificate-related resources
 - security-focused support utilities
 - many miscellaneous identity-adjacent support resources
-
-### `rg-iep-wus2-env-operations-identity-01`
-Identity support:
 - User assignment managed identity
 - Federated credentials
 - Identity/auth resources
-//I am treating identity as first class just because of the weight of identity based resources
-//while likely only one or two will live in here, managing them is generally unique and critical
 
 
 
@@ -185,16 +174,9 @@ When choosing a resource group for a resource, ask:
 Is this a base connectivity resource? network
 Is this a traffic entry or API access resource? network-edge
 Is this private networking attachment to another service? network
-Is this where the main workload runs? hosting
-Is this hosted glue/orchestration for app integrations? hosting
-Is this where business or platform data lives? data
-Is this a data movement/transformation resource? data
-Is this a general support, admin, automation, or miscellaneous platform resource that does not fit cleanly elsewhere? operations
-Is this monitoring, diagnostics, alerting, or observability support? operations-monitoring
-Is this secrets, certificates, key management, or security-support infrastructure?operations-security
-Is this a user assignment managed identity, federated credentials, or other identity/auth object? operations-identity
-
-For identity related resources, at this time, I don't see a large enough set of resources that would justify another subworkload. But, I went ahead and defined operations-identity anyways, to keep the system as easy to understand and manage as possible for administrators. I am generally optimize for ease of understanding and management and less so strict technical structure.
+Is this where the main workload runs, including hosted glue/orchestration for application integrations? hosting
+Is this where business or platform data lives, including data movement and transformation resources? data
+Is this an operational, administrative, monitoring, diagnostics, alerting, security, identity, or other support resource? operations
 
 ## Resource Placement Defaults
 
@@ -217,11 +199,11 @@ These defaults exist to reduce classification drift. Exceptions are allowed when
 - App Service Environment (`Microsoft.Web`): `hosting`
 - App Service Plan (`Microsoft.Web`): `hosting`
 - App Service / Web App / API App (`Microsoft.Web`): `hosting`
-- Log Analytics Workspace (`Microsoft.OperationalInsights`): `operations-monitoring`
-- Application Insights (`Microsoft.Insights`): `operations-monitoring`
-- Azure Monitor alerting / monitor resources (`Microsoft.Insights` / `Microsoft.Monitor` / `Microsoft.AlertsManagement`): `operations-monitoring`
-- Key Vault (`Microsoft.KeyVault`): `operations-security`
-- Managed Identity (`Microsoft.ManagedIdentity`): `operations-identity`
+- Log Analytics Workspace (`Microsoft.OperationalInsights`): `operations`
+- Application Insights (`Microsoft.Insights`): `operations`
+- Azure Monitor alerting / monitor resources (`Microsoft.Insights` / `Microsoft.Monitor` / `Microsoft.AlertsManagement`): `operations`
+- Key Vault (`Microsoft.KeyVault`): `operations`
+- Managed Identity (`Microsoft.ManagedIdentity`): `operations`
 - Azure Automation / Runbooks (`Microsoft.Automation`): `operations`
 
 ### Default placement by broad resource type
@@ -250,4 +232,4 @@ Examples:
 
 The goal is to keep placement predictable for admins while still allowing deliberate exceptions when a resource is clearly serving another role.
 
-Is this a distinct class of support resource important enough to deserve clearer visibility? Define it as operations-<subworkload> and add its evaluation criteria to the list above. Keep in mind microsofts recommendations for resource groups: the resources in the group should share a lifecycle management pattern that is distinct enough to justify a separate resource group. 
+Is this a distinct class of support resource important enough to deserve clearer visibility? Define it as <workload>-<subworkload> and add its evaluation criteria to the list above. Keep in mind microsofts recommendations for resource groups: the resources in the group should share a lifecycle management pattern that is distinct enough to justify a separate resource group. 
