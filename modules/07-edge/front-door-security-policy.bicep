@@ -15,9 +15,6 @@ param instanceNumber string
 @description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
 
-@description('Optional. Location for name derivation.')
-param location string = resourceGroup().location
-
 @description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
 
@@ -29,7 +26,8 @@ param wafPolicyResourceId string
 param associations associationsType[]
 
 var resourceAbbreviation = 'fdsecp'
-var regionAbbreviation = regionAbbreviations[location]
+var resourceLocation = 'global'
+var regionAbbreviation = regionAbbreviations[resourceLocation]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take(
   '${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}',

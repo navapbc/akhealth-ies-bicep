@@ -555,7 +555,6 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress)
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
-    location: 'global'
     config: frontDoorConfig
     workloadOriginHostName: webAppSite.outputs.defaultHostname
     workloadOriginResourceId: webAppSite.outputs.resourceId
@@ -575,7 +574,6 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
     workloadDescription: workloadDescription
-    location: location
     profileName: afd!.outputs.name
     wafPolicyResourceId: frontDoorWaf!.outputs.resourceId
     associations: [
