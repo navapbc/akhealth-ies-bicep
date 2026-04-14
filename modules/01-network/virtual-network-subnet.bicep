@@ -77,14 +77,20 @@ var formattedRoleAssignments = [
   })
 ]
 
+var delegatedPostgreSqlSubnetContractIsValid = delegation == 'Microsoft.DBforPostgreSQL/flexibleServers' && privateEndpointNetworkPolicies != null
+  ? fail('Subnets delegated to Microsoft.DBforPostgreSQL/flexibleServers must not also declare privateEndpointNetworkPolicies. Leave privateEndpointNetworkPolicies unset for these delegated subnets and let the platform manage the resulting state.')
+  : true
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' existing = {
   name: virtualNetworkName
 }
 
 resource subnet 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' = {
-  name: name
+  name: delegatedPostgreSqlSubnetContractIsValid ? name : name
   parent: virtualNetwork
   properties: {
+    // Keeps delegated subnet policy handling explicit and avoids mixing
+    // private-endpoint subnet semantics into service-delegated subnets.
     addressPrefix: addressPrefix
     addressPrefixes: addressPrefixes
     ipamPoolPrefixAllocations: ipamPoolPrefixAllocations

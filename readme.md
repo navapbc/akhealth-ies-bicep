@@ -114,6 +114,9 @@ Base network and private connectivity resources:
 - Private endpoint NICs
 - Private DNS zone groups / related private DNS resources
 
+Platform behavior note:
+For delegated service subnets, this solution intentionally leaves `privateEndpointNetworkPolicies` unset. Those subnets are not modeled as private endpoint hosting subnets, and Azure may still surface a concrete policy value on the live resource after deployment. That live value is treated as platform-managed state, not as an operator-managed contract in this repo.
+
 ### `rg-iep-wus2-env-network-edge-01`
 Traffic entry and API access group:
 - Application Gateway
