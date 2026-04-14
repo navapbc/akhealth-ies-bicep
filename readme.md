@@ -96,11 +96,8 @@ workloadDescription = network, hosting, data, operations
 
 rg-iep-wus2-dev-network-01
 rg-iep-wus2-dev-network-edge-01
-rg-iep-wus2-dev-network-private-01
 rg-iep-wus2-dev-hosting-01
-rg-iep-wus2-dev-hosting-integrations-01
 rg-iep-wus2-dev-data-01
-rg-iep-wus2-dev-data-integrations-01
 rg-iep-wus2-dev-operations-01
 
 
@@ -108,11 +105,14 @@ rg-iep-wus2-dev-operations-01
 ## Resource Group Organizing
 
 ### `rg-iep-wus2-env-network-01`
-Base network resources:
+Base network and private connectivity resources:
 - Virtual Network
 - Subnets
 - NSGs
 - Route Tables
+- Private Endpoints
+- Private endpoint NICs
+- Private DNS zone groups / related private DNS resources
 
 ### `rg-iep-wus2-env-network-edge-01`
 Traffic entry and API access group:
@@ -121,26 +121,17 @@ Traffic entry and API access group:
 - API Management
 - Load Balancer
 
-### `rg-iep-wus2-env-network-private-01`
-Private connectivity group:
-- Private Endpoints
-- Private endpoint NICs
-- Private DNS zone groups / related private DNS resources
-
 ### `rg-iep-wus2-env-hosting-01`
 Primary workload hosting:
 - App Service Environment
 - App Service Plans
 - Web Apps / API Apps
 - Function Apps
-- Azure Container Registry
-- Managed identities closely tied to hosting/runtime
-
-### 'rg-iep-eus-dev-env-integrations-01'
-Integration hosting:
 - Function Apps used mainly as glue/orchestration
 - App Service plans dedicated to integration workloads
 - Hosted workflow/runtime components that support app to app integration
+- Azure Container Registry
+- Managed identities closely tied to hosting/runtime
 
 ### `rg-iep-wus2-env-data-01`
 Persistent data group:
@@ -149,10 +140,6 @@ Persistent data group:
 - Redis
 - SQL
 - Cosmos DB
-- Data Factory if treated primarily as data platform / ETL
-
-### 'rg-iep-eus-env-data-integrations-01'
-Data movement and transformation:
 - Data Factory
 - ETL / ELT pipelines
 - ingestion/transformation jobs
@@ -160,13 +147,107 @@ Data movement and transformation:
 
 
 ### `rg-iep-wus2-env-operations-01`
-Operational and admin support group:
+General support resource group:
+- miscellaneous support resources
+- small admin utilities
+- things that do not yet justify a clearer subcategory
+
+### `rg-iep-wus2-env-operations-monitoring-01`
+Monitoring and diagnostics:
 - Log Analytics
 - Application Insights
-- Monitor / alerts / action groups
-- Automation / Runbooks
-- Service Bus
-- Event Grid
-- Logic Apps
-- Admin utilities
+- alerts
+- action groups
+- dashboards/workbooks
+- monitor-focused automation
 
+### `rg-iep-wus2-env-operations-security-01`
+Security and secrets support:
+- Key Vault
+- certificate-related resources
+- security-focused support utilities
+- many miscellaneous identity-adjacent support resources
+
+### `rg-iep-wus2-env-operations-identity-01`
+Identity support:
+- User assignment managed identity
+- Federated credentials
+- Identity/auth resources
+//I am treating identity as first class just because of the weight of identity based resources
+//while likely only one or two will live in here, managing them is generally unique and critical
+
+
+
+
+Decision rule
+When choosing a resource group for a resource, ask:
+
+Is this a base connectivity resource? network
+Is this a traffic entry or API access resource? network-edge
+Is this private networking attachment to another service? network
+Is this where the main workload runs? hosting
+Is this hosted glue/orchestration for app integrations? hosting
+Is this where business or platform data lives? data
+Is this a data movement/transformation resource? data
+Is this a general support, admin, automation, or miscellaneous platform resource that does not fit cleanly elsewhere? operations
+Is this monitoring, diagnostics, alerting, or observability support? operations-monitoring
+Is this secrets, certificates, key management, or security-support infrastructure?operations-security
+Is this a user assignment managed identity, federated credentials, or other identity/auth object? operations-identity
+
+For identity related resources, at this time, I don't see a large enough set of resources that would justify another subworkload. But, I went ahead and defined operations-identity anyways, to keep the system as easy to understand and manage as possible for administrators. I am generally optimize for ease of understanding and management and less so strict technical structure.
+
+## Resource Placement Defaults
+
+Some resource types support multiple purposes, but still need a default home for consistency purposes.
+
+These defaults exist to reduce classification drift. Exceptions are allowed when there is a clear operational reason, but the default placement should be used unless the resource is clearly acting in another role.
+
+### Default by function
+
+- Virtual Network (`Microsoft.Network`): `network`
+- Subnets (`Microsoft.Network`): `network`
+- Network Security Groups (`Microsoft.Network`): `network`
+- Route Tables (`Microsoft.Network`): `network`
+- Private Endpoints (`Microsoft.Network`): `network`
+- Private DNS zone / private DNS networking objects (`Microsoft.Network`): `network`
+- Application Gateway (`Microsoft.Network`): `network-edge`
+- WAF Policy for Application Gateway (`Microsoft.Network`): `network-edge`
+- Load Balancer (`Microsoft.Network`): `network-edge`
+- API Management (`Microsoft.ApiManagement`): `network-edge`
+- App Service Environment (`Microsoft.Web`): `hosting`
+- App Service Plan (`Microsoft.Web`): `hosting`
+- App Service / Web App / API App (`Microsoft.Web`): `hosting`
+- Log Analytics Workspace (`Microsoft.OperationalInsights`): `operations-monitoring`
+- Application Insights (`Microsoft.Insights`): `operations-monitoring`
+- Azure Monitor alerting / monitor resources (`Microsoft.Insights` / `Microsoft.Monitor` / `Microsoft.AlertsManagement`): `operations-monitoring`
+- Key Vault (`Microsoft.KeyVault`): `operations-security`
+- Managed Identity (`Microsoft.ManagedIdentity`): `operations-identity`
+- Azure Automation / Runbooks (`Microsoft.Automation`): `operations`
+
+### Default placement by broad resource type
+
+These resource types are broad enough that placing them only by immediate use case can make the system harder to understand. They should have a stable default home.
+
+- Storage Account (`Microsoft.Storage`): `data`
+- Azure Database for PostgreSQL (`Microsoft.DBforPostgreSQL`): `data`
+- Azure Cache for Redis (`Microsoft.Cache`): `data`
+- Cosmos DB (`Microsoft.DocumentDB`): `data`
+- Azure Data Factory (`Microsoft.DataFactory`): `data`
+- Service Bus (`Microsoft.ServiceBus`): `hosting`
+- Event Grid (`Microsoft.EventGrid`): `hosting`
+- Azure Functions / Function App (`Microsoft.Web`): `hosting`
+- Logic Apps (`Microsoft.Logic`): `hosting`
+
+### Exceptions
+
+Exceptions should be made only when the resource is clearly operating in another role.
+
+Examples:
+- Azure Functions / Function App (`Microsoft.Web`): use `operations` when the function is clearly an admin or support automation component rather than a workload runtime.
+- Logic Apps (`Microsoft.Logic`): use `operations` when the logic app is clearly an admin or support automation component rather than workload orchestration.
+- Azure Data Factory (`Microsoft.DataFactory`): reconsider placement only if it becomes a distinct operations capability with its own operational boundary.
+- Service Bus (`Microsoft.ServiceBus`) / Event Grid (`Microsoft.EventGrid`): use `operations` only when they are clearly platform-admin or support messaging/eventing resources vs application runtime support.
+
+The goal is to keep placement predictable for admins while still allowing deliberate exceptions when a resource is clearly serving another role.
+
+Is this a distinct class of support resource important enough to deserve clearer visibility? Define it as operations-<subworkload> and add its evaluation criteria to the list above. Keep in mind microsofts recommendations for resource groups: the resources in the group should share a lifecycle management pattern that is distinct enough to justify a separate resource group. 
