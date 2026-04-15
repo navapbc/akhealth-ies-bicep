@@ -400,6 +400,7 @@ module appInsights 'modules/02-monitoring/application-insights.bicep' = {
     kind: appInsightsConfig.kind
     immediatePurgeDataOn30Days: appInsightsConfig.?immediatePurgeDataOn30Days
     ingestionMode: appInsightsConfig.?ingestionMode
+    disableDefaultSmartDetectionRoleEmails: appInsightsConfig.?disableDefaultSmartDetectionRoleEmails ?? true
     lock: appInsightsConfig.?lock
     roleAssignments: appInsightsConfig.roleAssignments
     diagnosticSettings: appInsightsConfig.diagnosticSettings
