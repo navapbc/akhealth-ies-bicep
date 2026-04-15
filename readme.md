@@ -17,7 +17,7 @@ Modules are organized by deployment area and deployment order to keep flow obvio
 
 Deployment Example:
 
-az deployment sub create --location eastus --template-file ./main.bicep --parameters ./params/main.dev.bicepparam
+az deployment sub create --location westus2 --template-file ./main.bicep --parameters ./params/main.dev.bicepparam
 
 
 # Naming scheme

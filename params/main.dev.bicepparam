@@ -8,7 +8,7 @@ param location = 'westus2'
 param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
-param instanceNumber = '004'
+param instanceNumber = '005'
 param workloadDescription = ''
 param existingLogAnalyticsID = null
 
