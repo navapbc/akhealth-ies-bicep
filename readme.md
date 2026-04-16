@@ -236,3 +236,21 @@ Examples:
 The goal is to keep placement predictable for admins while still allowing deliberate exceptions when a resource is clearly serving another role.
 
 Is this a distinct class of support resource important enough to deserve clearer visibility? Define it as <workload>-<subworkload> and add its evaluation criteria to the list above. Keep in mind microsofts recommendations for resource groups: the resources in the group should share a lifecycle management pattern that is distinct enough to justify a separate resource group. 
+
+## Subnet Plan for a /21 block
+## Note: Azure reserves 5 IPs in each subnet
+Subnet Address	Range of Addresses	Usable IPs (Azure)	Hosts	Note Split/Join
+10.0.0.0/23	10.0.0.0 - 10.0.1.255	10.0.0.4 - 10.0.1.254 App Service Hosting Environment Subnet	507		/23
+10.0.2.0/24	10.0.2.0 - 10.0.2.255	10.0.2.4 - 10.0.2.254 App Gateway Subnet	251		/24
+10.0.3.0/24	10.0.3.0 - 10.0.3.255	10.0.3.4 - 10.0.3.254 APIM Subnet	251		/24
+10.0.4.0/24	10.0.4.0 - 10.0.4.255	10.0.4.4 - 10.0.4.254 Private Endpoint Subnet	251		/24
+10.0.5.0/25	10.0.5.0 - 10.0.5.127	10.0.5.4 - 10.0.5.126 Function Apps Subnet	123		/25
+10.0.5.128/26	10.0.5.128 - 10.0.5.191	10.0.5.132 - 10.0.5.190	59 Logic Apps Subnet		/26
+10.0.5.192/27	10.0.5.192 - 10.0.5.223	10.0.5.196 - 10.0.5.222	27 PGSQL Subnet		/27
+10.0.5.224/27	10.0.5.224 - 10.0.5.255	10.0.5.228 - 10.0.5.254	27		/27
+10.0.6.0/24	10.0.6.0 - 10.0.6.255	10.0.6.4 - 10.0.6.254	251		/24
+10.0.7.0/25	10.0.7.0 - 10.0.7.127	10.0.7.4 - 10.0.7.126	123		/25
+10.0.7.128/26	10.0.7.128 - 10.0.7.191	10.0.7.132 - 10.0.7.190	59		/26
+10.0.7.192/27	10.0.7.192 - 10.0.7.223	10.0.7.196 - 10.0.7.222	27		/27
+10.0.7.224/27	10.0.7.224 - 10.0.7.255	10.0.7.228 - 10.0.7.254	27		/27
+
