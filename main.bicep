@@ -1,14 +1,6 @@
 targetScope = 'subscription'
 
-metadata name = 'App Service Landing Zone Accelerator'
-metadata description = 'This Azure App Service pattern module represents an Azure App Service deployment aligned with the cloud adoption framework'
-
 import { regionAbbreviations } from 'modules/shared/region-abbreviations.bicep'
-
-// ================ //
-// Parameters       //
-// ================ //
-
 import {
   spokeNetworkConfigType
   servicePlanConfigType
@@ -23,6 +15,10 @@ import {
   postgresqlConfigType
   resourceGroupDefinitionType
 } from 'modules/shared/shared.types.bicep'
+
+// ================ //
+// Parameters       //
+// ================ //
 
 @maxLength(10)
 param workloadName string = 'appsvc${take(uniqueString(subscription().id), 4)}'
