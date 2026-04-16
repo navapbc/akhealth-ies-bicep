@@ -2,7 +2,6 @@
 
 This page is a service by service subnet sizing reference for the IEP.
 
-
 Planning for a 21 block per environment:
 
 - allocate a dedicated `/23` block for the app service hosting environment
@@ -16,7 +15,7 @@ Planning for a 21 block per environment:
 
 | Subnet Address | Range of Addresses | Usable IPs (Azure) | Hosts | Note | Prefix |
 |---|---|---|---:|---|---|
-| `10.0.0.0/23` | `10.0.0.0 - 10.0.1.255` | `10.0.0.4 - 10.0.1.254` | 507 | App Service Hosting Env Subnet | `/23` |
+| `10.0.0.0/23` | `10.0.0.0 - 10.0.1.255` | `10.0.0.4 - 10.0.1.254` | 507 | App Service Subnet | `/23` |
 | `10.0.2.0/24` | `10.0.2.0 - 10.0.2.255` | `10.0.2.4 - 10.0.2.254` | 251 | App Gateway Subnet | `/24` |
 | `10.0.3.0/24` | `10.0.3.0 - 10.0.3.255` | `10.0.3.4 - 10.0.3.254` | 251 | APIM/Edge Subnet | `/24` |
 | `10.0.4.0/24` | `10.0.4.0 - 10.0.4.255` | `10.0.4.4 - 10.0.4.254` | 251 | Private Endpoints Subnet | `/24` |
