@@ -159,8 +159,8 @@ param appInsightsConfig = {
   disableLocalAuth: true
   disableIpMasking: true
   forceCustomerStorageForProfiler: false
-  disableDefaultSmartDetectionRoleEmails: true
   kind: 'web'
+  sendSmartDetectionEmailsToSubscriptionOwners: false
   roleAssignments: []
   diagnosticSettings: []
 }

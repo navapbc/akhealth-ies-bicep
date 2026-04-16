@@ -768,8 +768,8 @@ type appInsightsConfigType = {
   @description('Optional. Ingestion mode.')
   ingestionMode: ('ApplicationInsights' | 'ApplicationInsightsWithDiagnosticSettings' | 'LogAnalytics')?
 
-  @description('Optional. Disable Azures default smart-detection role email notifications that otherwise create an unmanaged "Application Insights Smart Detection" action group. Defaults to true when omitted.')
-  disableDefaultSmartDetectionRoleEmails: bool?
+  @description('Optional. Intended state for legacy smart-detection role email notifications. Set to false to suppress Azure\'s default Monitoring Reader/Monitoring Contributor email behavior when an operational automation path is available.')
+  sendSmartDetectionEmailsToSubscriptionOwners: bool?
 
   @description('Optional. Resource lock for App Insights.')
   lock: lockType?

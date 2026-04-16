@@ -32,8 +32,11 @@ Application Insights provides application level  logging for web apps, APIs, and
 
 - Azure still creates new workspace-based Application Insights resources with legacy smart-detection behavior by default while smart-detection migration to alert rules remains preview.
 - That legacy behavior can automatically create a global `Application Insights Smart Detection` action group to send notifications to `Monitoring Reader` and `Monitoring Contributor` role assignments unless proactive detection email behavior is explicitly managed.
-- This repository keeps Application Insights workspace-based, but intentionally suppresses those default smart-detection role-email notifications through `Microsoft.Insights/components/ProactiveDetectionConfigs` rather than adopting preview `smartDetectorAlertRules`.
+- This repository keeps Application Insights workspace-based, but does not currently enforce proactive detection settings in Bicep. The direct `Microsoft.Insights/components/ProactiveDetectionConfigs` resource path appeared valid in the template reference and provider schema, but Azure rejected the emitted ARM template during deployment.
+- The solution configuration now surfaces intended state for this behavior through `appInsightsConfig.sendSmartDetectionEmailsToSubscriptionOwners`, but that value is currently informational until a reliable post-deployment enforcement path is added.
+- Until Azure's runtime behavior is clearer, treat proactive detection suppression as a post-deployment automation concern rather than a trusted declarative Bicep pattern in this solution.
 - If the `Application Insights Smart Detection` action group reappears after deployment, treat it as Azure-created platform behavior and inspect proactive detection configuration before treating it as unmanaged drift.
+- If that action group must be deleted manually, the Azure portal may fail with `UnsupportedApiVersion` when it attempts to call the action group delete path using a preview API version the backend does not accept. In that case, delete it through `az rest` or another direct ARM call using a supported `Microsoft.Insights/actionGroups` API version instead of relying on the portal.
 
 ## Dependencies and relationships
 
@@ -64,3 +67,4 @@ Application Insights provides application level  logging for web apps, APIs, and
 
 - Application Insights is most effective when instrumentation standards are treated as part of the platform contract, not as optional app-level extras.
 - Smart detection and smart-detection alert migration are a separate lifecycle concern from whether Application Insights itself is workspace-based. This solution treats the component as modern, but still has to account for Azure's legacy smart-detection defaults.
+- Microsoft does not currently provide an Azure Verified Module for either `ProactiveDetectionConfigs` or `smartDetectorAlertRules`, which is another sign that this area still needs careful validation before it becomes a first-class template contract.

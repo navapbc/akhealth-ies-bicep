@@ -91,9 +91,6 @@ param immediatePurgeDataOn30Days bool?
 ])
 param ingestionMode string?
 
-@description('Optional. Disable Azure\'s default smart-detection role email notifications that otherwise create an unmanaged "Application Insights Smart Detection" action group.')
-param disableDefaultSmartDetectionRoleEmails bool = true
-
 @description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
 
@@ -143,14 +140,6 @@ var defaultLogCategoriesAndGroups = [
     categoryGroup: 'allLogs'
   }
 ]
-var emailNotificationProactiveDetectionRuleNames = [
-  'slowpageloadtime'
-  'slowserverresponsetime'
-  'longdependencyduration'
-  'degradationinserverresponsetime'
-  'degradationindependencyduration'
-  'digestMailConfiguration'
-]
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: resolvedName
@@ -173,20 +162,6 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     IngestionMode: ingestionMode
   }
 }
-
-// Azure still provisions new Application Insights components with legacy
-// smart detection defaults. These child resources explicitly suppress that
-// default role-email behavior so Azure doesn't create an unmanaged
-// "Application Insights Smart Detection" action group.
-resource appInsights_proactiveDetectionConfigs 'Microsoft.Insights/components/ProactiveDetectionConfigs@2015-05-01' = [
-  for ruleName in emailNotificationProactiveDetectionRuleNames: if (disableDefaultSmartDetectionRoleEmails) {
-    name: ruleName
-    parent: appInsights
-    customEmails: []
-    enabled: true
-    sendEmailsToSubscriptionOwners: false
-  }
-]
 
 module linkedStorageAccount './application-insights-linked-storage-account.bicep' = if (!empty(linkedStorageAccountId)) {
   name: '${uniqueString(deployment().name, location)}-appInsights-linkedStorageAccount'
