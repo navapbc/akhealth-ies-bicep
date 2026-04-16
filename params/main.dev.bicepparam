@@ -1,7 +1,8 @@
 using '../main.bicep'
 
-// Starter parameter file
-// Add or override more configuration blocks here as needed.
+// ======================== //
+// Deployment Identity     //
+// ======================== //
 
 param workloadName = '845FDA'
 param location = 'westus2'
@@ -10,11 +11,18 @@ param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
 param instanceNumber = '005'
 param workloadDescription = ''
-param existingLogAnalyticsID = null
+
+// ======================== //
+// Deployment Toggles      //
+// ======================== //
 
 param deployAseV3 = false
 param deployPrivateNetworking = true
 param deployPostgreSql = true
+
+// ======================== //
+// Subscription Foundation  //
+// ======================== //
 
 param tags = {
   environment: 'dev'
@@ -22,8 +30,7 @@ param tags = {
   managedBy: 'bicepparam'
 }
 
-
-//below block defines the resource groups to be created
+// Resource groups created by this deployment.
 param resourceGroupDefinitions = [
   {
     key: 'network'
@@ -48,8 +55,27 @@ param resourceGroupDefinitions = [
   }
 ]
 
+// Set to an existing workspace resource ID to reuse one; leave null to create
+// the solution-managed workspace defined below.
+param existingLogAnalyticsID = null
+
+param logAnalyticsConfig = {
+  sku: 'PerGB2018'
+  retentionInDays: 365
+  enableLogAccessUsingOnlyResourcePermissions: false
+  disableLocalAuth: true
+  publicNetworkAccessForIngestion: 'Enabled'
+  publicNetworkAccessForQuery: 'Enabled'
+  roleAssignments: []
+  diagnosticSettings: []
+}
+
+// ======================== //
+// Networking              //
+// ======================== //
+
 param spokeNetworkConfig = {
-  ingressOption: 'frontDoor' //options are none, frontDoor, applicationGateway
+  ingressOption: 'frontDoor' // options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
   appSvcSubnetAddressSpace: '10.240.0.0/26'
   privateEndpointSubnetAddressSpace: '10.240.11.0/24'
@@ -70,6 +96,10 @@ param spokeNetworkConfig = {
   // See params/examples/main.example.bicepparam for hub peering, App Gateway
   // subnet planning, egress firewall, and alternate subnet-policy examples.
 }
+
+// ======================== //
+// App Hosting             //
+// ======================== //
 
 // App Service Plan basic default for a new solution-managed plan.
 // See params/examples/main.example.bicepparam for existing-plan and
@@ -132,6 +162,42 @@ param appServiceConfig = {
   // examples.
 }
 
+// App Service Environment is optional and only used when:
+//   deployAseV3 = true
+//
+// This active block is the basic default ASE shape used if you choose to turn
+// ASE on. The commented example below shows a fuller configuration with custom
+// DNS and dedicated host options. See params/examples/main.example.bicepparam
+// for the fuller example block.
+param aseConfig = {
+  clusterSettings: [
+    {
+      name: 'DisableTls1.0'
+      value: '1'
+    }
+  ]
+  customDnsSuffix: ''
+  ipsslAddressCount: 0
+  multiSize: ''
+  customDnsSuffixCertificateUrl: ''
+  dedicatedHostCount: 0
+  dnsSuffix: ''
+  frontEndScaleFactor: 15
+  internalLoadBalancingMode: 'Web, Publishing'
+  zoneRedundant: true
+  allowNewPrivateEndpointConnections: true
+  ftpEnabled: false
+  inboundIpAddressOverride: ''
+  remoteDebugEnabled: false
+  upgradePreference: 'None'
+  roleAssignments: []
+  diagnosticSettings: []
+}
+
+// ======================== //
+// Security And Monitoring //
+// ======================== //
+
 param keyVaultConfig = {
   enablePurgeProtection: false
   softDeleteRetentionInDays: 90
@@ -151,7 +217,6 @@ param keyVaultConfig = {
 
 // See params/examples/main.example.bicepparam for fuller Key Vault and
 // monitoring examples.
-
 param appInsightsConfig = {
   applicationType: 'web'
   publicNetworkAccessForIngestion: 'Enabled'
@@ -167,39 +232,9 @@ param appInsightsConfig = {
   diagnosticSettings: []
 }
 
-//the group defined here cant be deployed in this worload set of templates
-//as groups are a tenant scoped resource
-param postgresqlAdminGroupConfig = {
-  objectId: 'b58ff011-4384-42b9-b25c-26c5dfc26b06'
-  displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
-}
-
-// See params/examples/main.example.bicepparam for fuller PostgreSQL HA/private
-// access and customized databases/configurations examples.
-param postgresqlConfig = {
-  workloadDescription: 'postgresql'
-  privateAccessMode: 'delegatedSubnet'
-  skuName: 'Standard_B1ms'
-  tier: 'Burstable'
-  availabilityZone: -1
-  highAvailabilityZone: -1
-  highAvailability: 'Disabled'
-  backupRetentionDays: 7
-  geoRedundantBackup: 'Disabled'
-  storageSizeGB: 32
-  autoGrow: 'Enabled'
-  version: '18'
-  publicNetworkAccess: 'Disabled'
-  grantAppServiceIdentityReaderRole: true
-  databases: [
-    {
-      name: 'appdb'
-    }
-  ]
-  configurations: []
-  roleAssignments: []
-  diagnosticSettings: []
-}
+// ======================== //
+// Ingress Networking       //
+// ======================== //
 
 // Application Gateway is optional and is only used when:
 //   spokeNetworkConfig.ingressOption = 'applicationGateway'
@@ -370,45 +405,42 @@ param frontDoorConfig = {
   diagnosticSettings: []
 }
 
-// App Service Environment is optional and only used when:
-//   deployAseV3 = true
-//
-// This active block is the basic default ASE shape used if you choose to turn
-// ASE on. The commented example below shows a fuller configuration with custom
-// DNS and dedicated host options. See params/examples/main.example.bicepparam
-// for the fuller example block.
-param aseConfig = {
-  clusterSettings: [
-    {
-      name: 'DisableTls1.0'
-      value: '1'
-    }
-  ]
-  customDnsSuffix: ''
-  ipsslAddressCount: 0
-  multiSize: ''
-  customDnsSuffixCertificateUrl: ''
-  dedicatedHostCount: 0
-  dnsSuffix: ''
-  frontEndScaleFactor: 15
-  internalLoadBalancingMode: 'Web, Publishing'
-  zoneRedundant: true
-  allowNewPrivateEndpointConnections: true
-  ftpEnabled: false
-  inboundIpAddressOverride: ''
-  remoteDebugEnabled: false
-  upgradePreference: 'None'
-  roleAssignments: []
-  diagnosticSettings: []
+// ======================== //
+// Data                     //
+// ======================== //
+
+
+// This deployment expects an existing Microsoft Entra group for PostgreSQL
+// admin. Tenant-scoped Entra groups are not created by this workload
+// deployment.
+param postgresqlAdminGroupConfig = {
+  objectId: 'b58ff011-4384-42b9-b25c-26c5dfc26b06'
+  displayName: 'secgrp-iep-eus2-dev-pgsqladmin-001'
 }
 
-param logAnalyticsConfig = {
-  sku: 'PerGB2018'
-  retentionInDays: 365
-  enableLogAccessUsingOnlyResourcePermissions: false
-  disableLocalAuth: true
-  publicNetworkAccessForIngestion: 'Enabled'
-  publicNetworkAccessForQuery: 'Enabled'
+// See params/examples/main.example.bicepparam for fuller PostgreSQL HA/private
+// access and customized databases/configurations examples.
+param postgresqlConfig = {
+  workloadDescription: 'postgresql'
+  privateAccessMode: 'delegatedSubnet'
+  skuName: 'Standard_B1ms'
+  tier: 'Burstable'
+  availabilityZone: -1
+  highAvailabilityZone: -1
+  highAvailability: 'Disabled'
+  backupRetentionDays: 7
+  geoRedundantBackup: 'Disabled'
+  storageSizeGB: 32
+  autoGrow: 'Enabled'
+  version: '18'
+  publicNetworkAccess: 'Disabled'
+  grantAppServiceIdentityReaderRole: true
+  databases: [
+    {
+      name: 'appdb'
+    }
+  ]
+  configurations: []
   roleAssignments: []
   diagnosticSettings: []
 }
