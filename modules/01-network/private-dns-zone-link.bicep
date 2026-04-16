@@ -1,22 +1,10 @@
 metadata name = 'Private DNS Zone Virtual Network Link'
 metadata description = 'This module deploys a Private DNS Zone Virtual Network Link.'
-
-
-@description('Conditional. The name of the parent Private DNS zone. Required if the template is used in a standalone deployment.')
 param privateDnsZoneName string
-
-@description('Required. The name of the virtual network link.')
 param name string
-
 param tags resourceInput<'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01'>.tags?
-
-@description('Required. Is auto-registration of virtual machine records in the virtual network in the Private DNS zone enabled?.')
 param registrationEnabled bool
-
-@description('Required. Link to another virtual network resource ID.')
 param virtualNetworkResourceId string
-
-@description('Optional. The resolution policy on the virtual network link. Only applicable for virtual network links to privatelink zones, and for A,AAAA,CNAME queries. When set to `NxDomainRedirect`, Azure DNS resolver falls back to public resolution if private dns query resolution results in non-existent domain response. `Default` is configured as the default option.')
 param resolutionPolicy string?
 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' existing = {
@@ -36,11 +24,7 @@ resource virtualNetworkLink 'Microsoft.Network/privateDnsZones/virtualNetworkLin
     resolutionPolicy: resolutionPolicy
   }
 }
-
 output name string = virtualNetworkLink.name
-
 output resourceId string = virtualNetworkLink.id
-
 output resourceGroupName string = resourceGroup().name
-
 output location string = virtualNetworkLink.location

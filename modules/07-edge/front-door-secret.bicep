@@ -1,34 +1,20 @@
 metadata name = 'CDN Profiles Secret'
 metadata description = 'This module deploys a CDN Profile Secret.'
-
-@description('Required. The name of the secret.')
 param name string
-
-@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
-
 @allowed([
   'AzureFirstPartyManagedCertificate'
   'CustomerCertificate'
   'ManagedCertificate'
   'UrlSigningKey'
 ])
-@description('Required. The type of the secret.')
 param type string
 
-@description('Conditional. The resource ID of the secret source. Required if the `type` is "CustomerCertificate".')
 #disable-next-line secure-secrets-in-params
 param secretSourceResourceId string?
-
-@description('Optional. The version of the secret.')
 param secretVersion string?
-
-@description('Optional. The subject alternative names of the secret.')
 param subjectAlternativeNames string[]?
-
-@description('Optional. Indicates whether to use the latest version of the secret.')
 param useLatestVersion bool?
-
 var resolvedSecretSourceResourceId = type == 'CustomerCertificate'
   ? (secretSourceResourceId != null
       ? secretSourceResourceId
@@ -58,9 +44,6 @@ resource secret 'Microsoft.Cdn/profiles/secrets@2025-06-01' = {
       : null
   }
 }
-
 output name string = secret.name
-
 output resourceId string = secret.id
-
 output resourceGroupName string = resourceGroup().name

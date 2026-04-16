@@ -1,25 +1,15 @@
 metadata name = 'DBforPostgreSQL Flexible Server Administrators'
 metadata description = 'This module deploys a DBforPostgreSQL Flexible Server Administrator.'
-
-@description('Conditional. The name of the parent PostgreSQL flexible server. Required if the template is used in a standalone deployment.')
 param flexibleServerName string
-
-@description('Required. The objectId of the Active Directory administrator.')
 param objectId string
-
-@description('Required. Active Directory administrator principal name.')
 param principalName string
-
 @allowed([
   'Group'
   'ServicePrincipal'
   'Unknown'
   'User'
 ])
-@description('Required. The principal type used to represent the type of Active Directory Administrator.')
 param principalType string
-
-@description('Required. The tenantId of the Active Directory administrator.')
 param tenantId string
 
 resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01' existing = {
@@ -35,9 +25,6 @@ resource administrator 'Microsoft.DBforPostgreSQL/flexibleServers/administrators
     tenantId: tenantId
   }
 }
-
 output name string = administrator.name
-
 output resourceId string = administrator.id
-
 output resourceGroupName string = resourceGroup().name

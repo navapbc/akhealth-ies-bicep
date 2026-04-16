@@ -16,6 +16,19 @@ import {
 // ======================== //
 
 @export()
+@description('Configuration for a solution-managed resource group.')
+type resourceGroupDefinitionType = {
+  @description('Required. Stable key used to reference this resource group in the solution.')
+  key: string
+
+  @description('Required. Workload description segment used in the resource group name.')
+  workloadDescription: string
+
+  @description('Optional. Sub-workload description segment used in the resource group name.')
+  subWorkloadDescription: string?
+}
+
+@export()
 @description('Describes a virtual network link for a private DNS zone.')
 type virtualNetworkLinkType = {
   @description('Required. The name of the virtual network link.')
@@ -754,6 +767,9 @@ type appInsightsConfigType = {
 
   @description('Optional. Ingestion mode.')
   ingestionMode: ('ApplicationInsights' | 'ApplicationInsightsWithDiagnosticSettings' | 'LogAnalytics')?
+
+  @description('Optional. Intended state for legacy smart-detection role email notifications. Set to false to suppress Azure\'s default Monitoring Reader/Monitoring Contributor email behavior when an operational automation path is available.')
+  sendSmartDetectionEmailsToSubscriptionOwners: bool?
 
   @description('Optional. Resource lock for App Insights.')
   lock: lockType?

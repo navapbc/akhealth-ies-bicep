@@ -8,67 +8,45 @@ import {
 } from '../shared/avm-common-types.bicep'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Required. The name of the PostgreSQL flexible server.')
 param name string
-
-@description('Required. Location for all resources.')
 param location string
-
-@description('Required. Azure AD administrators for the server.')
 param administrators administratorType[]
-
-@description('Required. Authentication configuration for the server.')
 param authConfig resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.properties.authConfig
-
-@description('Required. The SKU name for the server.')
 param skuName string
-
 @allowed([
   'GeneralPurpose'
   'Burstable'
   'MemoryOptimized'
 ])
-@description('Required. The pricing tier for the server.')
 param tier string
-
 @allowed([
   -1
   1
   2
   3
 ])
-@description('Required. Availability zone. Use -1 to omit an explicit zone.')
 param availabilityZone int
-
 @allowed([
   -1
   1
   2
   3
 ])
-@description('Required. Standby availability zone. Use -1 to omit an explicit standby zone.')
 param highAvailabilityZone int
-
 @allowed([
   'Disabled'
   'SameZone'
   'ZoneRedundant'
 ])
-@description('Required. High availability mode.')
 param highAvailability string
-
 @minValue(7)
 @maxValue(35)
-@description('Required. Backup retention days.')
 param backupRetentionDays int
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Required. Geo-redundant backup setting.')
 param geoRedundantBackup string
-
 @allowed([
   32
   64
@@ -81,16 +59,12 @@ param geoRedundantBackup string
   8192
   16384
 ])
-@description('Required. Maximum storage size in GB.')
 param storageSizeGB int
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Required. Storage autogrow setting.')
 param autoGrow string
-
 @allowed([
   '11'
   '12'
@@ -101,40 +75,20 @@ param autoGrow string
   '17'
   '18'
 ])
-@description('Required. PostgreSQL engine version.')
 param version string
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Required. Public network access setting.')
 param publicNetworkAccess string
-
-@description('Conditional. Delegated subnet resource ID used for private access.')
 param delegatedSubnetResourceId string?
-
-@description('Conditional. Private DNS zone resource ID used for private access.')
 param privateDnsZoneArmResourceId string?
-
-@description('Required. Databases to create on the server.')
 param databases databaseType[]
-
-@description('Required. Configurations to create on the server.')
 param configurations configurationType[]
-
-@description('Optional. Resource lock for the server.')
 param lock lockType?
-
-@description('Required. Role assignments to create on the server.')
 param roleAssignments roleAssignmentType[]
-
-@description('Required. Diagnostic settings for the server.')
 param diagnosticSettings diagnosticSettingFullType[]
-
-@description('Optional. Tags for the server.')
 param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.tags?
-
 var privateAccessEnabled = delegatedSubnetResourceId != null
 var privateDnsZoneProvided = privateDnsZoneArmResourceId != null
 var privateAccessContractIsValid = privateAccessEnabled
@@ -278,57 +232,31 @@ resource flexibleServer_diagnosticSettings 'Microsoft.Insights/diagnosticSetting
     scope: flexibleServer
   }
 ]
-
 output name string = flexibleServer.name
-
 output resourceId string = flexibleServer.id
-
 output resourceGroupName string = resourceGroup().name
-
 output location string = flexibleServer.location
-
-@description('The FQDN of the PostgreSQL Flexible server.')
 output fqdn string? = flexibleServer.properties.?fullyQualifiedDomainName
-
-@description('The principal ID of the system-assigned managed identity, when enabled.')
 output systemAssignedMIPrincipalId string? = flexibleServer.?identity.?principalId
-
 @export()
 type administratorType = {
-  @description('Required. The object ID of the Active Directory administrator.')
   objectId: string
-
-  @description('Required. Active Directory administrator principal name.')
   principalName: string
-
-  @description('Required. The principal type used to represent the type of Active Directory administrator.')
   principalType: ('Group' | 'ServicePrincipal' | 'Unknown' | 'User')
-
-  @description('Required. The tenant ID of the Active Directory administrator.')
   tenantId: string
 }
 
 @export()
 type databaseType = {
-  @description('Required. The database name.')
   name: string
-
-  @description('Optional. The collation of the database.')
   collation: string?
-
-  @description('Optional. The charset of the database.')
   charset: string?
 }
 
 @export()
 type configurationType = {
-  @description('Required. The configuration name.')
   name: string
-
-  @description('Optional. The source of the configuration.')
   source: string?
-
-  @description('Optional. The value of the configuration.')
   value: string?
 }
 

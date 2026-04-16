@@ -1,16 +1,8 @@
 metadata name = 'DBforPostgreSQL Flexible Server Configurations'
 metadata description = 'This module deploys a DBforPostgreSQL Flexible Server Configuration.'
-
-@description('Required. The name of the configuration.')
 param name string
-
-@description('Conditional. The name of the parent PostgreSQL flexible server. Required if the template is used in a standalone deployment.')
 param flexibleServerName string
-
-@description('Optional. Source of the configuration.')
 param source string?
-
-@description('Optional. Value of the configuration.')
 param value string?
 
 resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01' existing = {
@@ -25,9 +17,6 @@ resource configuration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations
     value: value
   }
 }
-
 output name string = configuration.name
-
 output resourceId string = configuration.id
-
 output resourceGroupName string = resourceGroup().name

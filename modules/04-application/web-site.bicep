@@ -3,22 +3,11 @@ metadata description = 'This module deploys a Web or Function App.'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 
-@description('Required. Abbreviation for the owning system.')
 param systemAbbreviation string
-
-@description('Required. Abbreviation for the lifecycle environment.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for deterministic naming.')
 param instanceNumber string
-
-@description('Optional. Workload descriptor to include in names when it adds value. When empty, the segment is omitted.')
 param workloadDescription string = ''
-
-@description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
-
-@description('Required. Type of site to deploy.')
 @allowed([
   'functionapp' // function app windows os
   'functionapp,linux' // function app linux os
@@ -34,57 +23,24 @@ param location string = resourceGroup().location
   'app,container,windows' // windows container app
 ])
 param kind string
-
-@description('Required. The resource ID of the app service plan to use for the site. Set as empty string when using a managed environment id for container apps.')
 param serverFarmResourceId string
-
-@description('Optional. Azure Resource Manager ID of the customers selected Managed Environment on which to host this app.')
 param managedEnvironmentResourceId string?
-
-@description('Optional. Configures a site to accept only HTTPS requests. Issues redirect for HTTP requests.')
 param httpsOnly bool
-
-@description('Optional. If client affinity is enabled.')
 param clientAffinityEnabled bool
-
-@description('Optional. To enable client affinity; false to stop sending session affinity cookies, which route client requests in the same session to the same instance. Default is true.')
 param clientAffinityProxyEnabled bool
-
-@description('Optional. To enable client affinity partitioning using CHIPS cookies, this will add the partitioned property to the affinity cookies; false to stop sending partitioned affinity cookies. Default is false.')
 param clientAffinityPartitioningEnabled bool
-
-@description('Optional. The resource ID of the app service environment to use for this resource.')
 param appServiceEnvironmentResourceId string?
 
 import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
-@description('Optional. The managed identity definition for this resource.')
 param managedIdentities managedIdentityOnlySysAssignedType?
-
-@description('Optional. The resource ID of the assigned identity to be used to access a key vault with.')
 param keyVaultAccessIdentityResourceId string?
-
-@description('Optional. Checks if Customer provided storage account is required.')
 param storageAccountRequired bool
-
-@description('Optional. Azure Resource Manager ID of the Virtual network and subnet to be joined by Regional VNET Integration. This must be of the form /subscriptions/{subscriptionName}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}.')
 param virtualNetworkSubnetResourceId string?
-
-@description('Optional. Stop SCM (KUDU) site when the app is stopped.')
 param scmSiteAlsoStopped bool
-
-@description('Optional. The site config object.')
 param siteConfig resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.siteConfig
-
-@description('Optional. The outbound VNET routing configuration for the site.')
 param outboundVnetRouting resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.outboundVnetRouting?
-
-@description('Optional. The web site config.')
 param configs configType[]?
-
-@description('Optional. The Function App configuration object.')
 param functionAppConfig resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.functionAppConfig?
-
-@description('Optional. The extensions configuration.')
 param extensions extensionType[]?
 
 import {
@@ -93,125 +49,53 @@ import {
 param lock lockType?
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 
-@description('Optional. When true, the module creates the standard private endpoint wiring for the site.')
 param enableDefaultPrivateEndpoint bool = false
-
-@description('Optional. Subnet resource ID for the module-owned default private endpoint.')
 param defaultPrivateEndpointSubnetResourceId string?
-
-@description('Optional. Private DNS zone name for the module-owned default private endpoint.')
+param defaultPrivateNetworkingResourceGroupName string?
 param defaultPrivateDnsZoneName string = 'privatelink.azurewebsites.net'
-
-@description('Optional. Virtual network links for the module-owned default private DNS zone.')
 param defaultPrivateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[] = []
-
-@description('Optional. Configuration for deployment slots for an app.')
 param slots slotType[]?
-
-@description('Optional. Solution-managed Application Insights component used when app settings request the solution deployment path.')
 param solutionApplicationInsightsComponent {
-  @description('Required. Name of the Application Insights component.')
   name: string
-
-  @description('Required. Resource group name of the Application Insights component.')
   resourceGroupName: string
 }?
-
 param tags resourceInput<'Microsoft.Web/sites@2025-03-01'>.tags?
-
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingFullType[]?
-
-@description('Optional. To enable client certificate authentication (TLS mutual authentication).')
 param clientCertEnabled bool
-
-@description('Optional. Client certificate authentication comma-separated exclusion paths.')
 param clientCertExclusionPaths string?
-
-@description('''
-Optional. This composes with ClientCertEnabled setting.
-- ClientCertEnabled=false means ClientCert is ignored.
-- ClientCertEnabled=true and ClientCertMode=Required means ClientCert is required.
-- ClientCertEnabled=true and ClientCertMode=Optional means ClientCert is optional or accepted.
-''')
 param clientCertMode resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.clientCertMode?
-
-@description('Optional. If specified during app creation, the app is cloned from a source app.')
 param cloningInfo resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.cloningInfo?
-
-@description('Optional. Size of the function container.')
 param containerSize int?
-
-@description('Optional. Maximum allowed daily memory-time quota (applicable on dynamic apps only).')
 param dailyMemoryTimeQuota int?
-
-@description('Optional. Setting this value to false disables the app (takes the app offline).')
 param enabled bool
-
-@description('Optional. Hostname SSL states are used to manage the SSL bindings for app\'s hostnames.')
 param hostNameSslStates resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.hostNameSslStates?
-
-@description('Optional. Hyper-V sandbox.')
 param hyperV bool = false
-
-@description('Optional. Site redundancy mode.')
 param redundancyMode resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.redundancyMode
-
-@description('Optional. The site publishing credential policy names which are associated with the sites.')
 param basicPublishingCredentialsPolicies basicPublishingCredentialsPolicyType[]?
-
-@description('Optional. When true, disable FTP and SCM basic publishing credentials using the standard site policies.')
 param disableBasicPublishingCredentials bool = false
-
-@description('Optional. Whether or not public network access is allowed for this resource. For security reasons it should be disabled. If not specified, it will be disabled by default if private endpoints are set.')
 param publicNetworkAccess resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.publicNetworkAccess?
-
-@description('Optional. End to End Encryption Setting.')
 param e2eEncryptionEnabled bool?
-
-@description('Optional. Property to configure various DNS related settings for a site.')
 param dnsConfiguration resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.dnsConfiguration?
-
-@description('Optional. Specifies the scope of uniqueness for the default hostname during resource creation.')
 param autoGeneratedDomainNameLabelScope resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.autoGeneratedDomainNameLabelScope?
-
-@description('Optional. Whether to enable SSH access.')
 param sshEnabled bool?
-
-@description('Optional. Dapr configuration of the app.')
 param daprConfig resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.daprConfig?
-
-@description('Optional. Specifies the IP mode of the app.')
 param ipMode resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.ipMode?
-
-@description('Optional. Function app resource requirements.')
 param resourceConfig resourceInput<'Microsoft.Web/sites@2025-03-01'>.properties.resourceConfig?
-
-@description('Optional. Workload profile name for function app to execute on.')
 param workloadProfileName string?
-
-@description('Optional. True to disable the public hostnames of the app; otherwise, false. If true, the app is only accessible via API management process.')
 param hostNamesDisabled bool?
-
-@description('Optional. True if reserved (Linux); otherwise, false (Windows).')
 param reserved bool?
-
-@description('Optional. Extended location of the resource.')
 param extendedLocation resourceInput<'Microsoft.Web/sites@2025-03-01'>.extendedLocation?
-
 
 // List of site kinds that support managed environment
 var managedEnvironmentSupportedKinds = [
   'functionapp,linux,container,azurecontainerapps'
 ]
-
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
 var identity = hasSystemAssignedIdentity
   ? {
@@ -229,7 +113,6 @@ var formattedRoleAssignments = [
       : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
   })
 ]
-
 var resourceAbbreviation = 'app'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
@@ -262,7 +145,8 @@ var shouldCreateDefaultPrivateEndpoint = enableDefaultPrivateEndpoint
 var defaultPrivateEndpointInputsAreValid = !shouldCreateDefaultPrivateEndpoint || defaultPrivateEndpointSubnetResourceId != null
   ? true
   : fail('The module-owned default private endpoint requires defaultPrivateEndpointSubnetResourceId when enableDefaultPrivateEndpoint is true.')
-var defaultPrivateDnsZoneResourceId = resourceId('Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
+var defaultPrivateNetworkingResolvedResourceGroupName = defaultPrivateNetworkingResourceGroupName ?? resourceGroup().name
+var defaultPrivateDnsZoneResourceId = resourceId(defaultPrivateNetworkingResolvedResourceGroupName, 'Microsoft.Network/privateDnsZones', defaultPrivateDnsZoneName)
 var defaultPrivateEndpointWorkloadDescription = 'appservice'
 var defaultPrivateEndpointName = 'pep-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
 var defaultPrivateLinkServiceConnectionName = 'plsc-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${defaultPrivateEndpointWorkloadDescription}-${instanceNumber}'
@@ -341,7 +225,6 @@ module app_extensions './web-site-extension.bicep' = [
     }
   }
 ]
-
 var resolvedSlotServerFarmResourceId = contains(managedEnvironmentSupportedKinds, kind) && !empty(managedEnvironmentResourceId)
   ? null
   : serverFarmResourceId
@@ -373,6 +256,7 @@ var resolvedSlots = [
     lock: slot.?lock ?? lock
     enableDefaultPrivateEndpoint: shouldCreateDefaultPrivateEndpoint
     defaultPrivateEndpointSubnetResourceId: defaultPrivateEndpointSubnetResourceId
+    defaultPrivateNetworkingResourceGroupName: defaultPrivateNetworkingResolvedResourceGroupName
     defaultPrivateDnsZoneName: defaultPrivateDnsZoneName
     tags: slot.?tags ?? tags
     clientCertEnabled: slot.?clientCertEnabled
@@ -522,11 +406,10 @@ resource app_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
     scope: app
   }
 ]
-
 var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
   ? [
       {
-        resourceGroupName: resourceGroup().name
+        resourceGroupName: defaultPrivateNetworkingResolvedResourceGroupName
         resourceGroupSubscriptionId: subscription().subscriptionId
         name: defaultPrivateEndpointName
         location: location
@@ -547,6 +430,7 @@ var moduleOwnedPrivateEndpoints = shouldCreateDefaultPrivateEndpoint
 
 module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (shouldCreateDefaultPrivateEndpoint) {
   name: '${uniqueString(deployment().name, location)}-Site-DefaultPrivateDnsZone'
+  scope: resourceGroup(defaultPrivateNetworkingResolvedResourceGroupName)
   params: {
     name: defaultPrivateDnsZoneName
     location: 'global'
@@ -554,7 +438,6 @@ module app_defaultPrivateDnsZone '../01-network/private-dns-zone.bicep' = if (sh
     tags: tags
   }
 }
-
 var resolvedPrivateEndpoints = [
   for (privateEndpoint, index) in moduleOwnedPrivateEndpoints: {
     resourceGroupName: privateEndpoint.resourceGroupName
@@ -624,28 +507,14 @@ module app_privateEndpoints '../01-network/private-endpoint.bicep' = [
     }
   }
 ]
-
 output name string = app.name
-
 output resourceId string = app.id
-
 output resourceGroupName string = resourceGroup().name
-
-@description('The principal ID of the system assigned identity. Returns an empty string when no system-assigned identity is present.')
 output systemAssignedMIPrincipalId string = app.?identity.?principalId ?? ''
-
 output location string = app.location
-
-@description('Default hostname of the app.')
 output defaultHostname string = app.properties.defaultHostName
-
-@description('Unique identifier that verifies the custom domains assigned to the app. Customer will add this ID to a txt record for verification.')
 output customDomainVerificationId string? = app.properties.customDomainVerificationId
-
-@description('The outbound IP addresses of the app.')
 output outboundIpAddresses string = app.properties.outboundIpAddresses
-
-@description('The private endpoints of the site.')
 output privateEndpoints privateEndpointOutputType[] = [
   for (item, index) in resolvedPrivateEndpoints: {
     name: app_privateEndpoints[index].outputs.name
@@ -655,19 +524,10 @@ output privateEndpoints privateEndpointOutputType[] = [
     networkInterfaceResourceIds: app_privateEndpoints[index].outputs.networkInterfaceResourceIds
   }
 ]
-
-@description('The slots of the site.')
 output slots {
-  @description('The name of the slot.')
   name: string
-
-  @description('The resource ID of the slot.')
   resourceId: string
-
-  @description('The principal ID of the system assigned identity of the slot.')
   systemAssignedMIPrincipalId: string?
-
-  @description('The private endpoints of the slot.')
   privateEndpoints: privateEndpointOutputType[]
 }[] = [
   #disable-next-line outputs-should-not-contain-secrets // false-positive. The key is not returned
@@ -684,25 +544,14 @@ output slots {
 // ================ //
 @export()
 type privateEndpointOutputType = {
-  @description('The name of the private endpoint.')
   name: string
-
-  @description('The resource ID of the private endpoint.')
   resourceId: string
-
-  @description('The group Id for the private endpoint Group.')
   groupId: string?
-
-  @description('The custom DNS configurations of the private endpoint.')
   customDnsConfigs: {
-    @description('FQDN that resolves to private endpoint IP address.')
     fqdn: string?
-
-    @description('A list of private IP addresses of the private endpoint.')
     ipAddresses: string[]
   }[]
 
-  @description('The IDs of the network interfaces associated with the private endpoint.')
   networkInterfaceResourceIds: string[]
 }
 
@@ -720,7 +569,6 @@ import {
 } from './web-site-slot.bicep'
 
 @export()
-@description('The type of a site configuration.')
 @discriminator('name')
 type configType =
   | appSettingsConfigType
@@ -737,188 +585,76 @@ type configType =
 
 // Not available flor slots
 @export()
-@description('The type of a slotConfigNames configuration.')
 type slotConfigNamesConfigType = {
-  @description('Required. The type of config.')
   name: 'slotConfigNames'
-
-  @description('Required. The config settings.')
   properties: {
-    @description('Optional. List of application settings names.')
     appSettingNames: string[]?
-
-    @description('Optional. List of external Azure storage account identifiers.')
     azureStorageConfigNames: string[]?
-
-    @description('Optional. List of connection string names.')
     connectionStringNames: string[]?
   }
 }
 
 @export()
-@description('The type of a slot.')
 type slotType = {
-  @description('Required. Name of the slot.')
   name: string
-
-  @description('Optional. Location for all Resources.')
   location: string?
-
-  @description('Optional. The resource ID of the app service plan to use for the slot.')
   serverFarmResourceId: string?
-
-  @description('Optional. Azure Resource Manager ID of the customers selected Managed Environment on which to host this app.')
   managedEnvironmentResourceId: string?
-
-  @description('Optional. Configures a slot to accept only HTTPS requests. Issues redirect for HTTP requests.')
   httpsOnly: bool?
-
-  @description('Optional. If client affinity is enabled.')
   clientAffinityEnabled: bool?
-
-  @description('Optional. To enable client affinity; false to stop sending session affinity cookies, which route client requests in the same session to the same instance.')
   clientAffinityProxyEnabled: bool?
-
-  @description('Optional. To enable client affinity partitioning using CHIPS cookies.')
   clientAffinityPartitioningEnabled: bool?
-
-  @description('Optional. The resource ID of the app service environment to use for this resource.')
   appServiceEnvironmentResourceId: string?
-
-  @description('Optional. The managed identity definition for this resource.')
   managedIdentities: managedIdentityOnlySysAssignedType?
-
-  @description('Optional. The resource ID of the assigned identity to be used to access a key vault with.')
   keyVaultAccessIdentityResourceId: string?
-
-  @description('Optional. Checks if Customer provided storage account is required.')
   storageAccountRequired: bool?
-
-  @description('Optional. Azure Resource Manager ID of the Virtual network and subnet to be joined by Regional VNET Integration. This must be of the form /subscriptions/{subscriptionName}/resourceGroups/{resourceGroupName}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}.')
   virtualNetworkSubnetResourceId: string?
-
-  @description('Optional. The site config object.')
   siteConfig: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.siteConfig?
-
-  @description('Optional. The Function App config object.')
   functionAppConfig: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.functionAppConfig?
-
-  @description('Optional. The web site config.')
   configs: configType[]?
-
-  @description('Optional. The extensions configuration.')
   extensions: resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties[]?
-
   lock: lockType?
-
-  @description('Optional. When true, the module creates the standard private endpoint wiring for the slot.')
   enableDefaultPrivateEndpoint: bool?
-
-  @description('Optional. Subnet resource ID for the module-owned default private endpoint.')
   defaultPrivateEndpointSubnetResourceId: string?
-
-  @description('Optional. Private DNS zone name for the module-owned default private endpoint.')
   defaultPrivateDnsZoneName: string?
-
   tags: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.tags?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The diagnostic settings of the service.')
   diagnosticSettings: diagnosticSettingFullType[]?
-
-  @description('Optional. To enable client certificate authentication (TLS mutual authentication).')
   clientCertEnabled: bool?
-
-  @description('Optional. Client certificate authentication comma-separated exclusion paths.')
   clientCertExclusionPaths: string?
-
-  @description('Optional. This composes with ClientCertEnabled setting.</p>- ClientCertEnabled: false means ClientCert is ignored.</p>- ClientCertEnabled: true and ClientCertMode: Required means ClientCert is required.</p>- ClientCertEnabled: true and ClientCertMode: Optional means ClientCert is optional or accepted.')
   clientCertMode: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.clientCertMode?
-
-  @description('Optional. If specified during app creation, the app is cloned from a source app.')
   cloningInfo: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.cloningInfo?
-
-  @description('Optional. Size of the function container.')
   containerSize: int?
-
-  @description('Optional. Unique identifier that verifies the custom domains assigned to the app. Customer will add this ID to a txt record for verification.')
   customDomainVerificationId: string?
-
-  @description('Optional. Maximum allowed daily memory-time quota (applicable on dynamic apps only).')
   dailyMemoryTimeQuota: int?
-
-  @description('Optional. Setting this value to false disables the app (takes the app offline).')
   enabled: bool?
-
-  @description('Optional. Hostname SSL states are used to manage the SSL bindings for app\'s hostnames.')
   hostNameSslStates: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.hostNameSslStates?
-
-  @description('Optional. Hyper-V sandbox.')
   hyperV: bool?
-
-  @description('Optional. Allow or block all public traffic.')
   publicNetworkAccess: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.publicNetworkAccess?
-
-  @description('Optional. Site redundancy mode.')
   redundancyMode: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.redundancyMode?
-
-  @description('Optional. The site publishing credential policy names which are associated with the site slot.')
   basicPublishingCredentialsPolicies: basicPublishingCredentialsPolicyType[]?
-
-  @description('Optional. The outbound VNET routing configuration for the slot.')
   outboundVnetRouting: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.outboundVnetRouting?
-
-  @description('Optional. Property to configure various DNS related settings for a site.')
   dnsConfiguration: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.dnsConfiguration?
-
-  @description('Optional. Specifies the scope of uniqueness for the default hostname during resource creation.')
   autoGeneratedDomainNameLabelScope: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.autoGeneratedDomainNameLabelScope?
-
-  @description('Optional. Whether to enable SSH access.')
   sshEnabled: bool?
-
-  @description('Optional. Dapr configuration of the app.')
   daprConfig: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.daprConfig?
-
-  @description('Optional. Specifies the IP mode of the app.')
   ipMode: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.ipMode?
-
-  @description('Optional. Function app resource requirements.')
   resourceConfig: resourceInput<'Microsoft.Web/sites/slots@2025-03-01'>.properties.resourceConfig?
-
-  @description('Optional. Workload profile name for function app to execute on.')
   workloadProfileName: string?
-
-  @description('Optional. True to disable the public hostnames of the app; otherwise, false. If true, the app is only accessible via API management process.')
   hostNamesDisabled: bool?
-
-  @description('Optional. True if reserved (Linux); otherwise, false (Windows).')
   reserved: bool?
-
-  @description('Optional. Stop SCM (KUDU) site when the app is stopped.')
   scmSiteAlsoStopped: bool?
-
-  @description('Optional. End to End Encryption Setting.')
   e2eEncryptionEnabled: bool?
 }
 
 type extensionType = {
-  @description('Optional. Sets the properties.')
   properties: resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties?
 }
 
 @export()
-@description('The type of a basic publishing credential policy.')
 type basicPublishingCredentialsPolicyType = {
-  @description('Required. The name of the resource.')
   name: ('scm' | 'ftp')
-
-  @description('Optional. Set to true to enable or false to disable a publishing method.')
   allow: bool?
-
-  @description('Optional. Location for all Resources.')
   location: string?
 }
 

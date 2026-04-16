@@ -7,159 +7,64 @@ import {
   roleAssignmentType
 } from '../shared/avm-common-types.bicep'
 
-@description('Required. Abbreviation for the owning system.')
 param systemAbbreviation string
-
-@description('Required. Abbreviation for the lifecycle environment.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for deterministic naming.')
 param instanceNumber string
-
-@description('Optional. Workload descriptor to include in names when it adds value. When empty, the segment is omitted.')
 param workloadDescription string = ''
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
-
-
-@description('Optional, default is false. Set to true if you want to deploy ASE v3 instead of Multitenant App Service Plan.')
 param deployAseV3 bool
-
-@description('Optional. Controls whether the private endpoint subnet is deployed.')
 param deployPrivateNetworking bool
-
-@description('Required. CIDR of the SPOKE vnet i.e. 192.168.0.0/24.')
 param vnetSpokeAddressSpace string
-
-@description('Required. CIDR of the subnet that will hold the app services plan.')
 param subnetSpokeAppSvcAddressSpace string
-
-@description('Conditional. CIDR of the subnet that will hold the private endpoints of the supporting services. Used only when deployPrivateNetworking is true.')
 param subnetSpokePrivateEndpointAddressSpace string
-
-@description('Optional. Application Gateway network configuration. Omit this object when networkingOption is not "applicationGateway".')
 param applicationGatewayConfig {
-  @description('Required. CIDR of the Application Gateway subnet.')
   subnetAddressSpace: string
 }?
-
-@description('Optional. PostgreSQL private access network configuration. Omit this object when deployPostgreSqlPrivateAccess is false.')
 param postgreSqlPrivateAccessConfig {
-  @description('Required. CIDR of the PostgreSQL delegated subnet.')
   subnetAddressSpace: string
 }?
-
-@description('Optional. Egress firewall configuration. Omit this object when no firewall-backed egress route is required.')
 param egressFirewallConfig {
-  @description('Required. Internal IP of the Azure firewall deployed in the hub.')
   internalIp: string
 }?
-
-@description('Optional. Resource tags that we might need to add to all resources (i.e. Environment, Cost center, application name etc).')
 param tags object
-
-@description('Required. Create (or not) a UDR for the App Service Subnet, to route all egress traffic through Hub Azure Firewall.')
 param enableEgressLockdown bool
-
-@description('Optional. The networking option to use. Options: frontDoor, applicationGateway, none.')
 @allowed(['frontDoor', 'applicationGateway', 'none'])
 param networkingOption string
-
-@description('Optional. Controls whether the PostgreSQL delegated subnet is deployed.')
 param deployPostgreSqlPrivateAccess bool = false
-
-@description('Required. The resource ID of the Log Analytics workspace for diagnostic settings.')
 param logAnalyticsWorkspaceId string
-
-@description('Optional. Hub VNet peering configuration. Omit this object when no hub peering is required.')
 param hubPeeringConfig {
-  @description('Required. Resource ID of the existing hub VNet.')
   virtualNetworkResourceId: string
-
-  @description('Required. Name of the existing hub VNet.')
   virtualNetworkName: string
-
-  @description('Required. Resource group name of the existing hub VNet.')
   resourceGroupName: string
-
-  @description('Required. Subscription ID of the existing hub VNet.')
   subscriptionId: string
-
-  @description('Required. Allow forwarded traffic on the spoke-to-hub peering.')
   allowForwardedTraffic: bool
-
-  @description('Required. Allow gateway transit on the spoke-to-hub peering.')
   allowGatewayTransit: bool
-
-  @description('Required. Allow virtual network access on the spoke-to-hub peering.')
   allowVirtualNetworkAccess: bool
-
-  @description('Required. Do not verify remote gateways on the spoke-to-hub peering.')
   doNotVerifyRemoteGateways: bool
-
-  @description('Required. Use remote gateways on the spoke-to-hub peering.')
   useRemoteGateways: bool
-
-  @description('Optional. Reverse hub-to-spoke peering settings. Omit this object when the reverse peering should not be created.')
   reversePeeringConfig: {
-    @description('Required. Allow forwarded traffic on the hub-to-spoke peering.')
     allowForwardedTraffic: bool
-
-    @description('Required. Allow gateway transit on the hub-to-spoke peering.')
     allowGatewayTransit: bool
-
-    @description('Required. Allow virtual network access on the hub-to-spoke peering.')
     allowVirtualNetworkAccess: bool
-
-    @description('Required. Do not verify remote gateways on the hub-to-spoke peering.')
     doNotVerifyRemoteGateways: bool
-
-    @description('Required. Use remote gateways on the hub-to-spoke peering.')
     useRemoteGateways: bool
   }?
 }?
-
-@description('Optional. Custom DNS servers for the spoke VNet. If empty, Azure-provided DNS is used.')
 param dnsServers string[]?
-
-@description('Optional. The resource ID of a DDoS Protection Plan to associate with the spoke VNet.')
 param ddosProtectionPlanResourceId string?
-
-@description('Optional. Diagnostic Settings for the spoke virtual network.')
 param vnetDiagnosticSettings diagnosticSettingFullType[]?
-
-@description('Optional. Specify the type of resource lock for the spoke virtual network.')
 param vnetLock lockType?
-
-@description('Optional. Whether to disable BGP route propagation on the route table. Defaults to true to prevent BGP-learned routes from bypassing the firewall.')
 param disableBgpRoutePropagation bool
-
-@description('Optional. Role assignments for the spoke virtual network.')
 param vnetRoleAssignments roleAssignmentType[]?
-
-@description('Optional. Enable VNet encryption.')
 param vnetEncryption bool
-
-@description('Optional. VNet encryption enforcement. Only used when vnetEncryption is true.')
 @allowed(['AllowUnencrypted', 'DropUnencrypted'])
 param vnetEncryptionEnforcement string
-
-@description('Optional. The flow timeout in minutes for the VNet (max 30). 0 means disabled.')
 param flowTimeoutInMinutes int
-
-@description('Optional. Enable VM protection for the VNet.')
 param enableVmProtection bool?
-
-@description('Optional. Enables high scale private endpoints for the virtual network.')
 @allowed(['Basic', 'Disabled'])
 param enablePrivateEndpointVNetPolicies string
-
-@description('Optional. The BGP community for the VNet.')
 param virtualNetworkBgpCommunity string?
-
 var deployAppGw = networkingOption == 'applicationGateway'
-
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var sharedNamePrefix = '${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}'
@@ -176,7 +81,6 @@ var aseNsgName = take('nsg-${sharedNamePrefix}-ase-${instanceNumber}', 80)
 var appGatewayNsgName = take('nsg-${sharedNamePrefix}-appgateway-${instanceNumber}', 80)
 var routeTableName = take('rt-${sharedNamePrefix}${sharedNameSuffix}', 80)
 var egressLockdownRouteName = take('route-${sharedNamePrefix}-egresslockdown-${instanceNumber}', 80)
-
 var resourceNames = {
   vnetSpoke: spokeVnetName
   snetAppSvc: appServiceSubnetName
@@ -191,7 +95,6 @@ var resourceNames = {
   routeTable: routeTableName
   routeEgressLockdown: egressLockdownRouteName
 }
-
 var applicationGatewayConfigIsValid = networkingOption != 'applicationGateway' || applicationGatewayConfig != null
   ? true
   : fail('When networkingOption is "applicationGateway", applicationGatewayConfig must be provided.')
@@ -205,7 +108,6 @@ var egressFirewallConfigIsValid = !enableEgressLockdown || egressFirewallConfig 
 var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfigIsValid ? postgreSqlPrivateAccessConfig.?subnetAddressSpace : null
 var subnetSpokeAppGwAddressSpace = applicationGatewayConfigIsValid ? applicationGatewayConfig.?subnetAddressSpace : null
 var firewallInternalIp = egressFirewallConfigIsValid ? egressFirewallConfig.?internalIp : null
-
 var udrRoutes = [
   {
     name: 'defaultEgressLockdown'
@@ -216,7 +118,6 @@ var udrRoutes = [
     }
   }
 ]
-
 var spokeToHubPeeringName = take('peer-${sharedNamePrefix}-hub-${instanceNumber}', 80)
 var hubToSpokePeeringName = take('peer-${sharedNamePrefix}-spoke-${instanceNumber}', 80)
 var appServiceSubnetDelegation = deployAseV3 ? 'Microsoft.Web/hostingEnvironments' : 'Microsoft.Web/serverfarms'
@@ -232,7 +133,6 @@ var appServiceSubnet = {
   networkSecurityGroupResourceId: appServiceSubnetNetworkSecurityGroupResourceId
   routeTableResourceId: routeTableToFirewall.?outputs.?resourceId
 }
-
 var shouldCreatePrivateEndpointSubnet = deployPrivateNetworking
 var privateEndpointSubnet = {
   name: resourceNames.snetPe
@@ -240,7 +140,6 @@ var privateEndpointSubnet = {
   privateEndpointNetworkPolicies: 'Disabled'
   networkSecurityGroupResourceId: nsgPep!.outputs.resourceId
 }
-
 var shouldCreatePostgreSqlSubnet = deployPostgreSqlPrivateAccess
 var postgreSqlSubnet = {
   name: resourceNames.snetPostgreSql
@@ -248,14 +147,12 @@ var postgreSqlSubnet = {
   delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
   networkSecurityGroupResourceId: nsgPostgreSql!.outputs.resourceId
 }
-
 var shouldCreateAppGatewaySubnet = deployAppGw && !empty(subnetSpokeAppGwAddressSpace)
 var appGatewaySubnet = {
   name: resourceNames.snetAppGw
   addressPrefix: subnetSpokeAppGwAddressSpace
   networkSecurityGroupResourceId: nsgAppGw!.outputs.resourceId
 }
-
 var baseSubnets = [
   appServiceSubnet
 ]
@@ -325,7 +222,6 @@ module routeTableToFirewall './route-table.bicep' = if (!empty(firewallInternalI
   }
 }
 
-@description('NSG for the App Service subnet.')
 module nsgAppSvc './network-security-group.bicep' = if (!deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-nsgappsvc'
   params: {
@@ -358,7 +254,6 @@ module nsgAppSvc './network-security-group.bicep' = if (!deployAseV3) {
   }
 }
 
-@description('NSG for the private endpoint subnet.')
 module nsgPep './network-security-group.bicep' = if (shouldCreatePrivateEndpointSubnet) {
   name: '${uniqueString(deployment().name, location)}-nsgpep'
   params: {
@@ -373,7 +268,6 @@ module nsgPep './network-security-group.bicep' = if (shouldCreatePrivateEndpoint
   }
 }
 
-@description('NSG for the PostgreSQL subnet.')
 module nsgPostgreSql './network-security-group.bicep' = if (shouldCreatePostgreSqlSubnet) {
   name: '${uniqueString(deployment().name, location)}-nsgpostgresql'
   params: {
@@ -388,7 +282,6 @@ module nsgPostgreSql './network-security-group.bicep' = if (shouldCreatePostgreS
   }
 }
 
-@description('NSG for ASE subnet')
 module nsgAse './network-security-group.bicep' = if (deployAseV3) {
   name: '${uniqueString(deployment().name, location)}-nsgase'
   params: {
@@ -418,7 +311,6 @@ module nsgAse './network-security-group.bicep' = if (deployAseV3) {
   }
 }
 
-@description('NSG for Application Gateway subnet')
 module nsgAppGw './network-security-group.bicep' = if (deployAppGw) {
   name: '${uniqueString(deployment().name, location)}-nsgappgw'
   params: {
@@ -486,33 +378,13 @@ module nsgAppGw './network-security-group.bicep' = if (deployAppGw) {
     ]
   }
 }
-
-@description('The resource ID of the spoke virtual network.')
 output vnetSpokeResourceId string = vnetSpoke.outputs.resourceId
-
-@description('The name of the spoke virtual network.')
 output vnetSpokeName string = vnetSpoke.outputs.name
-
-@description('The resource ID of the App Service subnet.')
 output snetAppSvcResourceId string = vnetSpoke.outputs.subnetResourceIds[0]
-
-@description('The name of the App Service subnet.')
 output snetAppSvcName string = vnetSpoke.outputs.subnetNames[0]
-
-@description('The resource ID of the private endpoint subnet. Null if not deployed.')
 output snetPeResourceId string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetResourceIds[1] : null
-
-@description('The name of the private endpoint subnet. Null if not deployed.')
 output snetPeName string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetNames[1] : null
-
-@description('The resource ID of the PostgreSQL delegated subnet. Null if not deployed.')
 output snetPostgreSqlResourceId string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetResourceIds[postgreSqlSubnetIndex] : null
-
-@description('The name of the PostgreSQL delegated subnet. Null if not deployed.')
 output snetPostgreSqlName string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetNames[postgreSqlSubnetIndex] : null
-
-@description('The resource ID of the Application Gateway subnet. Null if not deployed.')
 output snetAppGwResourceId string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[appGatewaySubnetIndex] : null
-
-@description('The name of the Application Gateway subnet. Null if not deployed.')
 output snetAppGwName string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[appGatewaySubnetIndex] : null

@@ -4,83 +4,39 @@ metadata description = 'This module deploys an App Service Environment.'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 
-@description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
-
-@description('Required. Environment abbreviation used for resource naming.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for resource naming.')
 param instanceNumber string
-
-@description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
-
-@description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
-
-
 param tags resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.tags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 @allowed([
   'ASEv3'
 ])
-@description('Optional. Kind of resource.')
 param kind string = 'ASEv3'
-
-@description('Optional. Custom settings for changing the behavior of the App Service Environment.')
 param clusterSettings resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.properties.clusterSettings
-
-@description('Optional. Enable the default custom domain suffix to use for all sites deployed on the ASE. If provided, then customDnsSuffixCertificateUrl is required.')
 param customDnsSuffix string?
-
-@description('Optional. The URL referencing the Azure Key Vault certificate secret that should be used as the default SSL/TLS certificate for sites with the custom domain suffix. Required if customDnsSuffix is not empty.')
 param customDnsSuffixCertificateUrl string?
-
-@description('Optional. The Dedicated Host Count. If `zoneRedundant` is false, and you want physical hardware isolation enabled, set to 2. Otherwise 0.')
 param dedicatedHostCount int?
-
-@description('Optional. DNS suffix of the App Service Environment.')
 param dnsSuffix string?
-
-@description('Optional. Scale factor for frontends.')
 param frontEndScaleFactor int
-
-@description('Optional. Specifies which endpoints to serve internally in the Virtual Network for the App Service Environment. - None, Web, Publishing, Web,Publishing. "None" Exposes the ASE-hosted apps on an internet-accessible IP address.')
 param internalLoadBalancingMode resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.properties.internalLoadBalancingMode
-
-@description('Optional. Properties to configure additional networking features.')
 param networkConfiguration resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.properties.networkingConfiguration?
-
-@description('Optional. Specify preference for when and how the planned maintenance is applied.')
 param upgradePreference resourceInput<'Microsoft.Web/hostingEnvironments@2025-03-01'>.properties.upgradePreference
-
-@description('Required. ResourceId for the subnet.')
 param subnetResourceId string
-
-@description('Required. Name of the subnet.')
 param subnetName string
-
-@description('Optional. Switch to make the App Service Environment zone redundant. If enabled, the minimum App Service plan instance count will be three, otherwise 1. If enabled, the `dedicatedHostCount` must be set to `-1`.')
 param zoneRedundant bool
-
-@description('Optional. Number of IP SSL addresses reserved for the App Service Environment.')
 param ipsslAddressCount int?
-
-@description('Optional. Front-end VM size, e.g. "Medium", "Large".')
 param multiSize string?
 
 import { diagnosticSettingLogsOnlyType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingLogsOnlyType[]?
-
 var resourceAbbreviation = 'ase'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
@@ -91,7 +47,6 @@ var derivedName = take(
 var resolvedName = derivedName
 var resolvedDedicatedHostCount = dedicatedHostCount != 0 ? dedicatedHostCount : null
 var resolvedDnsSuffix = !empty(dnsSuffix) ? dnsSuffix : null
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -188,11 +143,8 @@ resource appServiceEnvironment_roleAssignments 'Microsoft.Authorization/roleAssi
 // ============ //
 
 output resourceId string = appServiceEnvironment.id
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = appServiceEnvironment.name
-
 output location string = appServiceEnvironment.location
 
 resource appServiceEnvironment_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

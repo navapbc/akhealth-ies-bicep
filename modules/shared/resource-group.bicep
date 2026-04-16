@@ -17,6 +17,9 @@ param instanceNumber string
 @description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
 
+@description('Optional. Sub-workload description segment used for resource naming.')
+param subWorkloadDescription string = ''
+
 @description('Optional. Location of the Resource Group. It uses the deployment\'s location when not provided.')
 param location string = deployment().location
 
@@ -32,7 +35,8 @@ param tags resourceInput<'Microsoft.Resources/resourceGroups@2025-04-01'>.tags?
 
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
-var name = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 90)
+var subWorkloadSegment = empty(subWorkloadDescription) ? '' : '-${subWorkloadDescription}'
+var name = take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}${subWorkloadSegment}-${instanceNumber}', 90)
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
   location: location
@@ -45,7 +49,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
 module resourceGroup_lock './resource-group-lock.bicep' = if (!empty(lock ?? {}) && lock.?kind != 'None') {
   name: '${uniqueString(subscription().id, location)}-RG-Lock'
   params: {
-    lock: lock
+    lock: lock!
     name: resourceGroup.name
   }
   scope: resourceGroup

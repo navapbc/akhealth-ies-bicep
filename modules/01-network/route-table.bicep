@@ -3,28 +3,17 @@ metadata description = 'This module deploys a User Defined Route Table (UDR).'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Required. Name given for the hub route table.')
 param name string
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
-
-@description('Optional. An array of routes to be established within the hub route table.')
 param routes resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.properties.routes?
-
-@description('Optional. Switch to disable BGP route propagation.')
 param disableBgpRoutePropagation bool = false
 
 import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 param tags resourceInput<'Microsoft.Network/routeTables@2025-05-01'>.tags?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -61,13 +50,9 @@ resource routeTable_roleAssignments 'Microsoft.Authorization/roleAssignments@202
     scope: routeTable
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = routeTable.name
-
 output resourceId string = routeTable.id
-
 output location string = routeTable.location
 
 resource routeTable_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

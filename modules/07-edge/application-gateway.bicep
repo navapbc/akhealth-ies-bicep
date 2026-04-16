@@ -4,118 +4,54 @@ metadata description = 'This module deploys a Network Application Gateway.'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 
-@description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
-
-@description('Required. Environment abbreviation used for resource naming.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for resource naming.')
 param instanceNumber string
-
-@description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
 
 import { managedIdentityOnlySysAssignedType } from '../shared/avm-common-types.bicep'
-@description('Optional. The managed identity definition for this resource.')
 param managedIdentities managedIdentityOnlySysAssignedType?
-
-@description('Optional. Authentication certificates of the application gateway resource.')
 param authenticationCertificates resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.authenticationCertificates = []
-
-@description('Optional. Upper bound on number of Application Gateway capacity.')
 param autoscaleMaxCapacity int
-
-@description('Optional. Lower bound on number of Application Gateway capacity.')
 param autoscaleMinCapacity int
-
-@description('Optional. Backend address pool of the application gateway resource.')
 param backendAddressPools resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.backendAddressPools = []
-
-@description('Optional. Backend http settings of the application gateway resource.')
 param backendHttpSettingsCollection resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.backendHttpSettingsCollection = []
-
-@description('Optional. Custom error configurations of the application gateway resource.')
 param customErrorConfigurations resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.customErrorConfigurations = []
-
-@description('Optional. Whether FIPS is enabled on the application gateway resource.')
 param enableFips bool
-
-@description('Optional. Whether HTTP2 is enabled on the application gateway resource.')
 param enableHttp2 bool
-
-@description('Conditional. The resource ID of an associated firewall policy. Required if the SKU is \'WAF_v2\' and ignored if the SKU is \'Standard_v2\' or \'Basic\'.')
 param firewallPolicyResourceId string?
-
-@description('Optional. Frontend IP addresses of the application gateway resource.')
 param frontendIPConfigurations resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.frontendIPConfigurations = []
-
-@description('Optional. Frontend ports of the application gateway resource.')
 param frontendPorts resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.frontendPorts = []
-
-@description('Optional. Subnets of the application gateway resource.')
 param gatewayIPConfigurations resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.gatewayIPConfigurations = []
-
-@description('Optional. Enable request buffering.')
 param enableRequestBuffering bool
-
-@description('Optional. Enable response buffering.')
 param enableResponseBuffering bool
-
-@description('Optional. Entra JWT validation configurations.')
 param entraJWTValidationConfigs resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.entraJWTValidationConfigs = []
-
-@description('Optional. Http listeners of the application gateway resource.')
 param httpListeners resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.httpListeners = []
-
-@description('Optional. Load distribution policies of the application gateway resource.')
 param loadDistributionPolicies resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.loadDistributionPolicies = []
 
 import { privateEndpointMultiServiceType } from '../shared/avm-common-types.bicep'
-@description('Optional. Configuration details for private endpoints. For security reasons, it is recommended to use private endpoints whenever possible.')
 param privateEndpoints privateEndpointMultiServiceType[]?
-
-@description('Optional. PrivateLink configurations on application gateway.')
 param privateLinkConfigurations resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.privateLinkConfigurations = []
-
-@description('Optional. Probes of the application gateway resource.')
 param probes resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.probes = []
-
-@description('Optional. Redirect configurations of the application gateway resource.')
 param redirectConfigurations resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.redirectConfigurations = []
-
-@description('Optional. Request routing rules of the application gateway resource.')
 param requestRoutingRules resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.requestRoutingRules = []
-
-@description('Optional. Rewrite rules for the application gateway resource.')
 param rewriteRuleSets resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.rewriteRuleSets = []
-
-@description('Optional. The name of the SKU for the Application Gateway.')
 @allowed([
   'Basic'
   'Standard_v2'
   'WAF_v2'
 ])
 param sku string
-
-@description('Optional. The number of Application instances to be configured.')
 @minValue(0)
 @maxValue(125)
 param capacity int
-
-@description('Optional. SSL certificates of the application gateway resource.')
 param sslCertificates resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.sslCertificates = []
-
-@description('Optional. Ssl cipher suites to be enabled in the specified order to application gateway.')
 param sslPolicyCipherSuites resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.sslPolicy.cipherSuites = [
   'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384'
   'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
 ]
 
-@description('Optional. Ssl protocol enums.')
 @allowed([
   'TLSv1_0'
   'TLSv1_1'
@@ -123,8 +59,6 @@ param sslPolicyCipherSuites resourceInput<'Microsoft.Network/applicationGateways
   'TLSv1_3'
 ])
 param sslPolicyMinProtocolVersion string
-
-@description('Optional. Ssl predefined policy name enums.')
 @allowed([
   'AppGwSslPolicy20150501'
   'AppGwSslPolicy20170401'
@@ -134,28 +68,16 @@ param sslPolicyMinProtocolVersion string
   ''
 ])
 param sslPolicyName string
-
-@description('Optional. Type of Ssl Policy.')
 @allowed([
   'Custom'
   'CustomV2'
   'Predefined'
 ])
 param sslPolicyType string
-
-@description('Optional. SSL profiles of the application gateway resource.')
 param sslProfiles resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.sslProfiles = []
-
-@description('Optional. Trusted client certificates of the application gateway resource.')
 param trustedClientCertificates resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.trustedClientCertificates = []
-
-@description('Optional. Trusted Root certificates of the application gateway resource.')
 param trustedRootCertificates resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.trustedRootCertificates = []
-
-@description('Optional. URL path map of the application gateway resource.')
 param urlPathMaps resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.urlPathMaps = []
-
-@description('Optional. The list of Availability zones to use for the zone-redundant resources.')
 @allowed([
   1
   2
@@ -164,9 +86,7 @@ param urlPathMaps resourceInput<'Microsoft.Network/applicationGateways@2025-05-0
 param availabilityZones int[]
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingFullType[]?
-
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
 var identity = hasSystemAssignedIdentity
   ? {
@@ -178,21 +98,11 @@ import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-@description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.tags?
-
-@description('Optional. Backend settings of the application gateway resource. For default limits, see [Application Gateway limits](https://learn.microsoft.com/en-us/azure/azure-subscription-service-limits#application-gateway-limits).')
 param backendSettingsCollection resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.backendSettingsCollection = []
-
-@description('Optional. Listeners of the application gateway resource. For default limits, see [Application Gateway limits](https://learn.microsoft.com/en-us/azure/azure-subscription-service-limits#application-gateway-limits).')
 param listeners resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.listeners = []
-
-@description('Optional. Routing rules of the application gateway resource.')
 param routingRules resourceInput<'Microsoft.Network/applicationGateways@2025-05-01'>.properties.routingRules = []
-
 var resourceAbbreviation = 'agw'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
@@ -201,7 +111,6 @@ var derivedName = take(
   80
 )
 var resolvedName = derivedName
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -316,7 +225,6 @@ resource applicationGateway_diagnosticSettings 'Microsoft.Insights/diagnosticSet
     scope: applicationGateway
   }
 ]
-
 var resolvedApplicationGatewayPrivateEndpoints = [
   for (privateEndpoint, index) in (privateEndpoints ?? []): {
     resourceGroupName: privateEndpoint.resourceGroupName
@@ -405,16 +313,10 @@ resource applicationGateway_roleAssignments 'Microsoft.Authorization/roleAssignm
     scope: applicationGateway
   }
 ]
-
 output name string = applicationGateway.name
-
 output resourceId string = applicationGateway.id
-
 output resourceGroupName string = resourceGroup().name
-
 output location string = applicationGateway.location
-
-@description('The private endpoints of the resource.')
 output privateEndpoints privateEndpointOutputType[] = [
   for (pe, index) in resolvedApplicationGatewayPrivateEndpoints: {
     name: applicationGateway_privateEndpoints[index].outputs.name
@@ -430,27 +332,15 @@ output privateEndpoints privateEndpointOutputType[] = [
 // =============== //
 
 @export()
-@description('The type for the private endpoint output.')
 type privateEndpointOutputType = {
-  @description('The name of the private endpoint.')
   name: string
-
-  @description('The resource ID of the private endpoint.')
   resourceId: string
-
-  @description('The group Id for the private endpoint Group.')
   groupId: string?
-
-  @description('The custom DNS configurations of the private endpoint.')
   customDnsConfigs: {
-    @description('FQDN that resolves to private endpoint IP address.')
     fqdn: string?
-
-    @description('A list of private IP addresses of the private endpoint.')
     ipAddresses: string[]
   }[]
 
-  @description('The IDs of the network interfaces associated with the private endpoint.')
   networkInterfaceResourceIds: string[]
 }
 
