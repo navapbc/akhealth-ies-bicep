@@ -2,7 +2,7 @@
 
 This page is a service by service subnet sizing reference for the IEP.
 
-Planning for a 21 block per environment:
+Planning for a 21 block per environment, with one environment per subscription:
 
 - allocate a dedicated `/23` block for the app service hosting environment
 - allocate  a dedicated `/24` block for Application Gateway for edge ingress if needed (can be reallocatted)
@@ -30,12 +30,12 @@ Planning for a 21 block per environment:
 
 | Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Microsoft reference |
 |---|---|---|---|---|---|---|---|
-| App Service Environment | `Microsoft.Web` | VNet injection / delegated subnet | Dedicated delegated subnet | `/27` | `/23` | Subnet must be empty and delegated to `Microsoft.Web/hostingEnvironments`. Microsoft recommends `/24` for production and `/23` when planning near max scale or frequent scale operations. Windows containers increase IP pressure. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
+| App Service Environment | `Microsoft.Web` | VNet injection / delegated subnet | Dedicated delegated subnet | `/27` | `/23` | Subnet must be empty and delegated to `Microsoft.Web/hostingEnvironments`. Microsoft recommends `/24` for production and `/23` when planning near max scale or frequent scale operations. Additional containers increase IP pressure. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
 | Application Gateway | `Microsoft.Network` | Dedicated subnet | Dedicated subnet | Dedicated subnet required | `/24` | Requires a dedicated subnet. Microsoft strongly recommends `/24` for v2 deployments to support autoscaling, maintenance, and upgrade capacity. | https://learn.microsoft.com/en-us/azure/application-gateway/configuration-infrastructure |
 | API Management | `Microsoft.ApiManagement` | VNet injection | Dedicated subnet | `/27` | `/24` | Premium v2 injection requires a dedicated subnet. APIM consumes subnet IPs for the service and additional scale units. | https://learn.microsoft.com/en-us/azure/api-management/inject-vnet-v2 |
-| Private Endpoints (shared subnet) | `Microsoft.Network` | Shared PE subnet | Shared subnet | No dedicated minimum | `/24` | Practical shared subnet for Private Link endpoints across ACR, Storage, Key Vault, Service Bus, Event Grid, Monitor, and similar services. Each private endpoint uses one IP. | https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview |
+| Private Endpoints (shared subnet) | `Microsoft.Network` | Shared PE subnet | Shared subnet | No dedicated minimum | `/24` | Shared subnet for Private Link endpoints across ACR, Storage, Key Vault, Service Bus, Event Grid, Monitor, and similar services. Each private endpoint uses one IP. | https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview |
 | Logic Apps (Standard, if privately networked) | `Microsoft.Logic` | VNet integration / private endpoint depending on design | Hosting-related subnet | `/27` | `/26` | Relevant only if using Logic Apps Standard with private networking. Microsoft notes `/26` is preferred to avoid capacity issues. | https://learn.microsoft.com/en-us/azure/logic-apps/secure-single-tenant-workflow-virtual-network-private-endpoint |
-| Azure Functions Premium / Function App | `Microsoft.Web` | Regional VNet integration, optional private endpoint | Separate integration subnet plus optional PE IPs | Subnet with at least 100 available addresses | Plan a dedicated integration subnet with at least 100 available IPs; current environment planning reserves `/24` | Best treated as separate from ASE if it serves integration workloads. Private inbound, if used, consumes PE subnet IPs separately. | https://learn.microsoft.com/en-us/azure/azure-functions/functions-premium-plan |
+| Azure Functions Premium / Function App | `Microsoft.Web` | Regional VNet integration, optional private endpoint | Separate integration subnet plus optional PE IPs | Subnet with at least 100 available addresses | Plan a dedicated integration subnet with at least 100 available IPs; current environment planning reserves `/24` | Best treated as separate from app services planning if it serves integration workloads. Private inbound, if used, consumes PE subnet IPs separately. | https://learn.microsoft.com/en-us/azure/azure-functions/functions-premium-plan |
 | Azure Database for PostgreSQL Flexible Server | `Microsoft.DBforPostgreSQL` | Private access / delegated subnet | Dedicated delegated subnet | `/28` | `/27` | Subnet must be delegated to `Microsoft.DBforPostgreSQL/flexibleServers`. A single HA-enabled server uses multiple IPs, so `/27` gives more headroom. | https://learn.microsoft.com/en-us/azure/postgresql/network/concepts-networking-private |
 | App Service Plan | `Microsoft.Web` | Hosted inside ASE | Uses ASE subnet capacity | N/A | Covered by ASE sizing | No separate subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
 | App Service / Web App / API App | `Microsoft.Web` | Hosted inside ASE; optional private endpoint | Uses ASE subnet capacity; PE adds 1 IP if used | N/A | Covered by ASE sizing | No dedicated subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
@@ -61,5 +61,5 @@ Planning for a 21 block per environment:
 
 ## Notes
 
-- Private endpoint growth, Azure Monitor private access through AMPLS, and integrations are the places most likely to take up more address space over time.
+- Private endpoint growth, azure monitor private access through AMPLS, and integrations are the places most likely to take up more address space over time.
 - Trying to mantain as much contiguous network space as possible to accomodate future growth.
