@@ -1,5 +1,16 @@
 # System subnet planning reference
 
+This page is a service by service subnet sizing reference for the IEP.
+
+
+Planning for a 21 block per environment:
+
+- allocate a dedicated `/23` block for the app service hosting environment
+- allocate  a dedicated `/24` block for Application Gateway for edge ingress if needed (can be reallocatted)
+- allocate a shared `/24` for private endpoints. private endpoints have the potential to grow a fair bit.
+- allocate a dedicated `/24` For Functions In the chance that we end up relying significantly on them. 
+- additional space reserved for future use alongside the blocks with potential for growth (private endpoints)
+
 
 | Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Microsoft reference |
 |---|---|---|---|---|---|---|---|
@@ -8,7 +19,7 @@
 | API Management | `Microsoft.ApiManagement` | VNet injection | Dedicated subnet | `/27` | `/24` | Premium v2 injection requires a dedicated subnet. APIM consumes subnet IPs for the service and additional scale units. | https://learn.microsoft.com/en-us/azure/api-management/inject-vnet-v2 |
 | Private Endpoints (shared subnet) | `Microsoft.Network` | Shared PE subnet | Shared subnet | No dedicated minimum | `/24` | Practical shared subnet for Private Link endpoints across ACR, Storage, Key Vault, Service Bus, Event Grid, Monitor, and similar services. Each private endpoint uses one IP. | https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview |
 | Logic Apps (Standard, if privately networked) | `Microsoft.Logic` | VNet integration / private endpoint depending on design | Hosting-related subnet | `/27` | `/26` | Relevant only if using Logic Apps Standard with private networking. Microsoft notes `/26` is preferred to avoid capacity issues. | https://learn.microsoft.com/en-us/azure/logic-apps/secure-single-tenant-workflow-virtual-network-private-endpoint |
-| Azure Functions Premium / Function App | `Microsoft.Web` | Regional VNet integration, optional private endpoint | Separate integration subnet plus optional PE IPs | Subnet with at least 100 available addresses | Plan a dedicated integration subnet with at least 100 available IPs | Best treated as separate from ASE if it serves integration workloads. Private inbound, if used, consumes PE subnet IPs separately. | https://learn.microsoft.com/en-us/azure/azure-functions/functions-premium-plan |
+| Azure Functions Premium / Function App | `Microsoft.Web` | Regional VNet integration, optional private endpoint | Separate integration subnet plus optional PE IPs | Subnet with at least 100 available addresses | Plan a dedicated integration subnet with at least 100 available IPs; current environment planning reserves `/24` | Best treated as separate from ASE if it serves integration workloads. Private inbound, if used, consumes PE subnet IPs separately. | https://learn.microsoft.com/en-us/azure/azure-functions/functions-premium-plan |
 | Azure Database for PostgreSQL Flexible Server | `Microsoft.DBforPostgreSQL` | Private access / delegated subnet | Dedicated delegated subnet | `/28` | `/27` | Subnet must be delegated to `Microsoft.DBforPostgreSQL/flexibleServers`. A single HA-enabled server uses multiple IPs, so `/27` gives more headroom. | https://learn.microsoft.com/en-us/azure/postgresql/network/concepts-networking-private |
 | App Service Plan | `Microsoft.Web` | Hosted inside ASE | Uses ASE subnet capacity | N/A | Covered by ASE sizing | No separate subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
 | App Service / Web App / API App | `Microsoft.Web` | Hosted inside ASE; optional private endpoint | Uses ASE subnet capacity; PE adds 1 IP if used | N/A | Covered by ASE sizing | No dedicated subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
@@ -31,3 +42,8 @@
 | Managed Identity | `Microsoft.ManagedIdentity` | Identity plane | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity |
 | Azure Data Factory | `Microsoft.DataFactory` | Managed VNet | None in the platform VNet | None | 0 | Assuming managed VNet and no self-hosted/on-prem integration runtime, Data Factory does not require a subnet chunk in the platform VNet. | https://learn.microsoft.com/en-us/azure/data-factory/managed-virtual-network-private-endpoint |
 | Subnets | `Microsoft.Network` | Segmentation unit | Varies by attached service | `/29` is Azure’s smallest subnet size | Size by service requirement | Azure reserves 5 IPs in every subnet. | https://learn.microsoft.com/en-us/azure/virtual-network/manage-virtual-network |
+
+## Notes
+
+- Private endpoint growth, Azure Monitor private access through AMPLS, and integrations are the places most likely to take up more address space over time.
+- Trying to mantain as much contiguous network space as possible to accomodate future growth.
