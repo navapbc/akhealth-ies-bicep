@@ -1,7 +1,7 @@
 using '../main.bicep'
 
 // ======================== //
-// Deployment Identity     //
+// Deployment Info.         //
 // ======================== //
 
 param workloadName = '845FDA'
@@ -21,7 +21,7 @@ param deployPrivateNetworking = true
 param deployPostgreSql = true
 
 // ======================== //
-// Subscription Foundation  //
+// Subscription Setup       //
 // ======================== //
 
 param tags = {
@@ -56,7 +56,7 @@ param resourceGroupDefinitions = [
 ]
 
 // Set to an existing workspace resource ID to reuse one; leave null to create
-// the solution-managed workspace defined below.
+// the log analytics workspace defined below.
 param existingLogAnalyticsID = null
 
 param logAnalyticsConfig = {
@@ -101,9 +101,9 @@ param spokeNetworkConfig = {
 // App Hosting             //
 // ======================== //
 
-// App Service Plan basic default for a new solution-managed plan.
+// App Service Plan basic default for a new plan.
 // See params/examples/main.example.bicepparam for existing-plan and
-// custom-mode examples.
+// custom examples.
 param servicePlanConfig = {
   sku: 'B1'
   skuCapacity: 1
