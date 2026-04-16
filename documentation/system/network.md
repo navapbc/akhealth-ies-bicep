@@ -11,6 +11,23 @@ Planning for a 21 block per environment:
 - allocate a dedicated `/24` For Functions In the chance that we end up relying significantly on them. 
 - additional space reserved for future use alongside the blocks with potential for growth (private endpoints)
 
+## Subnet Plan for a /21 Block
+> Note: Azure reserves 5 IPs in each subnet.
+
+| Subnet Address | Range of Addresses | Usable IPs (Azure) | Hosts | Note | Prefix |
+|---|---|---|---:|---|---|
+| `10.0.0.0/23` | `10.0.0.0 - 10.0.1.255` | `10.0.0.4 - 10.0.1.254` | 507 | App Service Hosting Env Subnet | `/23` |
+| `10.0.2.0/24` | `10.0.2.0 - 10.0.2.255` | `10.0.2.4 - 10.0.2.254` | 251 | App Gateway Subnet | `/24` |
+| `10.0.3.0/24` | `10.0.3.0 - 10.0.3.255` | `10.0.3.4 - 10.0.3.254` | 251 | APIM/Edge Subnet | `/24` |
+| `10.0.4.0/24` | `10.0.4.0 - 10.0.4.255` | `10.0.4.4 - 10.0.4.254` | 251 | Private Endpoints Subnet | `/24` |
+| `10.0.5.0/24` | `10.0.5.0 - 10.0.5.255` | `10.0.5.4 - 10.0.5.254` | 251 | Reserved for Future Use | `/24` |
+| `10.0.6.0/24` | `10.0.6.0 - 10.0.6.255` | `10.0.6.4 - 10.0.6.254` | 251 | Functions Subnet | `/24` |
+| `10.0.7.0/26` | `10.0.7.0 - 10.0.7.63` | `10.0.7.4 - 10.0.7.62` | 59 | Logic Apps Subnet | `/26` |
+| `10.0.7.64/27` | `10.0.7.64 - 10.0.7.95` | `10.0.7.68 - 10.0.7.94` | 27 | PGSQL Subnet | `/27` |
+| `10.0.7.96/27` | `10.0.7.96 - 10.0.7.127` | `10.0.7.100 - 10.0.7.126` | 27 | Reserved for Future Use | `/27` |
+| `10.0.7.128/25` | `10.0.7.128 - 10.0.7.255` | `10.0.7.132 - 10.0.7.254` | 123 | Reserved for Future Use | `/25` |
+
+
 
 | Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Microsoft reference |
 |---|---|---|---|---|---|---|---|
