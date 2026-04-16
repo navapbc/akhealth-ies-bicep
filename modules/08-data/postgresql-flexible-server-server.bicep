@@ -89,6 +89,7 @@ param lock lockType?
 param roleAssignments roleAssignmentType[]
 param diagnosticSettings diagnosticSettingFullType[]
 param tags resourceInput<'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01'>.tags?
+var diagnosticSettingsDerivedName = replace(name, 'psqlfx-', 'dgspsqlfx-')
 var privateAccessEnabled = delegatedSubnetResourceId != null
 var privateDnsZoneProvided = privateDnsZoneArmResourceId != null
 var privateAccessContractIsValid = privateAccessEnabled
@@ -205,8 +206,8 @@ module flexibleServer_administrators './postgresql-flexible-server-administrator
 ]
 
 resource flexibleServer_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
-  for diagnosticSetting in diagnosticSettings: {
-    name: diagnosticSetting.?name ?? '${name}-diagnosticSettings'
+  for (diagnosticSetting, index) in diagnosticSettings: {
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

@@ -80,6 +80,7 @@ param hostNamesDisabled bool?
 param reserved bool?
 param scmSiteAlsoStopped bool
 param e2eEncryptionEnabled bool?
+var diagnosticSettingsDerivedName = take(replace('${appName}-${name}', 'app-', 'dgsapp-'), 260)
 var hasSystemAssignedIdentity = managedIdentities.?systemAssigned ?? false
 var identity = hasSystemAssignedIdentity
   ? {
@@ -249,7 +250,7 @@ module app_extensions './web-site-slot-extension.bicep' = [
 #disable-next-line use-recent-api-versions // This is the latest API version for this resource as of the time of development.
 resource slot_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${name}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

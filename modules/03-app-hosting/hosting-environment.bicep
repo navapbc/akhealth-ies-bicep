@@ -45,6 +45,7 @@ var derivedName = take(
   60
 )
 var resolvedName = derivedName
+var diagnosticSettingsDerivedName = replace(resolvedName, '${resourceAbbreviation}-', 'dgs${resourceAbbreviation}-')
 var resolvedDedicatedHostCount = dedicatedHostCount != 0 ? dedicatedHostCount : null
 var resolvedDnsSuffix = !empty(dnsSuffix) ? dnsSuffix : null
 var formattedRoleAssignments = [
@@ -99,7 +100,7 @@ module appServiceEnvironment_configurations_customDnsSuffix './hosting-environme
 #disable-next-line use-recent-api-versions // This is the most recent API version at the time of development.
 resource appServiceEnvironment_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${resolvedName}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

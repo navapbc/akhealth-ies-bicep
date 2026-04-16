@@ -24,11 +24,40 @@ param tags = {
 param spokeNetworkConfig = {
   ingressOption: 'frontDoor' //options are none, frontDoor, applicationGateway
   vnetAddressSpace: '10.240.0.0/20'
-  appSvcSubnetAddressSpace: '10.240.0.0/26'
-  privateEndpointSubnetAddressSpace: '10.240.11.0/24'
-  postgreSqlPrivateAccessConfig: {
-    subnetAddressSpace: '10.240.10.0/28'
-  }
+  subnetPlan: [
+    {
+      key: 'appService'
+      nameSuffix: 'appservice'
+      cidr: '10.240.0.0/26'
+      create: true
+      purpose: 'App Service regional integration subnet for the current multitenant deployment mode.'
+      delegationProfile: 'appServicePlan'
+      nsgProfile: 'appService'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Enabled'
+    }
+    {
+      key: 'privateEndpoints'
+      nameSuffix: 'privateendpoint'
+      cidr: '10.240.11.0/24'
+      create: true
+      purpose: 'Shared private endpoint subnet.'
+      delegationProfile: 'none'
+      nsgProfile: 'privateEndpoint'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Disabled'
+    }
+    {
+      key: 'postgresql'
+      nameSuffix: 'postgresql'
+      cidr: '10.240.10.0/28'
+      create: true
+      purpose: 'Delegated subnet for PostgreSQL Flexible Server private access.'
+      delegationProfile: 'postgresqlFlexibleServer'
+      nsgProfile: 'postgresql'
+      routeProfile: 'none'
+    }
+  ]
   enableEgressLockdown: false
   dnsServers: []
   disableBgpRoutePropagation: true

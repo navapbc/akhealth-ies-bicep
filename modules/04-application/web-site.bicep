@@ -118,6 +118,7 @@ var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 60)
 var resolvedName = derivedName
+var diagnosticSettingsDerivedName = replace(resolvedName, '${resourceAbbreviation}-', 'dgs${resourceAbbreviation}-')
 var supportsServerFarmSettings = !empty(serverFarmResourceId)
 var resolvedServerFarmId = contains(managedEnvironmentSupportedKinds, kind) && !empty(managedEnvironmentResourceId)
   ? null
@@ -364,7 +365,7 @@ module app_basicPublishingCredentialsPolicies './web-site-basic-publishing-crede
 #disable-next-line use-recent-api-versions // This is the latest API version for this resource as of the time of development.
 resource app_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${resolvedName}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

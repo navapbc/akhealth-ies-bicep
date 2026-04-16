@@ -84,28 +84,74 @@ type siteConfigType = {
 // ======================== //
 
 @export()
+@description('The delegation profile applied to a subnet in the solution subnet plan.')
+type subnetDelegationProfileType = ('none' | 'appServicePlan' | 'appServiceEnvironment' | 'postgresqlFlexibleServer')
+
+@export()
+@description('The NSG profile applied to a subnet in the solution subnet plan.')
+type subnetNsgProfileType = ('none' | 'appService' | 'ase' | 'privateEndpoint' | 'postgresql' | 'applicationGateway')
+
+@export()
+@description('The route-table profile applied to a subnet in the solution subnet plan.')
+type subnetRouteProfileType = ('none' | 'egressLockdown')
+
+@export()
+@description('A declared subnet in the solution subnet plan. Use create = false to reserve address space in documentation without deploying the subnet yet.')
+type subnetPlanItemType = {
+  @description('Required. Stable key used by the solution to reference this subnet.')
+  key: string
+
+  @description('Required. Name suffix used for subnet naming (for example "appservice" or "privateendpoint").')
+  nameSuffix: string
+
+  @description('Required. CIDR assigned to the subnet.')
+  cidr: string
+
+  @description('Required. Set to true to create the subnet now, or false to keep it as a reserved planned range.')
+  create: bool
+
+  @description('Optional. Short note describing the intended purpose of the subnet.')
+  purpose: string?
+
+  @description('Required. Delegation profile for the subnet.')
+  delegationProfile: subnetDelegationProfileType
+
+  @description('Required. NSG profile for the subnet.')
+  nsgProfile: subnetNsgProfileType
+
+  @description('Required. Route-table profile for the subnet.')
+  routeProfile: subnetRouteProfileType
+
+  @description('Optional. Private endpoint network policy setting for the subnet.')
+  privateEndpointNetworkPolicies: ('Disabled' | 'Enabled' | 'NetworkSecurityGroupEnabled' | 'RouteTableEnabled')?
+
+  @description('Optional. Private link service network policy setting for the subnet.')
+  privateLinkServiceNetworkPolicies: ('Disabled' | 'Enabled')?
+
+  @description('Optional. Service endpoints enabled on the subnet.')
+  serviceEndpoints: string[]?
+
+  @description('Optional. Default outbound access setting for the subnet.')
+  defaultOutboundAccess: bool?
+
+  @description('Optional. Sharing scope for the subnet.')
+  sharingScope: ('DelegatedServices' | 'Tenant')?
+
+  @description('Optional. Role assignments applied directly to the subnet.')
+  roleAssignments: roleAssignmentType[]?
+}
+
+@export()
 @description('Configuration for the spoke virtual network and ingress networking.')
 type spokeNetworkConfigType = {
+  @description('Optional. Workload descriptor used by the owning module to derive the spoke network name. Use null when networking should inherit the shared deployment workload context.')
+  workloadDescription: string?
+
   @description('Required. CIDR of the spoke VNet (e.g. "10.240.0.0/20").')
   vnetAddressSpace: string
 
-  @description('Required. CIDR of the App Service / ASE subnet. ASEv3 needs a /24.')
-  appSvcSubnetAddressSpace: string
-
-  @description('Required. CIDR of the private endpoint subnet.')
-  privateEndpointSubnetAddressSpace: string
-
-  @description('Optional. Application Gateway network configuration. Omit this object when ingressOption is not "applicationGateway".')
-  applicationGatewayConfig: {
-    @description('Required. CIDR of the Application Gateway subnet.')
-    subnetAddressSpace: string
-  }?
-
-  @description('Optional. PostgreSQL private access network configuration. Omit this object when PostgreSQL delegated subnet access is not intended.')
-  postgreSqlPrivateAccessConfig: {
-    @description('Required. CIDR of the PostgreSQL delegated subnet.')
-    subnetAddressSpace: string
-  }?
+  @description('Required. Declared subnet plan for the spoke VNet. Include both currently created subnets and reserved future ranges when that adds planning clarity.')
+  subnetPlan: subnetPlanItemType[]
 
   @description('Optional. Existing hub VNet peering configuration. Omit this object when no hub peering is required.')
   hubPeeringConfig: {
@@ -211,6 +257,9 @@ type spokeNetworkConfigType = {
 @export()
 @description('Configuration for the App Service Plan.')
 type servicePlanConfigType = {
+  @description('Optional. Workload descriptor used to derive the App Service Plan name. Omit to inherit the app workload or root deployment workload.')
+  workloadDescription: string?
+
   @description('Required. The SKU name for the App Service Plan (e.g. "P1V3").')
   sku: string
 
@@ -302,6 +351,9 @@ type containerConfigType = {
 @export()
 @description('Configuration for the Web App.')
 type appServiceConfigType = {
+  @description('Optional. Workload descriptor used to derive the Web App name.')
+  workloadDescription: string?
+
   @description('Required. Kind of web app (e.g. "app", "app,linux", "app,linux,container", "functionapp").')
   kind: ('api' | 'app' | 'app,container,windows' | 'app,linux' | 'app,linux,container' | 'functionapp' | 'functionapp,linux' | 'functionapp,linux,container' | 'functionapp,linux,container,azurecontainerapps' | 'functionapp,workflowapp' | 'functionapp,workflowapp,linux' | 'linux,api')
 
@@ -676,6 +728,9 @@ type keyVaultPrivateEndpointType = {
 @export()
 @description('Configuration for the Key Vault.')
 type keyVaultConfigType = {
+  @description('Optional. Workload descriptor used to derive the Key Vault name.')
+  workloadDescription: string?
+
   @description('Required. Enable purge protection.')
   enablePurgeProtection: bool
 
@@ -726,6 +781,9 @@ type keyVaultConfigType = {
 @export()
 @description('Configuration for Application Insights.')
 type appInsightsConfigType = {
+  @description('Optional. Workload descriptor used to derive the Application Insights name.')
+  workloadDescription: string?
+
   @description('Required. Application type.')
   applicationType: ('web' | 'other')
 
@@ -788,6 +846,9 @@ type appInsightsConfigType = {
 @export()
 @description('Configuration for the Log Analytics workspace when this template creates one.')
 type logAnalyticsConfigType = {
+  @description('Optional. Workload descriptor used by the owning module to derive the Log Analytics workspace name. Use null when Log Analytics should inherit the shared deployment workload context.')
+  workloadDescription: string?
+
   @description('Required. Workspace SKU.')
   sku: string
 
@@ -823,6 +884,9 @@ type logAnalyticsConfigType = {
 @export()
 @description('Configuration for the Application Gateway.')
 type appGatewayConfigType = {
+  @description('Optional. Workload descriptor used to derive the Application Gateway name.')
+  workloadDescription: string?
+
   @description('Required. Application Gateway SKU.')
   sku: ('Basic' | 'Standard_v2' | 'WAF_v2')
 
@@ -1079,6 +1143,9 @@ type frontDoorAfdEndpointConfigType = {
 @export()
 @description('Configuration for Azure Front Door.')
 type frontDoorConfigType = {
+  @description('Optional. Workload descriptor used to derive the Front Door profile and related names.')
+  workloadDescription: string?
+
   @description('Required. Isolation scope for the AFD private-endpoint auto-approver managed identity.')
   afdPeAutoApproverIsolationScope: ('None' | 'Regional')
 
@@ -1141,6 +1208,9 @@ type frontDoorConfigType = {
 @export()
 @description('Configuration for the App Service Environment v3.')
 type aseConfigType = {
+  @description('Optional. Workload descriptor used by the owning module to derive the App Service Environment name. Use null when ASE should inherit the shared deployment workload context.')
+  workloadDescription: string?
+
   @description('Required. Custom settings for ASE behavior.')
   clusterSettings: clusterSettingType[]
 
@@ -1243,8 +1313,8 @@ type postgresqlServerConfigurationType = {
 @export()
 @description('Configuration for Azure Database for PostgreSQL Flexible Server.')
 type postgresqlConfigType = {
-  @description('Required. Workload descriptor used by the owning module to derive the server name.')
-  workloadDescription: string
+  @description('Optional. Workload descriptor used by the owning module to derive the server name. Use null when PostgreSQL naming should inherit the shared deployment workload context.')
+  workloadDescription: string?
 
   @description('Required. Private networking mode for PostgreSQL. Use "delegatedSubnet" when deployPrivateNetworking is true. Use "none" when deployPrivateNetworking is false.')
   privateAccessMode: ('delegatedSubnet' | 'none')

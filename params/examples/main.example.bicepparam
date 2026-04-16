@@ -7,14 +7,138 @@ using '../../main.bicep'
 param workloadDescription = ''
 param deployAseV3 = false
 
-param spokeNetworkConfig = {
-  ingressOption: 'frontDoor'
-  vnetAddressSpace: '10.240.0.0/20'
-  appSvcSubnetAddressSpace: '10.240.0.0/26'
-  privateEndpointSubnetAddressSpace: '10.240.11.0/24'
-  postgreSqlPrivateAccessConfig: {
-    subnetAddressSpace: '10.240.10.0/28'
+param resourceGroupDefinitions = [
+  {
+    key: 'network'
+    workloadDescription: 'network'
   }
+  {
+    key: 'networkEdge'
+    workloadDescription: 'network'
+    subWorkloadDescription: 'edge'
+  }
+  {
+    key: 'hosting'
+    workloadDescription: 'hosting'
+  }
+  {
+    key: 'data'
+    workloadDescription: 'data'
+  }
+  {
+    key: 'operations'
+    workloadDescription: 'operations'
+  }
+]
+
+param spokeNetworkConfig = {
+  workloadDescription: null
+  ingressOption: 'frontDoor'
+  vnetAddressSpace: '10.0.0.0/21'
+  subnetPlan: [
+    {
+      key: 'appService'
+      nameSuffix: 'appservice'
+      cidr: '10.0.0.0/23'
+      create: true
+      purpose: 'Primary App Service hosting and integration subnet sized to the full /23 platform plan.'
+      delegationProfile: 'appServicePlan'
+      nsgProfile: 'appService'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Enabled'
+    }
+    {
+      key: 'applicationGateway'
+      nameSuffix: 'appgateway'
+      cidr: '10.0.2.0/24'
+      create: true
+      purpose: 'Dedicated regional ingress subnet for Application Gateway if that ingress path is used.'
+      delegationProfile: 'none'
+      nsgProfile: 'applicationGateway'
+      routeProfile: 'none'
+    }
+    {
+      key: 'apimEdge'
+      nameSuffix: 'apim'
+      cidr: '10.0.3.0/24'
+      create: true
+      purpose: 'Reserved edge/API subnet for APIM or similar edge services.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'privateEndpoints'
+      nameSuffix: 'privateendpoint'
+      cidr: '10.0.4.0/24'
+      create: true
+      purpose: 'Shared private endpoint subnet.'
+      delegationProfile: 'none'
+      nsgProfile: 'privateEndpoint'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Disabled'
+    }
+    {
+      key: 'privateConnectivityReserve'
+      nameSuffix: 'privateconnectivity'
+      cidr: '10.0.5.0/24'
+      create: false
+      purpose: 'Reserved growth space for future private connectivity needs.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'functions'
+      nameSuffix: 'functions'
+      cidr: '10.0.6.0/24'
+      create: true
+      purpose: 'Dedicated Functions subnet held in the active /21 platform plan.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'logicApps'
+      nameSuffix: 'logicapps'
+      cidr: '10.0.7.0/26'
+      create: true
+      purpose: 'Dedicated Logic Apps subnet held in the active /21 platform plan.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'postgresql'
+      nameSuffix: 'postgresql'
+      cidr: '10.0.7.64/27'
+      create: true
+      purpose: 'Delegated subnet for PostgreSQL Flexible Server private access.'
+      delegationProfile: 'postgresqlFlexibleServer'
+      nsgProfile: 'postgresql'
+      routeProfile: 'none'
+    }
+    {
+      key: 'futureDelegatedData'
+      nameSuffix: 'futuredata'
+      cidr: '10.0.7.96/27'
+      create: false
+      purpose: 'Reserved delegated data subnet for future services.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'generalReserve'
+      nameSuffix: 'reserve'
+      cidr: '10.0.7.128/25'
+      create: false
+      purpose: 'General reserve block retained for future subnet planning flexibility.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+  ]
   enableEgressLockdown: false
   dnsServers: []
   disableBgpRoutePropagation: true
@@ -28,6 +152,7 @@ param spokeNetworkConfig = {
 }
 
 param servicePlanConfig = {
+  workloadDescription: 'frontEnd'
   sku: 'B1'
   skuCapacity: 1
   zoneRedundant: false
@@ -53,6 +178,7 @@ param servicePlanConfig = {
 }
 
 param appServiceConfig = {
+  workloadDescription: 'frontEnd'
   kind: 'app'
   httpsOnly: true
   clientCertEnabled: false
@@ -83,6 +209,7 @@ param appServiceConfig = {
 }
 
 param keyVaultConfig = {
+  workloadDescription: null
   enablePurgeProtection: false
   softDeleteRetentionInDays: 90
   createMode: 'default'
@@ -100,6 +227,7 @@ param keyVaultConfig = {
 }
 
 param appInsightsConfig = {
+  workloadDescription: null
   applicationType: 'web'
   publicNetworkAccessForIngestion: 'Enabled'
   publicNetworkAccessForQuery: 'Enabled'
@@ -119,7 +247,7 @@ param postgresqlAdminGroupConfig = {
 }
 
 param postgresqlConfig = {
-  workloadDescription: 'postgresql'
+  workloadDescription: null
   privateAccessMode: 'delegatedSubnet'
   skuName: 'Standard_B1ms'
   tier: 'Burstable'
@@ -145,7 +273,7 @@ param postgresqlConfig = {
 
 // Example fuller PostgreSQL HA/private-access configuration:
 // param postgresqlConfig = {
-//   workloadDescription: 'postgresql'
+//   workloadDescription: null
 //   privateAccessMode: 'delegatedSubnet'
 //   skuName: 'Standard_D2s_v3'
 //   tier: 'GeneralPurpose'
@@ -179,7 +307,7 @@ param postgresqlConfig = {
 
 // Example customized PostgreSQL databases/configurations:
 // param postgresqlConfig = {
-//   workloadDescription: 'postgresql'
+//   workloadDescription: null
 //   privateAccessMode: 'delegatedSubnet'
 //   skuName: 'Standard_B2s'
 //   tier: 'Burstable'
@@ -222,6 +350,7 @@ param postgresqlConfig = {
 // }
 
 param appGatewayConfig = {
+  workloadDescription: null
   sku: 'WAF_v2'
   capacity: 2
   autoscaleMinCapacity: 2
@@ -287,6 +416,7 @@ param appGatewayConfig = {
 }
 
 param frontDoorConfig = {
+  workloadDescription: null
   managedIdentities: {
     systemAssigned: true
   }
@@ -384,6 +514,7 @@ param frontDoorConfig = {
 
 // Example Front Door public-origin configuration:
 // param frontDoorConfig = {
+//   workloadDescription: null
 //   managedIdentities: {
 //     systemAssigned: true
 //   }
@@ -477,6 +608,7 @@ param frontDoorConfig = {
 
 // Example Front Door custom-domain, rule-set, and secret configuration:
 // param frontDoorConfig = {
+//   workloadDescription: null
 //   managedIdentities: {
 //     systemAssigned: true
 //   }
@@ -603,6 +735,7 @@ param frontDoorConfig = {
 // }
 
 param aseConfig = {
+  workloadDescription: null
   clusterSettings: [
     {
       name: 'DisableTls1.0'
@@ -628,6 +761,7 @@ param aseConfig = {
 }
 
 param logAnalyticsConfig = {
+  workloadDescription: null
   sku: 'PerGB2018'
   retentionInDays: 365
   enableLogAccessUsingOnlyResourcePermissions: false
@@ -686,6 +820,7 @@ param logAnalyticsConfig = {
 // Example existing App Service Plan configuration
 //
 // param servicePlanConfig = {
+//   workloadDescription: 'frontEnd'
 //   sku: 'B1'
 //   skuCapacity: 1
 //   zoneRedundant: false
@@ -713,6 +848,7 @@ param logAnalyticsConfig = {
 // Example custom-mode App Service Plan configuration
 //
 // param servicePlanConfig = {
+//   workloadDescription: 'frontEnd'
 //   sku: 'P1V3'
 //   skuCapacity: 1
 //   zoneRedundant: false
@@ -786,6 +922,7 @@ param logAnalyticsConfig = {
 // Example Key Vault configuration
 //
 // param keyVaultConfig = {
+//   workloadDescription: null
 //   sku: 'standard'
 //   enablePurgeProtection: true
 //   softDeleteRetentionInDays: 90
@@ -808,6 +945,7 @@ param logAnalyticsConfig = {
 // Example monitoring configuration
 //
 // param logAnalyticsConfig = {
+//   workloadDescription: null
 //   sku: 'PerGB2018'
 //   retentionInDays: 365
 //   enableLogAccessUsingOnlyResourcePermissions: false
@@ -817,6 +955,7 @@ param logAnalyticsConfig = {
 // }
 //
 // param appInsightsConfig = {
+//   workloadDescription: null
 //   applicationType: 'web'
 //   publicNetworkAccessForIngestion: 'Enabled'
 //   publicNetworkAccessForQuery: 'Enabled'
@@ -841,6 +980,7 @@ param logAnalyticsConfig = {
 // }
 //
 // param appGatewayConfig = {
+//   workloadDescription: null
 //   sku: 'WAF_v2'
 //   capacity: 2
 //   autoscaleMinCapacity: 2
@@ -1008,6 +1148,7 @@ param logAnalyticsConfig = {
 // spokeNetworkConfig.ingressOption = 'applicationGateway'
 //
 // param appGatewayConfig = {
+//   workloadDescription: null
 //   sku: 'WAF_v2'
 //   capacity: 2
 //   autoscaleMinCapacity: 2
@@ -1079,6 +1220,7 @@ param logAnalyticsConfig = {
 // Example fuller App Service Environment configuration for deployAseV3 = true
 //
 // param aseConfig = {
+//   workloadDescription: null
 //   clusterSettings: [
 //     {
 //       name: 'DisableTls1.0'

@@ -1,0 +1,524 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workloadName": {
+      "value": "845FDA"
+    },
+    "location": {
+      "value": "westus2"
+    },
+    "environmentName": {
+      "value": "dev"
+    },
+    "systemAbbreviation": {
+      "value": "iep"
+    },
+    "environmentAbbreviation": {
+      "value": "dev"
+    },
+    "instanceNumber": {
+      "value": "005"
+    },
+    "workloadDescription": {
+      "value": ""
+    },
+    "deployAseV3": {
+      "value": false
+    },
+    "deployPrivateNetworking": {
+      "value": true
+    },
+    "deployPostgreSql": {
+      "value": false
+    },
+    "tags": {
+      "value": {
+        "environment": "dev",
+        "workload": "456TRF",
+        "managedBy": "bicepparam"
+      }
+    },
+    "resourceGroupDefinitions": {
+      "value": [
+        {
+          "key": "network",
+          "workloadDescription": "network"
+        },
+        {
+          "key": "networkEdge",
+          "workloadDescription": "network",
+          "subWorkloadDescription": "edge"
+        },
+        {
+          "key": "hosting",
+          "workloadDescription": "hosting"
+        },
+        {
+          "key": "data",
+          "workloadDescription": "data"
+        },
+        {
+          "key": "operations",
+          "workloadDescription": "operations"
+        }
+      ]
+    },
+    "existingLogAnalyticsID": {
+      "value": null
+    },
+    "logAnalyticsConfig": {
+      "value": {
+        "workloadDescription": null,
+        "sku": "PerGB2018",
+        "retentionInDays": 365,
+        "enableLogAccessUsingOnlyResourcePermissions": false,
+        "disableLocalAuth": true,
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled",
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "spokeNetworkConfig": {
+      "value": {
+        "workloadDescription": null,
+        "ingressOption": "none",
+        "vnetAddressSpace": "10.0.0.0/21",
+        "subnetPlan": [
+          {
+            "key": "appService",
+            "nameSuffix": "appservice",
+            "cidr": "10.0.0.0/23",
+            "create": true,
+            "purpose": "Primary App Service hosting and integration subnet sized to the full /23 platform plan.",
+            "delegationProfile": "appServicePlan",
+            "nsgProfile": "appService",
+            "routeProfile": "none",
+            "privateEndpointNetworkPolicies": "Enabled"
+          },
+          {
+            "key": "applicationGateway",
+            "nameSuffix": "appgateway",
+            "cidr": "10.0.2.0/24",
+            "create": true,
+            "purpose": "Dedicated regional ingress subnet for Application Gateway if that ingress path is used.",
+            "delegationProfile": "none",
+            "nsgProfile": "applicationGateway",
+            "routeProfile": "none"
+          },
+          {
+            "key": "apimEdge",
+            "nameSuffix": "apim",
+            "cidr": "10.0.3.0/24",
+            "create": true,
+            "purpose": "Reserved edge/API subnet for APIM or similar edge services.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          },
+          {
+            "key": "privateEndpoints",
+            "nameSuffix": "privateendpoint",
+            "cidr": "10.0.4.0/24",
+            "create": true,
+            "purpose": "Shared private endpoint subnet.",
+            "delegationProfile": "none",
+            "nsgProfile": "privateEndpoint",
+            "routeProfile": "none",
+            "privateEndpointNetworkPolicies": "Disabled"
+          },
+          {
+            "key": "privateConnectivityReserve",
+            "nameSuffix": "privateconnectivity",
+            "cidr": "10.0.5.0/24",
+            "create": false,
+            "purpose": "Reserved growth space for future private connectivity needs.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          },
+          {
+            "key": "functions",
+            "nameSuffix": "functions",
+            "cidr": "10.0.6.0/24",
+            "create": true,
+            "purpose": "Dedicated Functions subnet held in the active /21 platform plan.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          },
+          {
+            "key": "logicApps",
+            "nameSuffix": "logicapps",
+            "cidr": "10.0.7.0/26",
+            "create": true,
+            "purpose": "Dedicated Logic Apps subnet held in the active /21 platform plan.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          },
+          {
+            "key": "postgresql",
+            "nameSuffix": "postgresql",
+            "cidr": "10.0.7.64/27",
+            "create": true,
+            "purpose": "Delegated subnet for PostgreSQL Flexible Server private access.",
+            "delegationProfile": "postgresqlFlexibleServer",
+            "nsgProfile": "postgresql",
+            "routeProfile": "none"
+          },
+          {
+            "key": "futureDelegatedData",
+            "nameSuffix": "futuredata",
+            "cidr": "10.0.7.96/27",
+            "create": false,
+            "purpose": "Reserved delegated data subnet for future services.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          },
+          {
+            "key": "generalReserve",
+            "nameSuffix": "reserve",
+            "cidr": "10.0.7.128/25",
+            "create": false,
+            "purpose": "General reserve block retained for future subnet planning flexibility.",
+            "delegationProfile": "none",
+            "nsgProfile": "none",
+            "routeProfile": "none"
+          }
+        ],
+        "enableEgressLockdown": false,
+        "dnsServers": [],
+        "disableBgpRoutePropagation": true,
+        "encryption": false,
+        "encryptionEnforcement": "AllowUnencrypted",
+        "flowTimeoutInMinutes": 0,
+        "enableVmProtection": false,
+        "enablePrivateEndpointVNetPolicies": "Disabled",
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "servicePlanConfig": {
+      "value": {
+        "workloadDescription": "frontEnd",
+        "sku": "B1",
+        "skuCapacity": 1,
+        "zoneRedundant": false,
+        "osFamily": "windows",
+        "existingPlanId": "",
+        "workerTierName": null,
+        "elasticScaleEnabled": false,
+        "maximumElasticWorkerCount": 1,
+        "perSiteScaling": false,
+        "targetWorkerCount": 1,
+        "targetWorkerSize": 0,
+        "virtualNetworkSubnetId": null,
+        "isCustomMode": false,
+        "rdpEnabled": false,
+        "installScripts": [],
+        "registryAdapters": [],
+        "storageMounts": [],
+        "managedIdentities": {
+          "systemAssigned": false
+        },
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "appServiceConfig": {
+      "value": {
+        "workloadDescription": "frontEnd",
+        "kind": "app",
+        "httpsOnly": true,
+        "clientCertEnabled": false,
+        "disableBasicPublishingCredentials": true,
+        "publicNetworkAccess": "Disabled",
+        "redundancyMode": "None",
+        "scmSiteAlsoStopped": false,
+        "siteConfig": {
+          "alwaysOn": false,
+          "ftpsState": "FtpsOnly",
+          "minTlsVersion": "1.2",
+          "healthCheckPath": "/healthz",
+          "http20Enabled": true
+        },
+        "hyperV": false,
+        "managedIdentities": {
+          "systemAssigned": true
+        },
+        "enabled": true,
+        "storageAccountRequired": false,
+        "reserved": false,
+        "clientAffinityEnabled": false,
+        "clientAffinityProxyEnabled": true,
+        "clientAffinityPartitioningEnabled": false,
+        "diagnosticSettings": [],
+        "slots": [],
+        "configs": []
+      }
+    },
+    "aseConfig": {
+      "value": {
+        "workloadDescription": null,
+        "clusterSettings": [
+          {
+            "name": "DisableTls1.0",
+            "value": "1"
+          }
+        ],
+        "customDnsSuffix": "",
+        "ipsslAddressCount": 0,
+        "multiSize": "",
+        "customDnsSuffixCertificateUrl": "",
+        "dedicatedHostCount": 0,
+        "dnsSuffix": "",
+        "frontEndScaleFactor": 15,
+        "internalLoadBalancingMode": "Web, Publishing",
+        "zoneRedundant": true,
+        "allowNewPrivateEndpointConnections": true,
+        "ftpEnabled": false,
+        "inboundIpAddressOverride": "",
+        "remoteDebugEnabled": false,
+        "upgradePreference": "None",
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "keyVaultConfig": {
+      "value": {
+        "workloadDescription": null,
+        "enablePurgeProtection": false,
+        "softDeleteRetentionInDays": 90,
+        "createMode": "default",
+        "sku": "standard",
+        "enableVaultForDeployment": true,
+        "enableVaultForTemplateDeployment": true,
+        "enableVaultForDiskEncryption": true,
+        "publicNetworkAccess": "Disabled",
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "defaultAction": "Deny"
+        },
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "appInsightsConfig": {
+      "value": {
+        "workloadDescription": null,
+        "applicationType": "web",
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled",
+        "retentionInDays": 90,
+        "samplingPercentage": 100,
+        "disableLocalAuth": true,
+        "disableIpMasking": true,
+        "forceCustomerStorageForProfiler": false,
+        "kind": "web",
+        "sendSmartDetectionEmailsToSubscriptionOwners": false,
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    },
+    "appGatewayConfig": {
+      "value": {
+        "workloadDescription": null,
+        "sku": "WAF_v2",
+        "capacity": 2,
+        "autoscaleMinCapacity": 2,
+        "autoscaleMaxCapacity": 10,
+        "availabilityZones": [
+          1,
+          2,
+          3
+        ],
+        "sslPolicyType": "Custom",
+        "sslPolicyName": "",
+        "sslPolicyMinProtocolVersion": "TLSv1_2",
+        "sslPolicyCipherSuites": [],
+        "sslCertificates": [],
+        "managedIdentities": {
+          "systemAssigned": false
+        },
+        "trustedRootCertificates": [],
+        "authenticationCertificates": [],
+        "customErrorConfigurations": [],
+        "enableHttp2": true,
+        "enableFips": false,
+        "enableRequestBuffering": false,
+        "enableResponseBuffering": false,
+        "loadDistributionPolicies": [],
+        "gatewayIPConfigurations": [],
+        "frontendIPConfigurations": [],
+        "frontendPorts": [],
+        "backendAddressPools": [],
+        "backendHttpSettingsCollection": [],
+        "probes": [],
+        "httpListeners": [],
+        "privateEndpoints": [],
+        "privateLinkConfigurations": [],
+        "redirectConfigurations": [],
+        "rewriteRuleSets": [],
+        "sslProfiles": [],
+        "trustedClientCertificates": [],
+        "urlPathMaps": [],
+        "backendSettingsCollection": [],
+        "listeners": [],
+        "requestRoutingRules": [],
+        "routingRules": [],
+        "roleAssignments": [],
+        "diagnosticSettings": [],
+        "wafPolicySettings": {
+          "mode": "Prevention",
+          "state": "Enabled",
+          "requestBodyCheck": true,
+          "maxRequestBodySizeInKb": 128,
+          "fileUploadLimitInMb": 100
+        },
+        "wafManagedRuleSets": [
+          {
+            "ruleSetType": "OWASP",
+            "ruleSetVersion": "3.2"
+          },
+          {
+            "ruleSetType": "Microsoft_BotManagerRuleSet",
+            "ruleSetVersion": "1.0"
+          }
+        ]
+      }
+    },
+    "frontDoorConfig": {
+      "value": {
+        "workloadDescription": null,
+        "managedIdentities": {
+          "systemAssigned": true
+        },
+        "enableDefaultWafMethodBlock": true,
+        "wafCustomRules": {},
+        "sku": "Premium_AzureFrontDoor",
+        "wafPolicySettings": {
+          "enabledState": "Enabled",
+          "mode": "Prevention",
+          "requestBodyCheck": "Enabled"
+        },
+        "wafManagedRuleSets": [
+          {
+            "ruleSetType": "Microsoft_DefaultRuleSet",
+            "ruleSetVersion": "2.1",
+            "ruleSetAction": "Block",
+            "ruleGroupOverrides": []
+          },
+          {
+            "ruleSetType": "Microsoft_BotManagerRuleSet",
+            "ruleSetVersion": "1.0",
+            "ruleSetAction": "Block",
+            "ruleGroupOverrides": []
+          }
+        ],
+        "customDomains": [],
+        "ruleSets": [],
+        "secrets": [],
+        "roleAssignments": [],
+        "originResponseTimeoutSeconds": 120,
+        "autoApprovePrivateEndpoint": true,
+        "afdPeAutoApproverIsolationScope": "Regional",
+        "originGroups": [
+          {
+            "name": "app-default",
+            "healthProbeSettings": {
+              "probePath": "/",
+              "probeIntervalInSeconds": 100,
+              "probeRequestType": "GET",
+              "probeProtocol": "Https"
+            },
+            "loadBalancingSettings": {
+              "sampleSize": 4,
+              "successfulSamplesRequired": 3,
+              "additionalLatencyInMilliseconds": 50
+            },
+            "sessionAffinityState": "Disabled",
+            "trafficRestorationTimeToHealedOrNewEndpointsInMinutes": 10,
+            "origins": [
+              {
+                "name": "app-default",
+                "httpPort": 80,
+                "httpsPort": 443,
+                "priority": 1,
+                "weight": 1000,
+                "enabledState": "Enabled",
+                "enforceCertificateNameCheck": true,
+                "sharedPrivateLink": {
+                  "requestMessage": "frontdoor",
+                  "groupId": "sites"
+                }
+              }
+            ]
+          }
+        ],
+        "afdEndpoints": [
+          {
+            "name": "default",
+            "autoGeneratedDomainNameLabelScope": "TenantReuse",
+            "enabledState": "Enabled",
+            "routes": [
+              {
+                "name": "default",
+                "originGroupName": "app-default",
+                "patternsToMatch": [
+                  "/*"
+                ],
+                "forwardingProtocol": "HttpsOnly",
+                "linkToDefaultDomain": "Enabled",
+                "httpsRedirect": "Enabled",
+                "enabledState": "Enabled",
+                "supportedProtocols": [
+                  "Http",
+                  "Https"
+                ]
+              }
+            ]
+          }
+        ],
+        "securityPatternsToMatch": [
+          "/*"
+        ],
+        "diagnosticSettings": []
+      }
+    },
+    "postgresqlAdminGroupConfig": {
+      "value": {
+        "objectId": "b58ff011-4384-42b9-b25c-26c5dfc26b06",
+        "displayName": "secgrp-iep-eus2-dev-pgsqladmin-001"
+      }
+    },
+    "postgresqlConfig": {
+      "value": {
+        "workloadDescription": null,
+        "privateAccessMode": "delegatedSubnet",
+        "skuName": "Standard_B1ms",
+        "tier": "Burstable",
+        "availabilityZone": -1,
+        "highAvailabilityZone": -1,
+        "highAvailability": "Disabled",
+        "backupRetentionDays": 7,
+        "geoRedundantBackup": "Disabled",
+        "storageSizeGB": 32,
+        "autoGrow": "Enabled",
+        "version": "18",
+        "publicNetworkAccess": "Disabled",
+        "grantAppServiceIdentityReaderRole": true,
+        "databases": [
+          {
+            "name": "appdb"
+          }
+        ],
+        "configurations": [],
+        "roleAssignments": [],
+        "diagnosticSettings": []
+      }
+    }
+  }
+}

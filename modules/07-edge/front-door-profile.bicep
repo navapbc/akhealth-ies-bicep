@@ -24,6 +24,7 @@ var derivedName = take(
   260
 )
 var resolvedName = derivedName
+var diagnosticSettingsDerivedName = replace(resolvedName, '${resourceAbbreviation}-', 'dgs${resourceAbbreviation}-')
 var resolvedOriginGroups = [
   for originGroup in config.originGroups: {
     name: originGroup.name
@@ -112,7 +113,7 @@ resource profile_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
 
 resource profile_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (config.diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${resolvedName}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(config.diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

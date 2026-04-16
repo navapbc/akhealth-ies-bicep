@@ -1,6 +1,7 @@
 targetScope = 'resourceGroup'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
+import { subnetPlanItemType } from '../shared/shared.types.bicep'
 import {
   lockType
   diagnosticSettingFullType
@@ -12,25 +13,13 @@ param environmentAbbreviation string
 param instanceNumber string
 param workloadDescription string = ''
 param location string = resourceGroup().location
-param deployAseV3 bool
-param deployPrivateNetworking bool
 param vnetSpokeAddressSpace string
-param subnetSpokeAppSvcAddressSpace string
-param subnetSpokePrivateEndpointAddressSpace string
-param applicationGatewayConfig {
-  subnetAddressSpace: string
-}?
-param postgreSqlPrivateAccessConfig {
-  subnetAddressSpace: string
-}?
+param subnetPlan subnetPlanItemType[]
 param egressFirewallConfig {
   internalIp: string
 }?
 param tags object
 param enableEgressLockdown bool
-@allowed(['frontDoor', 'applicationGateway', 'none'])
-param networkingOption string
-param deployPostgreSqlPrivateAccess bool = false
 param logAnalyticsWorkspaceId string
 param hubPeeringConfig {
   virtualNetworkResourceId: string
@@ -64,16 +53,11 @@ param enableVmProtection bool?
 @allowed(['Basic', 'Disabled'])
 param enablePrivateEndpointVNetPolicies string
 param virtualNetworkBgpCommunity string?
-var deployAppGw = networkingOption == 'applicationGateway'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var sharedNamePrefix = '${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}'
 var sharedNameSuffix = '${workloadSegment}-${instanceNumber}'
 var spokeVnetName = take('vnet-${sharedNamePrefix}${sharedNameSuffix}', 80)
-var appServiceSubnetName = take('snet-${sharedNamePrefix}-appservice-${instanceNumber}', 80)
-var privateEndpointSubnetName = take('snet-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
-var postgreSqlSubnetName = take('snet-${sharedNamePrefix}-postgresql-${instanceNumber}', 80)
-var appGatewaySubnetName = take('snet-${sharedNamePrefix}-appgateway-${instanceNumber}', 80)
 var appServiceNsgName = take('nsg-${sharedNamePrefix}-appservice-${instanceNumber}', 80)
 var privateEndpointNsgName = take('nsg-${sharedNamePrefix}-privateendpoint-${instanceNumber}', 80)
 var postgreSqlNsgName = take('nsg-${sharedNamePrefix}-postgresql-${instanceNumber}', 80)
@@ -83,10 +67,6 @@ var routeTableName = take('rt-${sharedNamePrefix}${sharedNameSuffix}', 80)
 var egressLockdownRouteName = take('route-${sharedNamePrefix}-egresslockdown-${instanceNumber}', 80)
 var resourceNames = {
   vnetSpoke: spokeVnetName
-  snetAppSvc: appServiceSubnetName
-  snetPe: privateEndpointSubnetName
-  snetPostgreSql: postgreSqlSubnetName
-  snetAppGw: appGatewaySubnetName
   appSvcNsg: appServiceNsgName
   pepNsg: privateEndpointNsgName
   postgreSqlNsg: postgreSqlNsgName
@@ -95,18 +75,17 @@ var resourceNames = {
   routeTable: routeTableName
   routeEgressLockdown: egressLockdownRouteName
 }
-var applicationGatewayConfigIsValid = networkingOption != 'applicationGateway' || applicationGatewayConfig != null
+var createdSubnets = filter(subnetPlan, subnet => subnet.create)
+var createdSubnetKeys = [for subnet in createdSubnets: subnet.key]
+var createdNsgProfiles = [
+  for subnet in createdSubnets: subnet.nsgProfile
+]
+var createdRouteProfiles = [
+  for subnet in createdSubnets: subnet.routeProfile
+]
+var egressFirewallConfigIsValid = !contains(createdRouteProfiles, 'egressLockdown') || (enableEgressLockdown && egressFirewallConfig != null)
   ? true
-  : fail('When networkingOption is "applicationGateway", applicationGatewayConfig must be provided.')
-var postgreSqlPrivateAccessConfigIsValid = !deployPostgreSqlPrivateAccess || postgreSqlPrivateAccessConfig != null
-  ? true
-  : fail('When deployPostgreSqlPrivateAccess is true, postgreSqlPrivateAccessConfig must be provided.')
-var egressFirewallConfigIsValid = !enableEgressLockdown || egressFirewallConfig != null
-  ? true
-  : fail('When enableEgressLockdown is true, egressFirewallConfig must be provided.')
-
-var subnetSpokePostgreSqlAddressSpace = postgreSqlPrivateAccessConfigIsValid ? postgreSqlPrivateAccessConfig.?subnetAddressSpace : null
-var subnetSpokeAppGwAddressSpace = applicationGatewayConfigIsValid ? applicationGatewayConfig.?subnetAddressSpace : null
+  : fail('When a subnet uses routeProfile "egressLockdown", enableEgressLockdown must be true and egressFirewallConfig must be provided.')
 var firewallInternalIp = egressFirewallConfigIsValid ? egressFirewallConfig.?internalIp : null
 var udrRoutes = [
   {
@@ -120,48 +99,9 @@ var udrRoutes = [
 ]
 var spokeToHubPeeringName = take('peer-${sharedNamePrefix}-hub-${instanceNumber}', 80)
 var hubToSpokePeeringName = take('peer-${sharedNamePrefix}-spoke-${instanceNumber}', 80)
-var appServiceSubnetDelegation = deployAseV3 ? 'Microsoft.Web/hostingEnvironments' : 'Microsoft.Web/serverfarms'
-var appServiceSubnetPrivateEndpointPolicies = deployAseV3 ? 'Disabled' : 'Enabled'
-var appServiceSubnetNetworkSecurityGroupResourceId = deployAseV3
-  ? nsgAse!.outputs.resourceId
-  : nsgAppSvc!.outputs.resourceId
-var appServiceSubnet = {
-  name: resourceNames.snetAppSvc
-  addressPrefix: subnetSpokeAppSvcAddressSpace
-  privateEndpointNetworkPolicies: appServiceSubnetPrivateEndpointPolicies
-  delegation: appServiceSubnetDelegation
-  networkSecurityGroupResourceId: appServiceSubnetNetworkSecurityGroupResourceId
-  routeTableResourceId: routeTableToFirewall.?outputs.?resourceId
-}
-var shouldCreatePrivateEndpointSubnet = deployPrivateNetworking
-var privateEndpointSubnet = {
-  name: resourceNames.snetPe
-  addressPrefix: subnetSpokePrivateEndpointAddressSpace
-  privateEndpointNetworkPolicies: 'Disabled'
-  networkSecurityGroupResourceId: nsgPep!.outputs.resourceId
-}
-var shouldCreatePostgreSqlSubnet = deployPostgreSqlPrivateAccess
-var postgreSqlSubnet = {
-  name: resourceNames.snetPostgreSql
-  addressPrefix: subnetSpokePostgreSqlAddressSpace
-  delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
-  networkSecurityGroupResourceId: nsgPostgreSql!.outputs.resourceId
-}
-var shouldCreateAppGatewaySubnet = deployAppGw && !empty(subnetSpokeAppGwAddressSpace)
-var appGatewaySubnet = {
-  name: resourceNames.snetAppGw
-  addressPrefix: subnetSpokeAppGwAddressSpace
-  networkSecurityGroupResourceId: nsgAppGw!.outputs.resourceId
-}
-var baseSubnets = [
-  appServiceSubnet
+var createdSubnetNames = [
+  for subnet in createdSubnets: take('snet-${sharedNamePrefix}-${subnet.nameSuffix}-${instanceNumber}', 80)
 ]
-var privateEndpointSubnets = shouldCreatePrivateEndpointSubnet ? [privateEndpointSubnet] : []
-var postgreSqlSubnets = shouldCreatePostgreSqlSubnet ? [postgreSqlSubnet] : []
-var appGatewaySubnets = shouldCreateAppGatewaySubnet ? [appGatewaySubnet] : []
-var subnets = concat(baseSubnets, privateEndpointSubnets, postgreSqlSubnets, appGatewaySubnets)
-var postgreSqlSubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0)
-var appGatewaySubnetIndex = 1 + (shouldCreatePrivateEndpointSubnet ? 1 : 0) + (shouldCreatePostgreSqlSubnet ? 1 : 0)
 var shouldCreateHubPeering = hubPeeringConfig != null
 var reverseHubPeeringConfig = hubPeeringConfig.?reversePeeringConfig
 var hubPeering = shouldCreateHubPeering
@@ -206,12 +146,12 @@ module vnetSpoke './virtual-network.bicep' = {
     enableVmProtection: enableVmProtection
     enablePrivateEndpointVNetPolicies: enablePrivateEndpointVNetPolicies
     virtualNetworkBgpCommunity: virtualNetworkBgpCommunity
-    subnets: subnets
+    subnets: []
     peerings: shouldCreateHubPeering ? [hubPeering!] : []
   }
 }
 
-module routeTableToFirewall './route-table.bicep' = if (!empty(firewallInternalIp) && (enableEgressLockdown)) {
+module routeTableToFirewall './route-table.bicep' = if (contains(createdRouteProfiles, 'egressLockdown') && !empty(firewallInternalIp) && enableEgressLockdown) {
   name: '${uniqueString(deployment().name, location)}-rt'
   params: {
     name: resourceNames.routeTable
@@ -222,7 +162,7 @@ module routeTableToFirewall './route-table.bicep' = if (!empty(firewallInternalI
   }
 }
 
-module nsgAppSvc './network-security-group.bicep' = if (!deployAseV3) {
+module nsgAppSvc './network-security-group.bicep' = if (contains(createdNsgProfiles, 'appService')) {
   name: '${uniqueString(deployment().name, location)}-nsgappsvc'
   params: {
     name: resourceNames.appSvcNsg
@@ -254,7 +194,7 @@ module nsgAppSvc './network-security-group.bicep' = if (!deployAseV3) {
   }
 }
 
-module nsgPep './network-security-group.bicep' = if (shouldCreatePrivateEndpointSubnet) {
+module nsgPep './network-security-group.bicep' = if (contains(createdNsgProfiles, 'privateEndpoint')) {
   name: '${uniqueString(deployment().name, location)}-nsgpep'
   params: {
     name: resourceNames.pepNsg
@@ -268,7 +208,7 @@ module nsgPep './network-security-group.bicep' = if (shouldCreatePrivateEndpoint
   }
 }
 
-module nsgPostgreSql './network-security-group.bicep' = if (shouldCreatePostgreSqlSubnet) {
+module nsgPostgreSql './network-security-group.bicep' = if (contains(createdNsgProfiles, 'postgresql')) {
   name: '${uniqueString(deployment().name, location)}-nsgpostgresql'
   params: {
     name: resourceNames.postgreSqlNsg
@@ -282,7 +222,7 @@ module nsgPostgreSql './network-security-group.bicep' = if (shouldCreatePostgreS
   }
 }
 
-module nsgAse './network-security-group.bicep' = if (deployAseV3) {
+module nsgAse './network-security-group.bicep' = if (contains(createdNsgProfiles, 'ase')) {
   name: '${uniqueString(deployment().name, location)}-nsgase'
   params: {
     name: resourceNames.aseNsg
@@ -311,7 +251,7 @@ module nsgAse './network-security-group.bicep' = if (deployAseV3) {
   }
 }
 
-module nsgAppGw './network-security-group.bicep' = if (deployAppGw) {
+module nsgAppGw './network-security-group.bicep' = if (contains(createdNsgProfiles, 'applicationGateway')) {
   name: '${uniqueString(deployment().name, location)}-nsgappgw'
   params: {
     name: resourceNames.appGwNsg
@@ -378,13 +318,53 @@ module nsgAppGw './network-security-group.bicep' = if (deployAppGw) {
     ]
   }
 }
+
+@batchSize(1)
+module subnetDeployments './virtual-network-subnet.bicep' = [
+  for (subnet, index) in createdSubnets: {
+    name: '${uniqueString(deployment().name, location)}-subnet-${subnet.key}-${index}'
+    params: {
+      virtualNetworkName: vnetSpoke.outputs.name
+      name: createdSubnetNames[index]
+      addressPrefix: subnet.cidr
+      delegation: subnet.delegationProfile == 'appServicePlan'
+        ? 'Microsoft.Web/serverfarms'
+        : subnet.delegationProfile == 'appServiceEnvironment'
+            ? 'Microsoft.Web/hostingEnvironments'
+            : subnet.delegationProfile == 'postgresqlFlexibleServer'
+                ? 'Microsoft.DBforPostgreSQL/flexibleServers'
+                : null
+      networkSecurityGroupResourceId: subnet.nsgProfile == 'appService'
+        ? nsgAppSvc!.outputs.resourceId
+        : subnet.nsgProfile == 'ase'
+            ? nsgAse!.outputs.resourceId
+            : subnet.nsgProfile == 'privateEndpoint'
+                ? nsgPep!.outputs.resourceId
+                : subnet.nsgProfile == 'postgresql'
+                    ? nsgPostgreSql!.outputs.resourceId
+                    : subnet.nsgProfile == 'applicationGateway'
+                        ? nsgAppGw!.outputs.resourceId
+                        : null
+      routeTableResourceId: subnet.routeProfile == 'egressLockdown'
+        ? routeTableToFirewall!.outputs.resourceId
+        : null
+      privateEndpointNetworkPolicies: subnet.?privateEndpointNetworkPolicies
+      privateLinkServiceNetworkPolicies: subnet.?privateLinkServiceNetworkPolicies
+      serviceEndpoints: subnet.?serviceEndpoints ?? []
+      roleAssignments: subnet.?roleAssignments
+      defaultOutboundAccess: subnet.?defaultOutboundAccess
+      sharingScope: subnet.?sharingScope
+    }
+  }
+]
+
 output vnetSpokeResourceId string = vnetSpoke.outputs.resourceId
 output vnetSpokeName string = vnetSpoke.outputs.name
-output snetAppSvcResourceId string = vnetSpoke.outputs.subnetResourceIds[0]
-output snetAppSvcName string = vnetSpoke.outputs.subnetNames[0]
-output snetPeResourceId string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetResourceIds[1] : null
-output snetPeName string? = deployPrivateNetworking ? vnetSpoke.outputs.subnetNames[1] : null
-output snetPostgreSqlResourceId string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetResourceIds[postgreSqlSubnetIndex] : null
-output snetPostgreSqlName string? = deployPostgreSqlPrivateAccess ? vnetSpoke.outputs.subnetNames[postgreSqlSubnetIndex] : null
-output snetAppGwResourceId string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetResourceIds[appGatewaySubnetIndex] : null
-output snetAppGwName string? = deployAppGw && !empty(subnetSpokeAppGwAddressSpace) ? vnetSpoke.outputs.subnetNames[appGatewaySubnetIndex] : null
+output snetAppSvcResourceId string = subnetDeployments[indexOf(createdSubnetKeys, 'appService')].outputs.resourceId
+output snetAppSvcName string = subnetDeployments[indexOf(createdSubnetKeys, 'appService')].outputs.name
+output snetPeResourceId string? = indexOf(createdSubnetKeys, 'privateEndpoints') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'privateEndpoints')].outputs.resourceId : null
+output snetPeName string? = indexOf(createdSubnetKeys, 'privateEndpoints') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'privateEndpoints')].outputs.name : null
+output snetPostgreSqlResourceId string? = indexOf(createdSubnetKeys, 'postgresql') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'postgresql')].outputs.resourceId : null
+output snetPostgreSqlName string? = indexOf(createdSubnetKeys, 'postgresql') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'postgresql')].outputs.name : null
+output snetAppGwResourceId string? = indexOf(createdSubnetKeys, 'applicationGateway') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'applicationGateway')].outputs.resourceId : null
+output snetAppGwName string? = indexOf(createdSubnetKeys, 'applicationGateway') != -1 ? subnetDeployments[indexOf(createdSubnetKeys, 'applicationGateway')].outputs.name : null

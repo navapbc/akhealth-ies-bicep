@@ -17,6 +17,7 @@ param lock lockType?
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 param roleAssignments roleAssignmentType[]?
 param tags resourceInput<'Microsoft.Network/networkSecurityGroups@2025-05-01'>.tags?
+var diagnosticSettingsDerivedName = replace(name, 'nsg-', 'dgsnsg-')
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -71,7 +72,7 @@ resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2025-05-0
 
 resource networkSecurityGroup_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${name}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

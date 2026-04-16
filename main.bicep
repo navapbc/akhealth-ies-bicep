@@ -58,14 +58,57 @@ param postgresqlConfig postgresqlConfigType
 
 // Networking Decisions
 var networkingOption = spokeNetworkConfig.ingressOption
-var privateNetworkingEnabled = deployPrivateNetworking && !empty(spokeNetworkConfig.privateEndpointSubnetAddressSpace)
-var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
+var appServiceSubnetPlans = filter(spokeNetworkConfig.subnetPlan, subnet => subnet.key == 'appService')
+var privateEndpointSubnetPlans = filter(spokeNetworkConfig.subnetPlan, subnet => subnet.key == 'privateEndpoints')
+var postgreSqlSubnetPlans = filter(spokeNetworkConfig.subnetPlan, subnet => subnet.key == 'postgresql')
+var applicationGatewaySubnetPlans = filter(spokeNetworkConfig.subnetPlan, subnet => subnet.key == 'applicationGateway')
+var appServiceSubnetPlan = length(appServiceSubnetPlans) > 0 ? appServiceSubnetPlans[0] : null
+var privateEndpointSubnetPlan = length(privateEndpointSubnetPlans) > 0 ? privateEndpointSubnetPlans[0] : null
+var postgreSqlSubnetPlan = length(postgreSqlSubnetPlans) > 0 ? postgreSqlSubnetPlans[0] : null
+var applicationGatewaySubnetPlan = length(applicationGatewaySubnetPlans) > 0 ? applicationGatewaySubnetPlans[0] : null
 var postgreSqlEnabled = deployPostgreSql
 var postgreSqlPrivateNetworkingEnabled = postgreSqlEnabled && deployPrivateNetworking
 var postgreSqlPrivateAccessEnabled = postgreSqlEnabled && postgresqlConfig.privateAccessMode == 'delegatedSubnet'
+var appServiceSubnetPlanCountIsValid = length(appServiceSubnetPlans) <= 1
+  ? true
+  : fail('spokeNetworkConfig.subnetPlan must not declare more than one subnet with key "appService".')
+var privateEndpointSubnetPlanCountIsValid = length(privateEndpointSubnetPlans) <= 1
+  ? true
+  : fail('spokeNetworkConfig.subnetPlan must not declare more than one subnet with key "privateEndpoints".')
+var postgreSqlSubnetPlanCountIsValid = length(postgreSqlSubnetPlans) <= 1
+  ? true
+  : fail('spokeNetworkConfig.subnetPlan must not declare more than one subnet with key "postgresql".')
+var applicationGatewaySubnetPlanCountIsValid = length(applicationGatewaySubnetPlans) <= 1
+  ? true
+  : fail('spokeNetworkConfig.subnetPlan must not declare more than one subnet with key "applicationGateway".')
+var appServiceSubnetPlanIsValid = appServiceSubnetPlan != null && appServiceSubnetPlan!.create
+  ? true
+  : fail('spokeNetworkConfig.subnetPlan must declare a created subnet with key "appService".')
+var privateEndpointSubnetPlanIsValid = !deployPrivateNetworking || (privateEndpointSubnetPlan != null && privateEndpointSubnetPlan!.create)
+  ? true
+  : fail('When deployPrivateNetworking is true, spokeNetworkConfig.subnetPlan must declare a created subnet with key "privateEndpoints".')
+var postgreSqlSubnetPlanIsValid = !postgreSqlPrivateAccessEnabled || (postgreSqlSubnetPlan != null && postgreSqlSubnetPlan!.create)
+  ? true
+  : fail('When PostgreSQL delegated private access is enabled, spokeNetworkConfig.subnetPlan must declare a created subnet with key "postgresql".')
+var applicationGatewaySubnetPlanIsValid = networkingOption != 'applicationGateway' || (applicationGatewaySubnetPlan != null && applicationGatewaySubnetPlan!.create)
+  ? true
+  : fail('When networkingOption is "applicationGateway", spokeNetworkConfig.subnetPlan must declare a created subnet with key "applicationGateway".')
+var subnetPlanContractIsValid = appServiceSubnetPlanCountIsValid && privateEndpointSubnetPlanCountIsValid && postgreSqlSubnetPlanCountIsValid && applicationGatewaySubnetPlanCountIsValid && appServiceSubnetPlanIsValid && privateEndpointSubnetPlanIsValid && postgreSqlSubnetPlanIsValid && applicationGatewaySubnetPlanIsValid
+var privateNetworkingEnabled = deployPrivateNetworking && privateEndpointSubnetPlan != null && privateEndpointSubnetPlan!.create
+var webAppPrivateNetworkingEnabled = privateNetworkingEnabled && !deployAseV3
 var hubPeeringConfig = spokeNetworkConfig.?hubPeeringConfig
 var enableEgressLockdown = spokeNetworkConfig.enableEgressLockdown
 var regionAbbreviation = regionAbbreviations[location]
+var appServiceWorkloadDescription = appServiceConfig.?workloadDescription ?? workloadDescription
+var servicePlanWorkloadDescription = servicePlanConfig.?workloadDescription ?? appServiceWorkloadDescription
+var appInsightsWorkloadDescription = appInsightsConfig.?workloadDescription ?? workloadDescription
+var keyVaultWorkloadDescription = keyVaultConfig.?workloadDescription ?? workloadDescription
+var frontDoorWorkloadDescription = frontDoorConfig.?workloadDescription ?? workloadDescription
+var appGatewayWorkloadDescription = appGatewayConfig.?workloadDescription ?? workloadDescription
+var postgresqlWorkloadDescription = postgresqlConfig.?workloadDescription ?? workloadDescription
+var logAnalyticsWorkloadDescription = logAnalyticsConfig.?workloadDescription ?? workloadDescription
+var spokeNetworkWorkloadDescription = spokeNetworkConfig.?workloadDescription ?? workloadDescription
+var aseWorkloadDescription = aseConfig.?workloadDescription ?? workloadDescription
 
 // ======================== //
 // Shared Network Links     //
@@ -136,7 +179,7 @@ module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bice
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: logAnalyticsWorkloadDescription
     location: location
     tags: tags
     sku: logAnalyticsConfig.sku
@@ -168,19 +211,12 @@ module networking 'modules/01-network/network.bicep' = {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
-    deployAseV3: deployAseV3
-    deployPrivateNetworking: privateNetworkingEnabled
+    workloadDescription: spokeNetworkWorkloadDescription
     enableEgressLockdown: enableEgressLockdown
     vnetSpokeAddressSpace: spokeNetworkConfig.vnetAddressSpace
-    subnetSpokeAppSvcAddressSpace: spokeNetworkConfig.appSvcSubnetAddressSpace
-    subnetSpokePrivateEndpointAddressSpace: spokeNetworkConfig.privateEndpointSubnetAddressSpace
-    applicationGatewayConfig: spokeNetworkConfig.?applicationGatewayConfig
-    postgreSqlPrivateAccessConfig: spokeNetworkConfig.?postgreSqlPrivateAccessConfig
+    subnetPlan: subnetPlanContractIsValid ? spokeNetworkConfig.subnetPlan : spokeNetworkConfig.subnetPlan
     egressFirewallConfig: spokeNetworkConfig.?egressFirewallConfig
     hubPeeringConfig: hubPeeringConfig
-    networkingOption: networkingOption
-    deployPostgreSqlPrivateAccess: postgreSqlPrivateNetworkingEnabled
     logAnalyticsWorkspaceId: resolvedLogAnalyticsWorkspaceResourceId
     dnsServers: spokeNetworkConfig.dnsServers
     ddosProtectionPlanResourceId: spokeNetworkConfig.?ddosProtectionPlanResourceId
@@ -227,7 +263,7 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: aseWorkloadDescription
     location: location
     tags: tags
     subnetResourceId: networking.outputs.snetAppSvcResourceId
@@ -326,7 +362,7 @@ module appInsights 'modules/02-monitoring/application-insights.bicep' = {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: appInsightsWorkloadDescription
     location: location
     tags: tags
     workspaceResourceId: resolvedLogAnalyticsWorkspaceResourceId
@@ -364,7 +400,7 @@ module appServicePlan 'modules/03-app-hosting/serverfarm.bicep' = if (deployPlan
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: servicePlanWorkloadDescription
     location: location
     tags: tags
     skuName: servicePlanConfig.sku
@@ -407,7 +443,7 @@ module webAppSite 'modules/04-application/web-site.bicep' = {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: appServiceWorkloadDescription
     location: location
     serverFarmResourceId: appServicePlanResourceId
     siteConfig: appServiceConfig.siteConfig
@@ -482,7 +518,7 @@ module frontDoorWaf 'modules/07-edge/front-door-waf-policy.bicep' = if (useFront
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: frontDoorWorkloadDescription
     config: frontDoorConfig
     tags: tags
   }
@@ -498,7 +534,7 @@ module afd 'modules/07-edge/front-door-profile.bicep' = if (useFrontDoorIngress)
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: frontDoorWorkloadDescription
     config: frontDoorConfig
     workloadOriginHostName: webAppSite.outputs.defaultHostname
     workloadOriginResourceId: webAppSite.outputs.resourceId
@@ -517,7 +553,7 @@ module frontDoorSecurityPolicy 'modules/07-edge/front-door-security-policy.bicep
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: frontDoorWorkloadDescription
     profileName: afd!.outputs.name
     wafPolicyResourceId: frontDoorWaf!.outputs.resourceId
     associations: [
@@ -618,7 +654,7 @@ module appGwWafPolicy 'modules/07-edge/application-gateway-waf-policy.bicep' = i
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: appGatewayWorkloadDescription
     location: location
     tags: tags
     managedRules: {
@@ -638,7 +674,7 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGat
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: appGatewayWorkloadDescription
     location: location
     tags: tags
     sku: appGatewayConfig.sku
@@ -699,7 +735,7 @@ module keyVault 'modules/06-secrets/key-vault.bicep' = {
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: workloadDescription
+    workloadDescription: keyVaultWorkloadDescription
     location: location
     tags: tags
     sku: keyVaultConfig.sku
@@ -753,7 +789,7 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
     systemAbbreviation: systemAbbreviation
     environmentAbbreviation: environmentAbbreviation
     instanceNumber: instanceNumber
-    workloadDescription: postgresqlConfig.workloadDescription
+    workloadDescription: postgresqlWorkloadDescription
     location: location
     administratorGroupObjectId: postgresqlAdminGroupConfig.objectId
     administratorGroupDisplayName: postgresqlAdminGroupConfig.displayName

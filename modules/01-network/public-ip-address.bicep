@@ -35,6 +35,7 @@ param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
 param diagnosticSettings diagnosticSettingFullType[]?
+var diagnosticSettingsDerivedName = replace(name, 'pip-', 'dgspip-')
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -89,7 +90,7 @@ resource publicIpAddress_roleAssignments 'Microsoft.Authorization/roleAssignment
 
 resource publicIpAddress_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = [
   for (diagnosticSetting, index) in (diagnosticSettings ?? []): {
-    name: diagnosticSetting.?name ?? '${name}-diagnosticSettings'
+    name: diagnosticSetting.?name ?? (length(diagnosticSettings ?? []) > 1 ? '${diagnosticSettingsDerivedName}-${index + 1}' : diagnosticSettingsDerivedName)
     properties: {
       storageAccountId: diagnosticSetting.?storageAccountResourceId
       workspaceId: diagnosticSetting.?workspaceResourceId

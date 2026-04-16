@@ -18,7 +18,7 @@ param workloadDescription = ''
 
 param deployAseV3 = false
 param deployPrivateNetworking = true
-param deployPostgreSql = true
+param deployPostgreSql = false
 
 // ======================== //
 // Subscription Setup       //
@@ -60,6 +60,7 @@ param resourceGroupDefinitions = [
 param existingLogAnalyticsID = null
 
 param logAnalyticsConfig = {
+  workloadDescription: null
   sku: 'PerGB2018'
   retentionInDays: 365
   enableLogAccessUsingOnlyResourcePermissions: false
@@ -75,13 +76,113 @@ param logAnalyticsConfig = {
 // ======================== //
 
 param spokeNetworkConfig = {
-  ingressOption: 'frontDoor' // options are none, frontDoor, applicationGateway
-  vnetAddressSpace: '10.240.0.0/20'
-  appSvcSubnetAddressSpace: '10.240.0.0/26'
-  privateEndpointSubnetAddressSpace: '10.240.11.0/24'
-  postgreSqlPrivateAccessConfig: {
-    subnetAddressSpace: '10.240.10.0/28'
-  }
+  workloadDescription: null
+  ingressOption: 'none' // options are none, frontDoor, applicationGateway
+  vnetAddressSpace: '10.0.0.0/21'
+  subnetPlan: [
+    {
+      key: 'appService'
+      nameSuffix: 'appservice'
+      cidr: '10.0.0.0/23'
+      create: true
+      purpose: 'Primary App Service hosting and integration subnet sized to the full /23 platform plan.'
+      delegationProfile: 'appServicePlan'
+      nsgProfile: 'appService'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Enabled'
+    }
+    {
+      key: 'applicationGateway'
+      nameSuffix: 'appgateway'
+      cidr: '10.0.2.0/24'
+      create: true
+      purpose: 'Dedicated regional ingress subnet for Application Gateway if that ingress path is used.'
+      delegationProfile: 'none'
+      nsgProfile: 'applicationGateway'
+      routeProfile: 'none'
+    }
+    {
+      key: 'apimEdge'
+      nameSuffix: 'apim'
+      cidr: '10.0.3.0/24'
+      create: true
+      purpose: 'Reserved edge/API subnet for APIM or similar edge services.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'privateEndpoints'
+      nameSuffix: 'privateendpoint'
+      cidr: '10.0.4.0/24'
+      create: true
+      purpose: 'Shared private endpoint subnet.'
+      delegationProfile: 'none'
+      nsgProfile: 'privateEndpoint'
+      routeProfile: 'none'
+      privateEndpointNetworkPolicies: 'Disabled'
+    }
+    {
+      key: 'privateConnectivityReserve'
+      nameSuffix: 'privateconnectivity'
+      cidr: '10.0.5.0/24'
+      create: false
+      purpose: 'Reserved growth space for future private connectivity needs.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'functions'
+      nameSuffix: 'functions'
+      cidr: '10.0.6.0/24'
+      create: true
+      purpose: 'Dedicated Functions subnet held in the active /21 platform plan.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'logicApps'
+      nameSuffix: 'logicapps'
+      cidr: '10.0.7.0/26'
+      create: true
+      purpose: 'Dedicated Logic Apps subnet held in the active /21 platform plan.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'postgresql'
+      nameSuffix: 'postgresql'
+      cidr: '10.0.7.64/27'
+      create: true
+      purpose: 'Delegated subnet for PostgreSQL Flexible Server private access.'
+      delegationProfile: 'postgresqlFlexibleServer'
+      nsgProfile: 'postgresql'
+      routeProfile: 'none'
+    }
+    {
+      key: 'futureDelegatedData'
+      nameSuffix: 'futuredata'
+      cidr: '10.0.7.96/27'
+      create: false
+      purpose: 'Reserved delegated data subnet for future services.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+    {
+      key: 'generalReserve'
+      nameSuffix: 'reserve'
+      cidr: '10.0.7.128/25'
+      create: false
+      purpose: 'General reserve block retained for future subnet planning flexibility.'
+      delegationProfile: 'none'
+      nsgProfile: 'none'
+      routeProfile: 'none'
+    }
+  ]
   enableEgressLockdown: false
   dnsServers: []
   disableBgpRoutePropagation: true
@@ -105,6 +206,7 @@ param spokeNetworkConfig = {
 // See params/examples/main.example.bicepparam for existing-plan and
 // custom examples.
 param servicePlanConfig = {
+  workloadDescription: 'frontEnd'
   sku: 'B1'
   skuCapacity: 1
   zoneRedundant: false
@@ -130,6 +232,7 @@ param servicePlanConfig = {
 }
 
 param appServiceConfig = {
+  workloadDescription: 'frontEnd'
   kind: 'app'
   httpsOnly: true
   clientCertEnabled: false
@@ -170,6 +273,7 @@ param appServiceConfig = {
 // DNS and dedicated host options. See params/examples/main.example.bicepparam
 // for the fuller example block.
 param aseConfig = {
+  workloadDescription: null
   clusterSettings: [
     {
       name: 'DisableTls1.0'
@@ -199,6 +303,7 @@ param aseConfig = {
 // ======================== //
 
 param keyVaultConfig = {
+  workloadDescription: null
   enablePurgeProtection: false
   softDeleteRetentionInDays: 90
   createMode: 'default'
@@ -218,6 +323,7 @@ param keyVaultConfig = {
 // See params/examples/main.example.bicepparam for fuller Key Vault and
 // monitoring examples.
 param appInsightsConfig = {
+  workloadDescription: null
   applicationType: 'web'
   publicNetworkAccessForIngestion: 'Enabled'
   publicNetworkAccessForQuery: 'Enabled'
@@ -243,6 +349,7 @@ param appInsightsConfig = {
 // ingress path. See params/examples/main.example.bicepparam for minimal and
 // fuller regional ingress examples if you switch away from 'frontDoor'.
 param appGatewayConfig = {
+  workloadDescription: null
   sku: 'WAF_v2'
   capacity: 2
   autoscaleMinCapacity: 2
@@ -310,6 +417,7 @@ param appGatewayConfig = {
 // See params/examples/main.example.bicepparam for public-origin and custom
 // domain / rule-set / secret Front Door examples.
 param frontDoorConfig = {
+  workloadDescription: null
   managedIdentities: {
     systemAssigned: true
   }
@@ -421,7 +529,7 @@ param postgresqlAdminGroupConfig = {
 // See params/examples/main.example.bicepparam for fuller PostgreSQL HA/private
 // access and customized databases/configurations examples.
 param postgresqlConfig = {
-  workloadDescription: 'postgresql'
+  workloadDescription: null
   privateAccessMode: 'delegatedSubnet'
   skuName: 'Standard_B1ms'
   tier: 'Burstable'

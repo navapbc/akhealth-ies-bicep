@@ -29,9 +29,12 @@ Resource names should flow and be readable from broad resource type to specific 
 3. region abbeviation
 4. environment abbreviation
 5. workload description (when it is relevant)
-6. instance number
+6. sub workload description (should only be used if very neccessary, primarily for child resources)
+7. instance number
 
 resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-instanceNumber
+
+resourceAbbreviation-systemAbbreviation-regionAbbreviation-environmentAbbreviation-workloadDescription-subWorkloadDescription-instanceNumber
 
 Resource Abbreviation - https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
 System Abbreviation - Abbreviation representing the authorized system the resouce belongs to
