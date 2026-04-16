@@ -1,55 +1,31 @@
 metadata name = 'CDN Profiles Custom Domains'
 metadata description = 'This module deploys a CDN Profile Custom Domains.'
-
-@description('Required. The name of the custom domain.')
 param name string
-
-@description('Required. The name of the parent Front Door profile.')
 param profileName string
-
-@description('Required. The host name of the domain. Must be a domain name.')
 param hostName string
-
-@description('Optonal. Resource reference to the Azure DNS zone.')
 param azureDnsZoneResourceId string?
-
-@description('Optional. Key-Value pair representing migration properties for domains.')
 param extendedProperties resourceInput<'Microsoft.Cdn/profiles/customDomains@2025-06-01'>.properties.extendedProperties?
-
-@description('Optional. Resource reference to the Azure resource where custom domain ownership was prevalidated.')
 param preValidatedCustomDomainResourceId string?
-
 @allowed([
   'AzureFirstPartyManagedCertificate'
   'CustomerCertificate'
   'ManagedCertificate'
 ])
-@description('Required. The type of the certificate used for secure delivery.')
 param certificateType string
-
 @allowed([
   'TLS10'
   'TLS12'
   'TLS13'
 ])
-@description('Optional. The minimum TLS version required for the custom domain. Default value: TLS12.')
 param minimumTlsVersion string?
-
-@description('Optional. The name of the secret. ie. subs/rg/profile/secret.')
 param secretName string?
-
-@description('Optional. The cipher suite set type that will be used for Https.')
 param cipherSuiteSetType string?
-
-@description('Optional. The customized cipher suite set that will be used for Https. Required if cipherSuiteSetType is Customized.')
 param customizedCipherSuiteSet resourceInput<'Microsoft.Cdn/profiles/customDomains@2025-06-01'>.properties.tlsSettings.customizedCipherSuiteSet?
-
 var resolvedSecretName = certificateType == 'CustomerCertificate'
   ? (secretName != null
       ? secretName
       : fail('Front Door custom domains using CustomerCertificate require secretName to be declared explicitly.'))
   : secretName
-
 
 resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
@@ -88,14 +64,9 @@ resource customDomain 'Microsoft.Cdn/profiles/customDomains@2025-06-01' = {
     }
   }
 }
-
 output name string = customDomain.name
-
 output resourceId string = customDomain.id
-
 output resourceGroupName string = resourceGroup().name
-
-@description('The DNS validation records.')
 output dnsValidation dnsValidationOutputType = {
   dnsTxtRecordName: !empty(customDomain.properties.validationProperties)
     ? '_dnsauth.${customDomain.properties.hostName}'
@@ -109,14 +80,8 @@ output dnsValidation dnsValidationOutputType = {
 // =============== //
 
 @export()
-@description('The type of the DNS validation.')
 type dnsValidationOutputType = {
-  @description('The DNS record name.')
   dnsTxtRecordName: string?
-
-  @description('The DNS record value.')
   dnsTxtRecordValue: string?
-
-  @description('The expiry date of the DNS record.')
   dnsTxtRecordExpiry: string?
 }

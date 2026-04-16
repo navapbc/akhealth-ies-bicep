@@ -4,50 +4,26 @@ metadata description = 'This module deploys a Private DNS zone.'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { virtualNetworkLinkType } from '../shared/shared.types.bicep'
 
-@description('Required. Private DNS zone name.')
 param name string
-
-@description('Optional. Array of A records.')
 param a aType[]?
-
-@description('Optional. Array of AAAA records.')
 param aaaa aaaaType[]?
-
-@description('Optional. Array of CNAME records.')
 param cname cnameType[]?
-
-@description('Optional. Array of MX records.')
 param mx mxType[]?
-
-@description('Optional. Array of PTR records.')
 param ptr ptrType[]?
-
-@description('Optional. Array of SOA records.')
 param soa soaType[]?
-
-@description('Optional. Array of SRV records.')
 param srv srvType[]?
-
-@description('Optional. Array of TXT records.')
 param txt txtType[]?
-
-@description('Optional. Array of custom objects describing vNet links of the DNS zone. Each object should contain properties \'virtualNetworkResourceId\' and \'registrationEnabled\'. The \'vnetResourceId\' is a resource ID of a vNet to link, \'registrationEnabled\' (bool) enables automatic DNS registration in the zone for the linked vNet.')
 param virtualNetworkLinks virtualNetworkLinkType[]?
-
-@description('Optional. The location of the PrivateDNSZone. Should be global.')
 param location string = 'global'
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 param tags object?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. The lock settings of the service.')
 param lock lockType?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -58,7 +34,6 @@ var formattedRoleAssignments = [
       : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
   })
 ]
-
 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: name
@@ -169,7 +144,6 @@ module privateDnsZone_TXT './private-dns-zone-txt-record.bicep' = [
       roleAssignments: txtRecord.?roleAssignments    }
   }
 ]
-
 var resolvedVirtualNetworkLinks = [
   for virtualNetworkLink in (virtualNetworkLinks ?? []): {
     name: virtualNetworkLink.name
@@ -207,13 +181,9 @@ resource privateDnsZone_roleAssignments 'Microsoft.Authorization/roleAssignments
     scope: privateDnsZone
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = privateDnsZone.name
-
 output resourceId string = privateDnsZone.id
-
 output location string = privateDnsZone.location
 
 // ================ //
@@ -221,154 +191,74 @@ output location string = privateDnsZone.location
 // ================ //
 
 @export()
-@description('The type for the A record.')
 type aType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/A@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of A records in the record set.')
   aRecords: resourceInput<'Microsoft.Network/privateDnsZones/A@2024-06-01'>.properties.aRecords?
 }
 
 @export()
-@description('The type for the AAAA record.')
 type aaaaType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/AAAA@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of AAAA records in the record set.')
   aaaaRecords: resourceInput<'Microsoft.Network/privateDnsZones/AAAA@2024-06-01'>.properties.aaaaRecords?
 }
 
 @export()
-@description('The type for the CNAME record.')
 type cnameType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/CNAME@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The CNAME record in the record set.')
   cnameRecord: resourceInput<'Microsoft.Network/privateDnsZones/CNAME@2024-06-01'>.properties.cnameRecord?
 }
 
 @export()
-@description('The type for the MX record.')
 type mxType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/MX@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of MX records in the record set.')
   mxRecords: resourceInput<'Microsoft.Network/privateDnsZones/MX@2024-06-01'>.properties.mxRecords?
 }
 
 @export()
-@description('The type for the PTR record.')
 type ptrType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/PTR@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of PTR records in the record set.')
   ptrRecords: resourceInput<'Microsoft.Network/privateDnsZones/PTR@2024-06-01'>.properties.ptrRecords?
 }
 
 @export()
-@description('The type for the SOA record.')
 type soaType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/SOA@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The SOA record in the record set.')
   soaRecord: resourceInput<'Microsoft.Network/privateDnsZones/SOA@2024-06-01'>.properties.soaRecord?
 }
 
 @export()
-@description('The type for the SRV record.')
 type srvType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/SRV@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of SRV records in the record set.')
   srvRecords: resourceInput<'Microsoft.Network/privateDnsZones/SRV@2024-06-01'>.properties.srvRecords?
 }
 
 @export()
-@description('The type for the TXT record.')
 type txtType = {
-  @description('Required. The name of the record.')
   name: string
-
-  @description('Optional. The metadata of the record.')
   metadata: resourceInput<'Microsoft.Network/privateDnsZones/TXT@2024-06-01'>.properties.metadata?
-
-  @description('Optional. The TTL of the record.')
   ttl: int?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
-
-  @description('Optional. The list of TXT records in the record set.')
   txtRecords: resourceInput<'Microsoft.Network/privateDnsZones/TXT@2024-06-01'>.properties.txtRecords?
 }
 

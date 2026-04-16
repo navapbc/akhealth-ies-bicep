@@ -5,22 +5,11 @@ import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 import { frontDoorConfigType } from '../shared/shared.types.bicep'
 
-@description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
-
-@description('Required. Environment abbreviation used for resource naming.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for resource naming.')
 param instanceNumber string
-
-@description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
-
-@description('Required. Declared Front Door configuration for this workload.')
 param config frontDoorConfigType
-
-@description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-10-01'>.tags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
@@ -30,7 +19,6 @@ param lock lockType?
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 var resourceAbbreviation = 'fdfp'
 var resourceLocation = 'global'
 var regionAbbreviation = regionAbbreviations[resourceLocation]
@@ -74,7 +62,6 @@ var resolvedManagedRules = config.sku == 'Premium_AzureFrontDoor'
   : {
       managedRuleSets: []
     }
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -119,13 +106,9 @@ resource frontDoorWAFPolicy_roleAssignments 'Microsoft.Authorization/roleAssignm
     scope: frontDoorWAFPolicy
   }
 ]
-
 output name string = frontDoorWAFPolicy.name
-
 output resourceId string = frontDoorWAFPolicy.id
-
 output resourceGroupName string = resourceGroup().name
-
 output location string = frontDoorWAFPolicy.location
 
 // =============== //
@@ -133,63 +116,33 @@ output location string = frontDoorWAFPolicy.location
 // =============== //
 
 @export()
-@description('The type for the managed rules.')
 type managedRulesType = {
-  @description('Optional. List of rule sets.')
   managedRuleSets: managedRuleSetType[]?
 }
 
 @export()
-@description('The type for the managed rule set.')
 type managedRuleSetType = {
-  @description('Required. Defines the rule set type to use.')
   ruleSetType: string
-
-  @description('Required. Defines the version of the rule set to use.')
   ruleSetVersion: string
-
-  @description('Optional. Defines the rule group overrides to apply to the rule set.')
   ruleGroupOverrides: array?
-
-  @description('Optional. Describes the exclusions that are applied to all rules in the set.')
   exclusions: array?
-
-  @description('Optional. Defines the rule set action.')
   ruleSetAction: 'Block' | 'Log' | 'Redirect' | null
 }
 
 @export()
-@description('The type for the custom rules.')
 type customRulesType = {
-  @description('Optional. List of rules.')
   rules: customRulesRuleType[]?
 }
 
 @export()
-@description('The type for the custom rules rule.')
 type customRulesRuleType = {
-  @description('Required. Describes what action to be applied when rule matches.')
   action: 'Allow' | 'Block' | 'Log' | 'Redirect'
-
-  @description('Required. Describes if the custom rule is in enabled or disabled state.')
   enabledState: 'Enabled' | 'Disabled'
-
-  @description('Required. List of match conditions. See https://learn.microsoft.com/en-us/azure/templates/microsoft.network/frontdoorwebapplicationfirewallpolicies#matchcondition for details.')
   matchConditions: array
-
-  @description('Required. Describes the name of the rule.')
   name: string
-
-  @description('Required. Describes priority of the rule. Rules with a lower value will be evaluated before rules with a higher value.')
   priority: int
-
-  @description('Optional. Time window for resetting the rate limit count. Default is 1 minute.')
   rateLimitDurationInMinutes: int?
-
-  @description('Optional. Number of allowed requests per client within the time window.')
   rateLimitThreshold: int?
-
-  @description('Required. Describes type of rule.')
   ruleType: 'MatchRule' | 'RateLimitRule'
 }
 

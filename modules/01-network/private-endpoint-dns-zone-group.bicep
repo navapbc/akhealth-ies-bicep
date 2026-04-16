@@ -1,15 +1,9 @@
 metadata name = 'Private Endpoint Private DNS Zone Groups'
 metadata description = 'This module deploys a Private Endpoint Private DNS Zone Group.'
-
-@description('Conditional. The name of the parent private endpoint. Required if the template is used in a standalone deployment.')
 param privateEndpointName string
-
-@description('Required. Array of private DNS zone configurations of the private DNS zone group. A DNS zone group can support up to 5 DNS zones.')
 @minLength(1)
 @maxLength(5)
 param privateDnsZoneConfigs privateDnsZoneGroupConfigType[]
-
-@description('Optional. The name of the private DNS zone group.')
 param name string = 'default'
 
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' existing = {
@@ -30,11 +24,8 @@ resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
     ]
   }
 }
-
 output name string = privateDnsZoneGroup.name
-
 output resourceId string = privateDnsZoneGroup.id
-
 output resourceGroupName string = resourceGroup().name
 
 // ================ //
@@ -42,11 +33,7 @@ output resourceGroupName string = resourceGroup().name
 // ================ //
 
 @export()
-@description('The type of a private DNS zone group configuration.')
 type privateDnsZoneGroupConfigType = {
-  @description('Required. The name of the private DNS zone group config.')
   name: string
-
-  @description('Required. The resource id of the private DNS zone.')
   privateDnsZoneResourceId: string
 }

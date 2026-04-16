@@ -3,28 +3,13 @@ metadata description = 'This module deploys a Key Vault Key.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Conditional. The name of the parent key vault. Required if the template is used in a standalone deployment.')
 param keyVaultName string
-
-@description('Required. The name of the key.')
 param name string
-
-@description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.KeyVault/vaults/keys@2024-11-01'>.tags?
-
-@description('Optional. Determines whether the object is enabled.')
 param attributesEnabled bool?
-
-@description('Optional. Expiry date in seconds since 1970-01-01T00:00:00Z. For security reasons, it is recommended to set an expiration date whenever possible.')
 param attributesExp int?
-
-@description('Optional. Not before date in seconds since 1970-01-01T00:00:00Z.')
 param attributesNbf int?
-
-@description('Optional. The elliptic curve name.')
 param curveName ('P-256' | 'P-256K' | 'P-384' | 'P-521')?
-
-@description('Optional. Array of JsonWebKeyOperation.')
 @allowed([
   'decrypt'
   'encrypt'
@@ -35,24 +20,13 @@ param curveName ('P-256' | 'P-256K' | 'P-384' | 'P-521')?
   'wrapKey'
 ])
 param keyOps string[]?
-
-@description('Optional. The key size in bits. For example: 2048, 3072, or 4096 for RSA.')
 param keySize int?
-
-@description('Required. The type of the key.')
 param kty ('EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM')
-
-@description('Optional. Key release policy.')
 param releasePolicy object?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-@description('Optional. Key rotation policy properties object.')
 param rotationPolicy rotationPolicyType?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -120,41 +94,22 @@ resource key_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
 ]
 
 @export()
-@description('The type for a rotation policy.')
 type rotationPolicyType = {
-  @description('Optional. The attributes of key rotation policy.')
   attributes: {
-    @description('Optional. The expiration time for the new key version. It should be in ISO8601 format. Eg: "P90D", "P1Y".')
     expiryTime: string?
   }?
-
-  @description('Optional. The key rotation policy lifetime actions.')
   lifetimeActions: {
-    @description('Optional. The type of the action.')
     action: {
-      @description('Optional. The type of the action.')
       type: ('rotate' | 'notify')?
     }?
-
-    @description('Optional. The time duration for rotating the key.')
     trigger: {
-      @description('Optional. The time duration after key creation to rotate the key. It only applies to rotate. It will be in ISO 8601 duration format. Eg: "P90D", "P1Y".')
       timeAfterCreate: string?
-
-      @description('Optional. The time duration before key expiring to rotate or notify. It will be in ISO 8601 duration format. Eg: "P90D", "P1Y".')
       timeBeforeExpiry: string?
     }?
   }[]?
 }
-
-@description('The uri of the key.')
 output keyUri string = key.properties.keyUri
-
-@description('The uri with version of the key.')
 output keyUriWithVersion string = key.properties.keyUriWithVersion
-
 output name string = key.name
-
 output resourceId string = key.id
-
 output resourceGroupName string = resourceGroup().name

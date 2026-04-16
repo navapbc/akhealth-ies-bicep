@@ -25,82 +25,35 @@ import {
 } from 'modules/shared/shared.types.bicep'
 
 @maxLength(10)
-@description('Optional. suffix (max 10 characters long) that will be used to name the resources in a pattern like <resourceAbbreviation>-<workloadName>.')
 param workloadName string = 'appsvc${take(uniqueString(subscription().id), 4)}'
-
-@description('Optional. Azure region where the resources will be deployed in.')
 param location string = deployment().location
-
-@description('Optional. The name of the environmentName (e.g. "dev", "test", "prod", "preprod", "staging", "uat", "dr", "qa"). Up to 8 characters long.')
 @maxLength(8)
 param environmentName string = 'test'
-
-@description('Optional. Abbreviation for the owning system. This is the shared naming input passed to modules that derive resource names locally.')
 param systemAbbreviation string = workloadName
-
-@description('Optional. Abbreviation for the lifecycle environment. This is the shared naming input passed to modules that derive resource names locally.')
 param environmentAbbreviation string = environmentName
-
-@description('Optional. Instance number used for deterministic naming. Example: "001".')
 param instanceNumber string = '001'
-
-@description('Required. Additional workload descriptor to include in names when it adds value. Use an empty string to omit the segment.')
 param workloadDescription string
-
-@description('Optional. Default is false. Set to true if you want to deploy ASE v3 instead of Multitenant App Service Plan.')
 param deployAseV3 bool = false
-
-@description('Optional. Tags to apply to all resources.')
 param tags object = {}
-
-@description('Required. Definitions of system resource groups.')
 param resourceGroupDefinitions resourceGroupDefinitionType[]
-
-
-@description('Required. The resource ID of an existing Log Analytics workspace, or null to create one in the spoke resource group.')
 param existingLogAnalyticsID string?
-
-@description('Required. Configuration for the Log Analytics workspace when this template creates one.')
 param logAnalyticsConfig logAnalyticsConfigType
 
 // ======================== //
 // Domain Configuration     //
 // ======================== //
 
-@description('Required. Configuration for the spoke virtual network and ingress networking.')
 param spokeNetworkConfig spokeNetworkConfigType
-
-@description('Required. Configuration for the App Service Plan.')
 param servicePlanConfig servicePlanConfigType
-
-@description('Required. Configuration for the Web App.')
 param appServiceConfig appServiceConfigType
-
-@description('Required. Configuration for the Key Vault.')
 param keyVaultConfig keyVaultConfigType
-
-@description('Required. Configuration for Application Insights.')
 param appInsightsConfig appInsightsConfigType
-
-@description('Required. Configuration for the Application Gateway. Declare the intended state explicitly even when this ingress path is not selected.')
 param appGatewayConfig appGatewayConfigType
-
-@description('Required. Configuration for Azure Front Door. Declare the intended state explicitly even when this ingress path is not selected.')
 param frontDoorConfig frontDoorConfigType
-
-@description('Optional. Controls whether private endpoint subnets, private DNS zones, private endpoints, and related private-link helpers are deployed. Set to false for a simpler public-only deployment.')
 param deployPrivateNetworking bool = true
-
-@description('Required. Configuration for the App Service Environment v3. Declare the intended state explicitly even when deployAseV3 is false.')
 param aseConfig aseConfigType
-
-@description('Optional. Controls whether PostgreSQL Flexible Server resources are deployed.')
 param deployPostgreSql bool = false
-
-@description('Required. Configuration for the existing Microsoft Entra security group used as the PostgreSQL administrator. Declare the intended state explicitly even when deployPostgreSql is false.')
 param postgresqlAdminGroupConfig entraGroupConfigType
-
-@description('Required. Configuration for Azure Database for PostgreSQL Flexible Server. Declare the intended state explicitly even when deployPostgreSql is false.')
 param postgresqlConfig postgresqlConfigType
 
 // ================ //
@@ -123,13 +76,11 @@ var regionAbbreviation = regionAbbreviations[location]
 // ======================== //
 
 var resourceGroupDefinitionKeys = [for resourceGroupDefinition in resourceGroupDefinitions: resourceGroupDefinition.key]
-
 var networkResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'network')]
 var networkEdgeResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'networkEdge')]
 var hostingResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'hosting')]
 var dataResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'data')]
 var operationsResourceGroupDefinition = resourceGroupDefinitions[indexOf(resourceGroupDefinitionKeys, 'operations')]
-
 var resourceGroupNameMap = {
   network: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${networkResourceGroupDefinition.workloadDescription}${empty(networkResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${networkResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
   networkEdge: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${networkEdgeResourceGroupDefinition.workloadDescription}${empty(networkEdgeResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${networkEdgeResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
@@ -137,7 +88,6 @@ var resourceGroupNameMap = {
   data: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${dataResourceGroupDefinition.workloadDescription}${empty(dataResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${dataResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
   operations: take('rg-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${operationsResourceGroupDefinition.workloadDescription}${empty(operationsResourceGroupDefinition.?subWorkloadDescription ?? '') ? '' : '-${operationsResourceGroupDefinition.subWorkloadDescription!}'}-${instanceNumber}', 90)
 }
-
 var spokePrivateDnsZoneLinks = [
   {
     name: networking.outputs.vnetSpokeName
@@ -204,7 +154,6 @@ module logAnalyticsWorkspace 'modules/02-monitoring/log-analytics-workspace.bice
     diagnosticSettings: logAnalyticsConfig.diagnosticSettings
   }
 }
-
 var resolvedLogAnalyticsWorkspaceResourceId = existingLogAnalyticsID != null
   ? existingLogAnalyticsID!
   : logAnalyticsWorkspace!.outputs.resourceId
@@ -311,7 +260,6 @@ module aseEnvironment 'modules/03-app-hosting/hosting-environment.bicep' = if (d
     roleAssignments: aseConfig.?roleAssignments
   }
 }
-
 
 // Lookup ASE properties via a resource-group-scoped module to avoid ARM reference() validation issues
 // in subscription-scoped templates with conditional existing resources.
@@ -745,7 +693,6 @@ module appGw 'modules/07-edge/application-gateway.bicep' = if (useApplicationGat
 // Supporting Services      //
 // ======================== //
 
-@description('Azure Key Vault used to hold items like TLS certs and application secrets that your workload will need.')
 module keyVault 'modules/06-secrets/key-vault.bicep' = {
   name: '${uniqueString(deployment().name, location)}-keyVault'
   dependsOn: [
@@ -843,77 +790,28 @@ module postgreSql 'modules/08-data/postgresql-flexible-server.bicep' = if (deplo
 // Outputs          //
 // ================ //
 
-@description('The name of the network resource group.')
 output networkResourceGroupName string = resourceGroupNameMap.network
-
-@description('The name of the network edge resource group.')
 output networkEdgeResourceGroupName string = resourceGroupNameMap.networkEdge
-
-@description('The name of the hosting resource group.')
 output hostingResourceGroupName string = resourceGroupNameMap.hosting
-
-@description('The name of the data resource group.')
 output dataResourceGroupName string = resourceGroupNameMap.data
-
-@description('The name of the operations resource group.')
 output operationsResourceGroupName string = resourceGroupNameMap.operations
-
-@description('The resource ID of the Spoke Virtual Network.')
 output spokeVNetResourceId string = networking.outputs.vnetSpokeResourceId
-
-@description('The name of the Spoke Virtual Network.')
 output spokeVnetName string = networking.outputs.vnetSpokeName
-
-@description('The resource ID of the key vault.')
 output keyVaultResourceId string = keyVault.outputs.resourceId
-
-@description('The name of the Azure key vault.')
 output keyVaultName string = keyVault.outputs.name
-
-@description('The name of the web app.')
 output webAppName string = webAppSite.outputs.name
-
-@description('The default hostname of the web app.')
 output webAppHostName string = webAppSite.outputs.defaultHostname
-
-@description('The resource ID of the web app.')
 output webAppResourceId string = webAppSite.outputs.resourceId
-
-@description('The location of the web app.')
 output webAppLocation string = webAppSite.outputs.location
-
-@description('The principal ID of the web app managed identity.')
 output webAppManagedIdentityPrincipalId string = webAppSite.outputs.systemAssignedMIPrincipalId
-
-@description('The resource ID of the App Service Plan used (either created or pre-existing).')
 output appServicePlanResourceId string = appServicePlanResourceId
-
-@description('The Internal ingress IP of the ASE. Null when ASE is not deployed.')
 output internalInboundIpAddress string? = aseLookup.?outputs.?internalInboundIpAddress
-
-@description('The name of the ASE. Null when ASE is not deployed.')
 output aseName string? = aseEnvironment.?outputs.?name
-
-@description('The resource ID of the Log Analytics workspace used by this deployment.')
 output logAnalyticsWorkspaceUsedResourceId string = resolvedLogAnalyticsWorkspaceResourceId
-
-@description('The name of the Log Analytics workspace created by this deployment. Null when an existing workspace is used.')
 output logAnalyticsWorkspaceCreatedName string? = logAnalyticsWorkspace.?outputs.?name
-
-@description('The object ID of the Microsoft Entra security group used as the PostgreSQL administrator. Null when PostgreSQL is not deployed.')
 output postgreSqlAdminGroupObjectId string? = deployPostgreSql ? postgresqlAdminGroupConfig.objectId : null
-
-@description('The display name of the Microsoft Entra security group used as the PostgreSQL administrator. Null when PostgreSQL is not deployed.')
 output postgreSqlAdminGroupName string? = deployPostgreSql ? postgresqlAdminGroupConfig.displayName : null
-
-@description('The name of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
 output postgreSqlServerName string? = postgreSql.?outputs.?name
-
-@description('The resource ID of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
 output postgreSqlServerResourceId string? = deployPostgreSql ? postgreSql!.outputs.resourceId : null
-
-@description('The FQDN of the PostgreSQL flexible server. Null when PostgreSQL is not deployed.')
 output postgreSqlServerFqdn string? = deployPostgreSql ? postgreSql!.outputs.fqdn : null
-
-@description('The name of the PostgreSQL private DNS zone. Null when PostgreSQL private access is not enabled.')
 output postgreSqlPrivateDnsZoneName string? = postgreSqlPrivateAccessEnabled ? postgreSql!.outputs.privateDnsZoneName! : null

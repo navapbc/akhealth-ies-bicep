@@ -1,10 +1,6 @@
 metadata name = 'Site App Settings'
 metadata description = 'This module deploys a Site App Setting.'
-
-@description('Conditional. The name of the parent site resource. Required if the template is used in a standalone deployment.')
 param appName string
-
-@description('Required. The name of the config.')
 @allowed([
   'appsettings'
   'authsettings'
@@ -19,33 +15,19 @@ param appName string
   'web'
 ])
 param name string
-
-@description('Optional. The properties of the config. Note: This parameter is highly dependent on the config type, defined by its name.')
 param properties object = {}
-
-@description('Optional. Storage account resource reference used to derive function host storage app settings.')
 param functionHostStorageAccount {
-  @description('Required. Name of the storage account.')
   name: string
-
-  @description('Required. Resource group name of the storage account.')
   resourceGroupName: string
 }?
-
-@description('Optional. Application Insights component reference used to derive the application insights connection string app setting.')
 param applicationInsightsComponent {
-  @description('Required. Name of the Application Insights component.')
   name: string
-
-  @description('Required. Resource group name of the Application Insights component.')
   resourceGroupName: string
 }?
-
 var storageAccountReference = functionHostStorageAccount
 var applicationInsightsReference = applicationInsightsComponent
 var hasStorageAccount = storageAccountReference != null
 var hasApplicationInsights = applicationInsightsReference != null
-
 var azureWebJobsValues = hasStorageAccount
   ? {
       AzureWebJobsStorage__accountName: storageAccountReference!.name
@@ -84,9 +66,6 @@ resource config 'Microsoft.Web/sites/config@2025-03-01' = {
   name: name
   properties: expandedProperties
 }
-
 output name string = config.name
-
 output resourceId string = config.id
-
 output resourceGroupName string = resourceGroup().name

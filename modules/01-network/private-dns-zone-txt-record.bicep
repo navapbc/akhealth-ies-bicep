@@ -3,26 +3,15 @@ metadata description = 'This module deploys a Private DNS Zone TXT record.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Conditional. The name of the parent Private DNS zone. Required if the template is used in a standalone deployment.')
 param privateDnsZoneName string
-
-@description('Required. The name of the TXT record.')
 param name string
-
-@description('Optional. The metadata attached to the record set.')
 param metadata resourceInput<'Microsoft.Network/privateDnsZones/TXT@2024-06-01'>.properties.metadata?
-
-@description('Optional. The TTL (time-to-live) of the records in the record set.')
 param ttl int = 3600
-
-@description('Optional. The list of TXT records in the record set.')
 param txtRecords resourceInput<'Microsoft.Network/privateDnsZones/TXT@2024-06-01'>.properties.txtRecords?
-
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -63,9 +52,6 @@ resource TXT_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
     scope: TXT
   }
 ]
-
 output name string = TXT.name
-
 output resourceId string = TXT.id
-
 output resourceGroupName string = resourceGroup().name

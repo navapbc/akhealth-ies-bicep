@@ -15,39 +15,20 @@ import {
   databaseType
 } from './postgresql-flexible-server-server.bicep'
 
-@description('Required. Abbreviation for the owning system.')
 param systemAbbreviation string
-
-@description('Required. Abbreviation for the lifecycle environment.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for deterministic naming.')
 param instanceNumber string
-
-@description('Required. Workload descriptor used to derive the PostgreSQL server name.')
 param workloadDescription string
-
-@description('Required. Location for all resources.')
 param location string
-
-@description('Required. Object ID of the Microsoft Entra group that will administer the PostgreSQL server.')
 param administratorGroupObjectId string
-
-@description('Required. Display name of the Microsoft Entra group that will administer the PostgreSQL server.')
 param administratorGroupDisplayName string
-
-@description('Required. The SKU name for the PostgreSQL flexible server.')
 param skuName string
-
-@description('Required. The pricing tier for the PostgreSQL flexible server.')
 @allowed([
   'Burstable'
   'GeneralPurpose'
   'MemoryOptimized'
 ])
 param tier string
-
-@description('Required. Availability zone. Use -1 when no explicit zone is intended.')
 @allowed([
   -1
   1
@@ -55,8 +36,6 @@ param tier string
   3
 ])
 param availabilityZone int
-
-@description('Required. Standby availability zone. Use -1 when no explicit zone is intended.')
 @allowed([
   -1
   1
@@ -64,36 +43,24 @@ param availabilityZone int
   3
 ])
 param highAvailabilityZone int
-
-@description('Required. High availability mode.')
 @allowed([
   'Disabled'
   'SameZone'
   'ZoneRedundant'
 ])
 param highAvailability string
-
-@description('Required. Backup retention days for the server.')
 param backupRetentionDays int
-
-@description('Required. Whether geo-redundant backup is enabled.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
 param geoRedundantBackup string
-
-@description('Required. Maximum storage size in GB.')
 param storageSizeGB int
-
-@description('Required. Storage autogrow setting.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
 param autoGrow string
-
-@description('Required. PostgreSQL engine version.')
 @allowed([
   '11'
   '12'
@@ -105,51 +72,26 @@ param autoGrow string
   '18'
 ])
 param version string
-
-@description('Required. Public network access setting for the server.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
 param publicNetworkAccess string
-
-@description('Required. Private networking mode for PostgreSQL.')
 @allowed([
   'delegatedSubnet'
   'none'
 ])
 param privateAccessMode string
-
-@description('Required. Top-level deployment flag that determines whether PostgreSQL should use private networking for this workload.')
 param deployPrivateNetworking bool
-
-@description('Conditional. Delegated subnet resource ID used for PostgreSQL private access. Pass null when privateAccessMode is none.')
 param delegatedSubnetResourceId string?
-
-@description('Required. Virtual network links for the module-owned PostgreSQL private DNS zone.')
 param privateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[]
-
-@description('Optional. Resource group name for the module-owned PostgreSQL private DNS zone. When omitted, the current resource group is used.')
 param privateDnsZoneResourceGroupName string?
-
-@description('Required. Databases to create on the server.')
 param databases databaseType[]
-
-@description('Required. Server configurations to apply.')
 param configurations configurationType[]
-
-@description('Optional. Resource lock for the server.')
 param lock lockType?
-
-@description('Required. Role assignments for the server.')
 param roleAssignments roleAssignmentType[] = []
-
-@description('Required. Diagnostic settings for the server.')
 param diagnosticSettings diagnosticSettingFullType[] = []
-
-@description('Required. Tags for the server and companion resources.')
 param tags object
-
 var resourceAbbreviation = 'psqlfx'
 var regionAbbreviation = regionAbbreviations[location]
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}-${workloadDescription}-${instanceNumber}', 63)
@@ -265,21 +207,10 @@ module flexibleServerPublic './postgresql-flexible-server-server.bicep' = if (ne
     tags: tags
   }
 }
-
 output name string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?name! : flexibleServerPublic.?outputs.?name!
-
 output resourceId string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceId! : flexibleServerPublic.?outputs.?resourceId!
-
 output resourceGroupName string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?resourceGroupName! : flexibleServerPublic.?outputs.?resourceGroupName!
-
-@description('The location of the PostgreSQL flexible server.')
 output serverLocation string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?location! : flexibleServerPublic.?outputs.?location!
-
-@description('The fully qualified domain name of the PostgreSQL flexible server.')
 output fqdn string = privateAccessEnabled ? flexibleServerPrivate.?outputs.?fqdn! : flexibleServerPublic.?outputs.?fqdn!
-
-@description('The module-owned PostgreSQL private DNS zone name. Null when private access is not enabled.')
 output privateDnsZoneName string? = privateAccessEnabled ? derivedPrivateDnsZoneName : null
-
-@description('The resource ID of the module-owned PostgreSQL private DNS zone. Null when private access is not enabled.')
 output privateDnsZoneResourceId string? = privateAccessEnabled ? postgreSqlPrivateDnsZone.?outputs.?resourceId : null

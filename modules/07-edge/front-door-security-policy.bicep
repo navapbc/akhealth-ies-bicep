@@ -3,28 +3,15 @@ metadata description = 'This module deploys a CDN Profile Security Policy.'
 
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 
-@description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
-
-@description('Required. Environment abbreviation used for resource naming.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for resource naming.')
 param instanceNumber string
-
-@description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
-
-@description('Conditional. The name of the parent Front Door profile. Required if the template is used in a standalone deployment.')
 param profileName string
-
-@description('Required. Resource ID of WAF Policy.')
 param wafPolicyResourceId string
 
 // param associations associationsType
-@description('Required. Waf associations (see https://learn.microsoft.com/en-us/azure/templates/microsoft.cdn/profiles/securitypolicies?pivots=deployment-language-bicep#securitypolicywebapplicationfirewallassociation for details).')
 param associations associationsType[]
-
 var resourceAbbreviation = 'fdsecp'
 var resourceLocation = 'global'
 var regionAbbreviation = regionAbbreviations[resourceLocation]
@@ -34,7 +21,6 @@ var derivedName = take(
   128
 )
 var resolvedName = derivedName
-
 
 resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
@@ -53,11 +39,8 @@ resource securityPolicies 'Microsoft.Cdn/profiles/securityPolicies@2025-06-01' =
     }
   }
 }
-
 output name string = securityPolicies.name
-
 output resourceId string = securityPolicies.id
-
 output resourceGroupName string = resourceGroup().name
 
 // =============== //
@@ -65,13 +48,9 @@ output resourceGroupName string = resourceGroup().name
 // =============== //
 
 @export()
-@description('The type of the associations.')
 type associationsType = {
-  @description('Required. List of domain resource id to associate with this resource.')
   domains: {
-    @description('Required. ResourceID to domain that will be associated.')
     id: string
   }[]
-  @description('Required. List of patterns to match with this association.')
   patternsToMatch: string[]
 }

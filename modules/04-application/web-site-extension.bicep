@@ -1,22 +1,14 @@
 metadata name = 'Site Deployment Extension '
 metadata description = 'This module deploys a Site extension for MSDeploy.'
-
-@description('Required. The name of the parent site resource.')
 param appName string
-
-@description('Optional. The name of the extension.')
 @allowed([
   'MSDeploy'
 ])
 param name string = 'MSDeploy'
-
-@description('Optional. The kind of extension.')
 @allowed([
   'MSDeploy'
 ])
 param kind string = 'MSDeploy'
-
-@description('Optional. Sets the properties.')
 param properties resourceInput<'Microsoft.Web/sites/extensions@2025-03-01'>.properties?
 
 resource app 'Microsoft.Web/sites@2025-03-01' existing = {
@@ -28,9 +20,6 @@ resource msdeploy 'Microsoft.Web/sites/extensions@2025-03-01' = {
   parent: app
   properties: properties
 }
-
 output name string = msdeploy.name
-
 output resourceId string = msdeploy.id
-
 output resourceGroupName string = resourceGroup().name

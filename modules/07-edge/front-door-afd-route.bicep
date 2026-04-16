@@ -1,66 +1,37 @@
 metadata name = 'CDN Profiles AFD Endpoint Route'
 metadata description = 'This module deploys a CDN Profile AFD Endpoint route.'
-
-@description('Required. The name of the route.')
 param name string
-
-@description('Required. The name of the parent Front Door profile.')
 param profileName string
-
-@description('Required. The name of the AFD endpoint.')
 param afdEndpointName string
-
-@description('Optional. The caching configuration for this route. To disable caching, do not provide a cacheConfiguration object.')
 param cacheConfiguration resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.cacheConfiguration?
-
-@description('Optional. The names of the custom domains. The custom domains must be defined in the profile customDomains array.')
 param customDomainNames string[]?
-
 @allowed([
   'HttpOnly'
   'HttpsOnly'
   'MatchRequest'
 ])
-@description('Optional. The protocol this rule will use when forwarding traffic to backends.')
 param forwardingProtocol string
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Optional. Whether this route is enabled.')
 param enabledState string
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Optional. Whether to automatically redirect HTTP traffic to HTTPS traffic.')
 param httpsRedirect string
-
 @allowed([
   'Disabled'
   'Enabled'
 ])
-@description('Optional. Whether this route will be linked to the default endpoint domain.')
 param linkToDefaultDomain string
-
-@description('Required. The name of the origin group. The origin group must be defined in the profile originGroups.')
 param originGroupName string
-
-@description('Optional. A directory path on the origin that AzureFrontDoor can use to retrieve content from, e.g. contoso.cloudapp.net/originpath.')
 param originPath string?
-
-@description('Optional. The route patterns of the rule.')
 param patternsToMatch resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.patternsToMatch?
-
-@description('Optional. The names of the rule sets of the rule. The rule sets must be defined in the profile ruleSets.')
 param ruleSets string[]?
-
 @allowed(['Http', 'Https'])
-@description('Optional. The supported protocols of the rule.')
 param supportedProtocols resourceInput<'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01'>.properties.supportedProtocols?
-
 
 resource profile 'Microsoft.Cdn/profiles@2025-06-01' existing = {
   name: profileName
@@ -113,9 +84,6 @@ resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
     supportedProtocols: supportedProtocols
   }
 }
-
 output name string = route.name
-
 output resourceId string = route.id
-
 output resourceGroupName string = resourceGroup().name

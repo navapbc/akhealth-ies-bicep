@@ -22,6 +22,8 @@ param tags = {
   managedBy: 'bicepparam'
 }
 
+
+//below block defines the resource groups to be created
 param resourceGroupDefinitions = [
   {
     key: 'network'

@@ -3,26 +3,15 @@ metadata description = 'This module deploys a Private DNS Zone SRV record.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Conditional. The name of the parent Private DNS zone. Required if the template is used in a standalone deployment.')
 param privateDnsZoneName string
-
-@description('Required. The name of the SRV record.')
 param name string
-
-@description('Optional. The metadata attached to the record set.')
 param metadata resourceInput<'Microsoft.Network/privateDnsZones/SRV@2024-06-01'>.properties.metadata?
-
-@description('Optional. The list of SRV records in the record set.')
 param srvRecords resourceInput<'Microsoft.Network/privateDnsZones/SRV@2024-06-01'>.properties.srvRecords?
-
-@description('Optional. The TTL (time-to-live) of the records in the record set.')
 param ttl int = 3600
-
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -63,9 +52,6 @@ resource SRV_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01
     scope: SRV
   }
 ]
-
 output name string = SRV.name
-
 output resourceId string = SRV.id
-
 output resourceGroupName string = resourceGroup().name

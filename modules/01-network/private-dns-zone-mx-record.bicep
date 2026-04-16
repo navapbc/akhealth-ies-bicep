@@ -3,26 +3,15 @@ metadata description = 'This module deploys a Private DNS Zone MX record.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Conditional. The name of the parent Private DNS zone. Required if the template is used in a standalone deployment.')
 param privateDnsZoneName string
-
-@description('Required. The name of the MX record.')
 param name string
-
-@description('Optional. The metadata attached to the record set.')
 param metadata resourceInput<'Microsoft.Network/privateDnsZones/MX@2024-06-01'>.properties.metadata?
-
-@description('Optional. The list of MX records in the record set.')
 param mxRecords resourceInput<'Microsoft.Network/privateDnsZones/MX@2024-06-01'>.properties.mxRecords?
-
-@description('Optional. The TTL (time-to-live) of the records in the record set.')
 param ttl int = 3600
-
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
 @sys.description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -63,9 +52,6 @@ resource MX_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01'
     scope: MX
   }
 ]
-
 output name string = MX.name
-
 output resourceId string = MX.id
-
 output resourceGroupName string = resourceGroup().name

@@ -3,16 +3,9 @@ metadata description = 'This module deploys a Public IP Address.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Required. The name of the Public IP Address.')
 param name string
-
-@description('Optional. Resource ID of the Public IP Prefix object. This is only needed if you want your Public IPs created in a PIP Prefix.')
 param publicIpPrefixResourceId string?
-
-@description('Optional. The public IP address allocation method.')
 param publicIPAllocationMethod resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAllocationMethod = 'Static'
-
-@description('Optional. A list of availability zones denoting the IP allocated for the resource needs to come from.')
 @allowed([
   1
   2
@@ -23,48 +16,25 @@ param availabilityZones int[] = [
   2
   3
 ]
-
-@description('Optional. IP address version.')
 param publicIPAddressVersion resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.publicIPAddressVersion = 'IPv4'
-
-@description('Optional. The DNS settings of the public IP address.')
 param dnsSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.dnsSettings?
-
-@description('Optional. The list of tags associated with the public IP address.')
 param ipTags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ipTags?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
-
-@description('Optional. Name of a public IP address SKU.')
 param skuName resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.name = 'Standard'
-
-@description('Optional. Tier of a public IP address SKU.')
 param skuTier resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.sku.tier = 'Regional'
-
-@description('Optional. The DDoS protection plan configuration associated with the public IP address.')
 param ddosSettings resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.ddosSettings?
-
-@description('Optional. The delete option for the public IP address.')
 param deleteOption resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.properties.deleteOption?
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-
-@description('Optional. The idle timeout of the public IP address.')
 param idleTimeoutInMinutes int = 4
-
 param tags resourceInput<'Microsoft.Network/publicIPAddresses@2025-05-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingFullType[]?
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -145,16 +115,10 @@ resource publicIpAddress_diagnosticSettings 'Microsoft.Insights/diagnosticSettin
     scope: publicIpAddress
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = publicIpAddress.name
-
 output resourceId string = publicIpAddress.id
-
-@description('The public IP address of the public IP address resource.')
 output ipAddress string = publicIpAddress.properties.?ipAddress ?? ''
-
 output location string = publicIpAddress.location
 
 resource publicIpAddress_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

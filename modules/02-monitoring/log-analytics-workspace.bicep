@@ -3,44 +3,21 @@ targetScope = 'resourceGroup'
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 
-@description('Required. System abbreviation used for resource naming.')
 param systemAbbreviation string
-
-@description('Required. Environment abbreviation used for resource naming.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for resource naming.')
 param instanceNumber string
-
-@description('Optional. Workload description segment used for resource naming.')
 param workloadDescription string = ''
-
-@description('Optional. Location for the workspace.')
 param location string = resourceGroup().location
-
-@description('Optional. Tags to apply to the workspace.')
 param tags object = {}
-
-@description('Optional. Workspace SKU.')
 param sku string
-
-@description('Optional. Workspace retention in days.')
 param retentionInDays int
-
-@description('Optional. Enable resource-permission-only log access.')
 param enableLogAccessUsingOnlyResourcePermissions bool
-
-@description('Optional. Disable local auth.')
 param disableLocalAuth bool
-
-@description('Optional. Public network access for ingestion.')
 @allowed([
   'Enabled'
   'Disabled'
 ])
 param publicNetworkAccessForIngestion string
-
-@description('Optional. Public network access for query.')
 @allowed([
   'Enabled'
   'Disabled'
@@ -48,17 +25,13 @@ param publicNetworkAccessForIngestion string
 param publicNetworkAccessForQuery string
 
 import { lockType } from '../shared/avm-common-types.bicep'
-@description('Optional. The lock settings of the workspace.')
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the workspace.')
 param diagnosticSettings diagnosticSettingFullType[]?
-
 var resourceAbbreviation = 'log'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
@@ -67,7 +40,6 @@ var derivedName = take(
   63
 )
 var resolvedName = derivedName
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -141,13 +113,9 @@ resource workspace_diagnosticSettings 'Microsoft.Insights/diagnosticSettings@202
     scope: workspace
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output resourceId string = workspace.id
-
 output name string = workspace.name
-
 output location string = workspace.location
 
 resource workspace_lock 'Microsoft.Authorization/locks@2020-05-01' = if (!empty(lock ?? {}) && lock.?kind != 'None') {

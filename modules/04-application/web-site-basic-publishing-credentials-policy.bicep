@@ -1,20 +1,12 @@
 metadata name = 'Web Site Basic Publishing Credentials Policies'
 metadata description = 'This module deploys a Web Site Basic Publishing Credentials Policy.'
-
-@description('Required. The name of the resource.')
 @allowed([
   'scm'
   'ftp'
 ])
 param name string
-
-@description('Optional. Set to true to enable or false to disable a publishing method.')
 param allow bool = true
-
-@description('Conditional. The name of the parent web site. Required if the template is used in a standalone deployment.')
 param webAppName string
-
-@description('Optional. Location for all Resources.')
 param location string = resourceGroup().location
 
 resource webApp 'Microsoft.Web/sites@2025-03-01' existing = {
@@ -30,11 +22,7 @@ resource basicPublishingCredentialsPolicy 'Microsoft.Web/sites/basicPublishingCr
     allow: allow
   }
 }
-
 output name string = basicPublishingCredentialsPolicy.name
-
 output resourceId string = basicPublishingCredentialsPolicy.id
-
 output resourceGroupName string = resourceGroup().name
-
 output location string = basicPublishingCredentialsPolicy.location

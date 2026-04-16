@@ -3,39 +3,21 @@ metadata description = 'This module deploys a Key Vault Secret.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Conditional. The name of the parent key vault. Required if the template is used in a standalone deployment.')
 param keyVaultName string
-
-@description('Required. The name of the secret (letters (upper and lower case), numbers, -).')
 @minLength(1)
 @maxLength(127)
 param name string
-
-@description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.KeyVault/vaults/secrets@2024-11-01'>.tags?
-
-@description('Optional. Determines whether the object is enabled.')
 param attributesEnabled bool?
-
-@description('Optional. Expiry date in seconds since 1970-01-01T00:00:00Z. For security reasons, it is recommended to set an expiration date whenever possible.')
 param attributesExp int?
-
-@description('Optional. Not before date in seconds since 1970-01-01T00:00:00Z.')
 param attributesNbf int?
-
-@description('Optional. The content type of the secret.')
 @secure()
 param contentType string?
-
-@description('Required. The value of the secret. NOTE: "value" will never be returned from the service, as APIs using this model are is intended for internal use in ARM deployments. Users should use the data-plane REST service for interaction with vault secrets.')
 @secure()
 param value string
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -81,15 +63,8 @@ resource secret_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04
     scope: secret
   }
 ]
-
 output name string = secret.name
-
 output resourceId string = secret.id
-
-@description('The uri of the secret.')
 output secretUri string = secret.properties.secretUri
-
-@description('The uri with version of the secret.')
 output secretUriWithVersion string = secret.properties.secretUriWithVersion
-
 output resourceGroupName string = resourceGroup().name

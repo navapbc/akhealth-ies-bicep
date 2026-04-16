@@ -1,25 +1,15 @@
 metadata name = 'Site Deployment Extension '
 metadata description = 'This module deploys a Site extension for MSDeploy.'
-
-@description('Conditional. The name of the parent site resource. Required if the template is used in a standalone deployment.')
 param appName string
-
-@description('Conditional. The name of the parent web site slot. Required if the template is used in a standalone deployment.')
 param slotName string
-
-@description('Optional. The name of the extension.')
 @allowed([
   'MSDeploy'
 ])
 param name string = 'MSDeploy'
-
-@description('Optional. The kind of extension.')
 @allowed([
   'MSDeploy'
 ])
 param kind string = 'MSDeploy'
-
-@description('Optional. Sets the properties.')
 param properties resourceInput<'Microsoft.Web/sites/slots/extensions@2025-03-01'>.properties?
 
 resource app 'Microsoft.Web/sites@2025-03-01' existing = {
@@ -35,9 +25,6 @@ resource msdeploy 'Microsoft.Web/sites/slots/extensions@2025-03-01' = {
   parent: app::slot
   properties: properties
 }
-
 output name string = msdeploy.name
-
 output resourceId string = msdeploy.id
-
 output resourceGroupName string = resourceGroup().name

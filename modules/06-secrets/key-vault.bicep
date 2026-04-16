@@ -7,60 +7,29 @@ import { regionAbbreviations } from '../shared/region-abbreviations.bicep'
 // ================ //
 // Parameters       //
 // ================ //
-@description('Required. Abbreviation for the owning system.')
 param systemAbbreviation string
-
-@description('Required. Abbreviation for the lifecycle environment.')
 param environmentAbbreviation string
-
-@description('Required. Instance number used for deterministic naming.')
 param instanceNumber string
-
-@description('Optional. Workload descriptor to include in names when it adds value. When empty, the segment is omitted.')
 param workloadDescription string = ''
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
-
-@description('Optional. All secrets to create.')
 param secrets secretType[]?
-
-@description('Optional. All keys to create.')
 param keys keyType[]?
-
-@description('Optional. Specifies if the vault is enabled for deployment by script or compute.')
 param enableVaultForDeployment bool = true
-
-@description('Optional. Specifies if the vault is enabled for a template deployment.')
 param enableVaultForTemplateDeployment bool = true
-
-@description('Optional. Specifies if the azure platform has access to the vault for enabling disk encryption scenarios.')
 param enableVaultForDiskEncryption bool
-
-@description('Optional. softDelete data retention days. It accepts >=7 and <=90.')
 param softDeleteRetentionInDays int
-
-@description('Optional. The vault\'s create mode to indicate whether the vault need to be recovered or not.')
 @allowed([
   'default'
   'recover'
 ])
 param createMode string
-
-@description('Optional. Provide \'true\' to enable Key Vault\'s purge protection feature.')
 param enablePurgeProtection bool
-
-@description('Optional. Specifies the SKU for the vault.')
 @allowed([
   'premium'
   'standard'
 ])
 param sku string
-
-@description('Optional. Rules governing the accessibility of the resource from specific network locations.')
 param networkAcls networkAclsType?
-
-@description('Required. Whether or not public network access is allowed for this resource.')
 @allowed([
   'Enabled'
   'Disabled'
@@ -71,46 +40,30 @@ import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
 
 import {
   virtualNetworkLinkType
 } from '../shared/shared.types.bicep'
-@description('Optional. When true, the module creates the standard private endpoint wiring for the vault.')
 param enableDefaultPrivateEndpoint bool = false
-
-@description('Optional. Subnet resource ID for the module-owned default private endpoint.')
 param defaultPrivateEndpointSubnetResourceId string?
-
-@description('Optional. Resource group name for the module-owned default private networking resources. When omitted, they are deployed to the current resource group.')
 param defaultPrivateNetworkingResourceGroupName string?
-
-@description('Optional. Private DNS zone name for the module-owned default private endpoint.')
 param defaultPrivateDnsZoneName string = 'privatelink.vaultcore.azure.net'
-
-@description('Optional. Virtual network links for the module-owned default private DNS zone.')
 param defaultPrivateDnsZoneVirtualNetworkLinks virtualNetworkLinkType[] = []
-
-@description('Optional. Resource tags.')
 param tags resourceInput<'Microsoft.KeyVault/vaults@2024-11-01'>.tags?
 
 import { diagnosticSettingFullType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingFullType[]?
-
 
 // =========== //
 // Variables   //
 // =========== //
-
 
 var resourceAbbreviation = 'kv'
 var regionAbbreviation = regionAbbreviations[location]
 var workloadSegment = empty(workloadDescription) ? '' : '-${workloadDescription}'
 var derivedName = take('${resourceAbbreviation}-${systemAbbreviation}-${regionAbbreviation}-${environmentAbbreviation}${workloadSegment}-${instanceNumber}', 24)
 var resolvedName = derivedName
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -121,7 +74,6 @@ var formattedRoleAssignments = [
       : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
   })
 ]
-
 var resolvedEnablePurgeProtection = enablePurgeProtection ? enablePurgeProtection : null
 var resolvedKeyVaultNetworkAcls = !empty(networkAcls ?? {})
   ? {
@@ -361,17 +313,10 @@ resource keyVault_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-
 // Outputs     //
 // =========== //
 output resourceId string = keyVault.id
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = keyVault.name
-
-@description('The URI of the key vault.')
 output uri string = keyVault.properties.vaultUri
-
 output location string = keyVault.location
-
-@description('The private endpoints of the key vault.')
 output privateEndpoints privateEndpointOutputType[] = [
   for (item, index) in resolvedPrivateEndpoints: {
     name: keyVault_privateEndpoints[index].outputs.name
@@ -381,8 +326,6 @@ output privateEndpoints privateEndpointOutputType[] = [
     networkInterfaceResourceIds: keyVault_privateEndpoints[index].outputs.networkInterfaceResourceIds
   }
 ]
-
-@description('The properties of the created secrets.')
 output secrets credentialOutputType[] = [
   #disable-next-line outputs-should-not-contain-secrets // Only returning the references, not any secret value
   for index in range(0, length(secrets ?? [])): {
@@ -391,8 +334,6 @@ output secrets credentialOutputType[] = [
     uriWithVersion: keyVault_secrets[index].outputs.secretUriWithVersion
   }
 ]
-
-@description('The properties of the created keys.')
 output keys credentialOutputType[] = [
   for index in range(0, length(keys ?? [])): {
     resourceId: keyVault_keys[index].outputs.resourceId
@@ -406,145 +347,74 @@ output keys credentialOutputType[] = [
 // ================ //
 
 @export()
-@description('The type for rules governing the accessibility of the key vault from specific network locations.')
 type networkAclsType = {
-  @description('Optional. The bypass options for traffic for the network ACLs.')
   bypass: ('AzureServices' | 'None')?
-
-  @description('Optional. The default action for the network ACLs, when no rule matches.')
   defaultAction: ('Allow' | 'Deny')?
-
-  @description('Optional. A list of IP rules.')
   ipRules: {
-    @description('Required. An IPv4 address range in CIDR notation, such as "124.56.78.91" (simple IP address) or "124.56.78.0/24".')
     value: string
   }[]?
 
-  @description('Optional. A list of virtual network rules.')
   virtualNetworkRules: {
-    @description('Required. The resource ID of the virtual network subnet.')
     id: string
-
-    @description('Optional. Whether NRP will ignore the check if parent subnet has serviceEndpoints configured.')
     ignoreMissingVnetServiceEndpoint: bool?
   }[]?
 }
 
 @export()
 type privateEndpointOutputType = {
-  @description('The name of the private endpoint.')
   name: string
-
-  @description('The resource ID of the private endpoint.')
   resourceId: string
-
-  @description('The group Id for the private endpoint Group.')
   groupId: string?
-
-  @description('The custom DNS configurations of the private endpoint.')
   customDnsConfigs: {
-    @description('FQDN that resolves to private endpoint IP address.')
     fqdn: string?
-
-    @description('A list of private IP addresses of the private endpoint.')
     ipAddresses: string[]
   }[]
 
-  @description('The IDs of the network interfaces associated with the private endpoint.')
   networkInterfaceResourceIds: string[]
 }
 
 @export()
-@description('The type for a credential output.')
 type credentialOutputType = {
-  @description('The item\'s resourceId.')
   resourceId: string
-
-  @description('The item\'s uri.')
   uri: string
-
-  @description('The item\'s uri with version.')
   uriWithVersion: string
 }
 
 @export()
-@description('The type for a secret output.')
 type secretType = {
-  @description('Required. The name of the secret.')
   name: string
-
-  @description('Optional. Resource tags.')
   tags: object?
-
-  @description('Optional. Contains attributes of the secret.')
   attributes: {
-    @description('Optional. Defines whether the secret is enabled or disabled.')
     enabled: bool?
-
-    @description('Optional. Defines when the secret will become invalid. Defined in seconds since 1970-01-01T00:00:00Z.')
     exp: int?
-
-    @description('Optional. If set, defines the date from which onwards the secret becomes valid. Defined in seconds since 1970-01-01T00:00:00Z.')
     nbf: int?
   }?
-  @description('Optional. The content type of the secret.')
   contentType: string?
-
-  @description('Required. The value of the secret. NOTE: "value" will never be returned from the service, as APIs using this model are is intended for internal use in ARM deployments. Users should use the data-plane REST service for interaction with vault secrets.')
   @secure()
   value: string
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
 }
 
 import { rotationPolicyType } from './key-vault-key.bicep'
 
 @export()
-@description('The type for a key.')
 type keyType = {
-  @description('Required. The name of the key.')
   name: string
-
-  @description('Optional. Resource tags.')
   tags: object?
-
-  @description('Optional. Contains attributes of the key.')
   attributes: {
-    @description('Optional. Defines whether the key is enabled or disabled.')
     enabled: bool?
-
-    @description('Optional. Defines when the key will become invalid. Defined in seconds since 1970-01-01T00:00:00Z.')
     exp: int?
-
-    @description('Optional. If set, defines the date from which onwards the key becomes valid. Defined in seconds since 1970-01-01T00:00:00Z.')
     nbf: int?
   }?
-  @description('Optional. The elliptic curve name. Required when kty is "EC" or "EC-HSM".')
   curveName: ('P-256' | 'P-256K' | 'P-384' | 'P-521')?
-
-  @description('Optional. The allowed operations on this key.')
   keyOps: ('decrypt' | 'encrypt' | 'import' | 'release' | 'sign' | 'unwrapKey' | 'verify' | 'wrapKey')[]?
-
-  @description('Optional. The key size in bits. Required when kty is "RSA" or "RSA-HSM".')
   keySize: (2048 | 3072 | 4096)?
-
-  @description('Required. The type of the key.')
   kty: ('EC' | 'EC-HSM' | 'RSA' | 'RSA-HSM')
-
-  @description('Optional. Key release policy.')
   releasePolicy: {
-    @description('Optional. Content type and version of key release policy.')
     contentType: string?
-
-    @description('Optional. Blob encoding the policy rules under which the key can be released.')
     data: string?
   }?
-
-  @description('Optional. Key rotation policy.')
   rotationPolicy: rotationPolicyType?
-
-  @description('Optional. Array of role assignments to create.')
   roleAssignments: roleAssignmentType[]?
 }
 

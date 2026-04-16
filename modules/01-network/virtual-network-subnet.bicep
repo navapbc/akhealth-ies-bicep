@@ -3,34 +3,15 @@ metadata description = 'This module deploys a Virtual Network Subnet.'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Required. The Name of the subnet resource.')
 param name string
-
-@description('Conditional. The name of the parent virtual network. Required if the template is used in a standalone deployment.')
 param virtualNetworkName string
-
-@description('Conditional. The address prefix for the subnet. Required if `addressPrefixes` is empty.')
 param addressPrefix string?
-
-@description('Conditional. The address space for the subnet, deployed from IPAM Pool. Required if `addressPrefixes` and `addressPrefix` is empty.')
 param ipamPoolPrefixAllocations object[]?
-
-@description('Optional. The resource ID of the network security group to assign to the subnet.')
 param networkSecurityGroupResourceId string?
-
-@description('Optional. The resource ID of the route table to assign to the subnet.')
 param routeTableResourceId string?
-
-@description('Optional. The service endpoints to enable on the subnet.')
 param serviceEndpoints string[] = []
-
-@description('Optional. The delegation to enable on the subnet.')
 param delegation string?
-
-@description('Optional. The resource ID of the NAT Gateway to use for the subnet.')
 param natGatewayResourceId string?
-
-@description('Optional. Enable or disable apply network policies on private endpoint in the subnet.')
 @allowed([
   'Disabled'
   'Enabled'
@@ -38,34 +19,19 @@ param natGatewayResourceId string?
   'RouteTableEnabled'
 ])
 param privateEndpointNetworkPolicies string?
-
-@description('Optional. Enable or disable apply network policies on private link service in the subnet.')
 @allowed([
   'Disabled'
   'Enabled'
 ])
 param privateLinkServiceNetworkPolicies string?
-
-@description('Conditional. List of address prefixes for the subnet. Required if `addressPrefix` is empty.')
 param addressPrefixes string[]?
-
-@description('Optional. Set this property to false to disable default outbound connectivity for all VMs in the subnet. This property can only be set at the time of subnet creation and cannot be updated for an existing subnet.')
 param defaultOutboundAccess bool?
-
-@description('Optional. Set this property to Tenant to allow sharing the subnet with other subscriptions in your AAD tenant. This property can only be set if defaultOutboundAccess is set to false, both properties can only be set if the subnet is empty.')
 param sharingScope ('DelegatedServices' | 'Tenant')?
-
-@description('Optional. Application gateway IP configurations of virtual network resource.')
 param applicationGatewayIPConfigurations array = []
-
-@description('Optional. An array of service endpoint policies.')
 param serviceEndpointPolicies array = []
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -76,7 +42,6 @@ var formattedRoleAssignments = [
       : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
   })
 ]
-
 var delegatedPostgreSqlSubnetContractIsValid = delegation == 'Microsoft.DBforPostgreSQL/flexibleServers' && privateEndpointNetworkPolicies != null
   ? fail('Subnets delegated to Microsoft.DBforPostgreSQL/flexibleServers must not also declare privateEndpointNetworkPolicies. Leave privateEndpointNetworkPolicies unset for these delegated subnets and let the platform manage the resulting state.')
   : true
@@ -148,18 +113,9 @@ resource subnet_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04
     scope: subnet
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output name string = subnet.name
-
 output resourceId string = subnet.id
-
-@description('The address prefix for the subnet.')
 output addressPrefix string = subnet.properties.?addressPrefix ?? ''
-
-@description('List of address prefixes for the subnet.')
 output addressPrefixes array = subnet.properties.?addressPrefixes ?? []
-
-@description('The IPAM pool prefix allocations for the subnet.')
 output ipamPoolPrefixAllocations array = subnet.properties.?ipamPoolPrefixAllocations ?? []

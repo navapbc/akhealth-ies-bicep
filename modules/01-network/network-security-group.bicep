@@ -3,33 +3,20 @@ metadata description = 'This module deploys a Network security Group (NSG).'
 
 import { builtInRoleNames } from '../shared/role-definitions.bicep'
 
-@description('Required. Name of the Network Security Group.')
 param name string
-
-@description('Optional. Location for all resources.')
 param location string = resourceGroup().location
-
-@description('Optional. Array of Security Rules to deploy to the Network Security Group. When not provided, an NSG including only the built-in roles will be deployed.')
 param securityRules securityRuleType[]?
-
-@description('Optional. When enabled, flows created from Network Security Group connections will be re-evaluated when rules are updates. Initial enablement will trigger re-evaluation. Network Security Group connection flushing is not available in all regions.')
 param flushConnection bool = false
 
 import { diagnosticSettingLogsOnlyType } from '../shared/avm-common-types.bicep'
-@description('Optional. The diagnostic settings of the service.')
 param diagnosticSettings diagnosticSettingLogsOnlyType[]?
 
 import { lockType } from '../shared/avm-common-types.bicep'
 param lock lockType?
 
 import { roleAssignmentType } from '../shared/avm-common-types.bicep'
-@description('Optional. Array of role assignments to create.')
 param roleAssignments roleAssignmentType[]?
-
-@description('Optional. Tags of the NSG resource.')
 param tags resourceInput<'Microsoft.Network/networkSecurityGroups@2025-05-01'>.tags?
-
-
 var formattedRoleAssignments = [
   for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
     roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
@@ -123,13 +110,9 @@ resource networkSecurityGroup_roleAssignments 'Microsoft.Authorization/roleAssig
     scope: networkSecurityGroup
   }
 ]
-
 output resourceGroupName string = resourceGroup().name
-
 output resourceId string = networkSecurityGroup.id
-
 output name string = networkSecurityGroup.name
-
 output location string = networkSecurityGroup.location
 
 // =============== //
@@ -137,58 +120,25 @@ output location string = networkSecurityGroup.location
 // =============== //
 
 @export()
-@description('The type of a security rule.')
 type securityRuleType = {
-  @description('Required. The name of the security rule.')
   name: string
-
-  @description('Required. The properties of the security rule.')
   properties: {
-    @description('Required. Whether network traffic is allowed or denied.')
     access: ('Allow' | 'Deny')
-
-    @description('Optional. The description of the security rule.')
     description: string?
-
-    @description('Optional. Optional. The destination address prefix. CIDR or destination IP range. Asterisk "*" can also be used to match all source IPs. Default tags such as "VirtualNetwork", "AzureLoadBalancer" and "Internet" can also be used.')
     destinationAddressPrefix: string?
-
-    @description('Optional. The destination address prefixes. CIDR or destination IP ranges.')
     destinationAddressPrefixes: string[]?
-
-    @description('Optional. The resource IDs of the application security groups specified as destination.')
     destinationApplicationSecurityGroupResourceIds: string[]?
-
-    @description('Optional. The destination port or range. Integer or range between 0 and 65535. Asterisk "*" can also be used to match all ports.')
     destinationPortRange: string?
-
-    @description('Optional. The destination port ranges.')
     destinationPortRanges: string[]?
-
-    @description('Required. The direction of the rule. The direction specifies if rule will be evaluated on incoming or outgoing traffic.')
     direction: ('Inbound' | 'Outbound')
-
     @minValue(100)
     @maxValue(4096)
-    @description('Required. Required. The priority of the rule. The value can be between 100 and 4096. The priority number must be unique for each rule in the collection. The lower the priority number, the higher the priority of the rule.')
     priority: int
-
-    @description('Required. Network protocol this rule applies to.')
     protocol: ('Ah' | 'Esp' | 'Icmp' | 'Tcp' | 'Udp' | '*')
-
-    @description('Optional. The CIDR or source IP range. Asterisk "*" can also be used to match all source IPs. Default tags such as "VirtualNetwork", "AzureLoadBalancer" and "Internet" can also be used. If this is an ingress rule, specifies where network traffic originates from.')
     sourceAddressPrefix: string?
-
-    @description('Optional. The CIDR or source IP ranges.')
     sourceAddressPrefixes: string[]?
-
-    @description('Optional. The resource IDs of the application security groups specified as source.')
     sourceApplicationSecurityGroupResourceIds: string[]?
-
-    @description('Optional. The source port or range. Integer or range between 0 and 65535. Asterisk "*" can also be used to match all ports.')
     sourcePortRange: string?
-
-    @description('Optional. The source port ranges.')
     sourcePortRanges: string[]?
   }
 }
