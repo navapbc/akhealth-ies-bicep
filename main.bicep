@@ -201,10 +201,27 @@ var resolvedLogAnalyticsWorkspaceResourceId = existingLogAnalyticsID != null
 // Networking               //
 // ======================== //
 
+module networkWatcher 'modules/01-network/network-watcher.bicep' = {
+  name: '${uniqueString(deployment().name, location)}-networkwatcher'
+  dependsOn: [
+    resourceGroups
+  ]
+  scope: resourceGroup(resourceGroupNameMap.network)
+  params: {
+    systemAbbreviation: systemAbbreviation
+    environmentAbbreviation: environmentAbbreviation
+    instanceNumber: instanceNumber
+    workloadDescription: spokeNetworkWorkloadDescription
+    location: location
+    tags: tags
+  }
+}
+
 module networking 'modules/01-network/network.bicep' = {
   name: '${uniqueString(deployment().name, location)}-networking'
   dependsOn: [
     resourceGroups
+    networkWatcher
   ]
   scope: resourceGroup(resourceGroupNameMap.network)
   params: {
