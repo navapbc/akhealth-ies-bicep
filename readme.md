@@ -1,7 +1,5 @@
 # README
-
-
-This folder contains a local and reorganized  version of the App Service LZA template set with only the dependencies it needs.
+This repo contains a local/heavily modified/refactored version of the App Service LZA template set with only the dependencies it needs.
 (from here https://github.com/Azure/bicep-registry-modules/tree/main/avm/ptn/app-service-lza/hosting-environment)
 
 Modules are organized by deployment area and deployment order to keep flow obvious and legibile:
@@ -13,10 +11,12 @@ Modules are organized by deployment area and deployment order to keep flow obvio
 - 05-identity
 - 06-secrets
 - 07-edge
+- 08-data
 - shared
 
 Deployment Example:
-
+install azure cli
+enter az login (login in the pop up)
 az deployment sub create --location westus2 --template-file ./main.bicep --parameters ./params/main.dev.bicepparam
 
 
@@ -51,7 +51,7 @@ example for this template set: kv-iep-wus2-dev-001, app-iep-wus2-dev-tasks-001
 
 ## Naming implementation
 
-This template should keep naming consistent globally, while keeping final name creation close to the resource that owns the name.
+This template should keep naming consistent across the repo, while keeping final name creation close to the resource that owns the name.
 
 - Shared naming components should be declared explicitly in .bicepparams.
 - Shared naming components should flow through main into the modules that need them.
@@ -59,11 +59,11 @@ This template should keep naming consistent globally, while keeping final name c
 - Region abbreviation uses a shared map (because all resources are defined with a more fixed set of regions)
 - Resource specific naming schemes should be handled in the module for that resource.
 
-This keeps naming readable and predictable without adding an extra abstraction layer that users have to mentally work through.
+This keeps naming readable and predictable without adding an extra abstraction layer that we have to mentally work through.
 
 ## Repo-Local Abbreviations
 
-Considerations: Use Microsoft CAF abbreviations where Microsoft publishes one. Microsoft mixes abbreviations for the Microsoft.CDN provider between cdnp, cdne, fde, and afd. They use fde to convery frontdoor product vs where i would prefer to be technically honest and convery the actual resource type (cdn). But, for end user legibility purposes, afd and fd are sufficiently communicative. 
+Use Microsoft CAF abbreviations where Microsoft publishes one. Microsoft mixes abbreviations for the Microsoft.CDN provider between cdnp, cdne, fde, and afd. They use fde to label frontdoor products vs where i would prefer to be technically honest and label the actual resource type (cdn). But, for end user legibility purposes, afd and fd are sufficiently communicative. 
 
 
 For resource types that don't have an official CAF abbreviation, this repo uses the following local conventions:
@@ -118,7 +118,7 @@ Base network and private connectivity resources:
 - Private DNS zone groups / related private DNS resources
 
 Platform behavior note:
-For delegated service subnets, this solution intentionally leaves `privateEndpointNetworkPolicies` unset. Those subnets are not modeled as private endpoint hosting subnets, and Azure may still surface a concrete policy value on the live resource after deployment. That live value is treated as platform-managed state, not as an operator-managed contract in this repo.
+For delegated service subnets I am leaving privateEndpointNetworkPolicies unset. Those subnets are not modeled as private endpoint hosting subnets, and Azure still attempts to enforce a generic policy or something when you deploy it even as blank. I am kind of treating it as azure managed as it doesnt fully respect being passed as empty/null.
 
 ### `rg-iep-wus2-env-network-edge-01`
 Traffic entry and API access group:
@@ -149,14 +149,14 @@ Persistent data group:
 - Data Factory
 - ETL / ELT pipelines
 - ingestion/transformation jobs
-- data-processing Functions if primarily data-oriented
+- data-processing Functions if mostly data-oriented
 
 
 ### `rg-iep-wus2-env-operations-01`
 General support resource group:
 - miscellaneous support resources
 - small admin utilities
-- things that do not yet justify a clearer subcategory
+- things that do not yet justify a clear subcategory
 - Log Analytics
 - Application Insights
 - alerts
@@ -166,7 +166,7 @@ General support resource group:
 - Key Vault
 - certificate-related resources
 - security-focused support utilities
-- many miscellaneous identity-adjacent support resources
+- miscellaneous identity-adjacent support resources
 - User assignment managed identity
 - Federated credentials
 - Identity/auth resources

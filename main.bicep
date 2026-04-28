@@ -20,13 +20,10 @@ import {
 // Parameters       //
 // ================ //
 
-@maxLength(10)
-param workloadName string = 'appsvc${take(uniqueString(subscription().id), 4)}'
 param location string = deployment().location
 @maxLength(8)
-param environmentName string = 'test'
-param systemAbbreviation string = workloadName
-param environmentAbbreviation string = environmentName
+param systemAbbreviation string
+param environmentAbbreviation string
 param instanceNumber string = '001'
 param workloadDescription string
 param deployAseV3 bool = false
