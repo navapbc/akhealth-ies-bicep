@@ -1,0 +1,65 @@
+# System subnet planning reference
+
+This page is a service by service subnet sizing reference for the IEP.
+
+Planning for a 21 block per environment, with one environment per subscription:
+
+- allocate a dedicated `/23` block for the app service hosting environment
+- allocate  a dedicated `/24` block for Application Gateway for edge ingress if needed (can be reallocatted)
+- allocate a shared `/24` for private endpoints. private endpoints have the potential to grow a fair bit.
+- allocate a dedicated `/24` For Functions In the chance that we end up relying significantly on them. 
+- additional space reserved for future use alongside the blocks with potential for growth (private endpoints)
+
+## Subnet Plan for a /21 Block
+> Note: Azure reserves 5 IPs in each subnet.
+
+| Subnet Address | Range of Addresses | Usable IPs (Azure) | Hosts | Note | Prefix |
+|---|---|---|---:|---|---|
+| `10.0.0.0/23` | `10.0.0.0 - 10.0.1.255` | `10.0.0.4 - 10.0.1.254` | 507 | App Service Subnet | `/23` |
+| `10.0.2.0/24` | `10.0.2.0 - 10.0.2.255` | `10.0.2.4 - 10.0.2.254` | 251 | App Gateway Subnet | `/24` |
+| `10.0.3.0/24` | `10.0.3.0 - 10.0.3.255` | `10.0.3.4 - 10.0.3.254` | 251 | APIM/Edge Subnet | `/24` |
+| `10.0.4.0/24` | `10.0.4.0 - 10.0.4.255` | `10.0.4.4 - 10.0.4.254` | 251 | Private Endpoints Subnet | `/24` |
+| `10.0.5.0/24` | `10.0.5.0 - 10.0.5.255` | `10.0.5.4 - 10.0.5.254` | 251 | Reserved for Future Use | `/24` |
+| `10.0.6.0/24` | `10.0.6.0 - 10.0.6.255` | `10.0.6.4 - 10.0.6.254` | 251 | Functions Subnet | `/24` |
+| `10.0.7.0/26` | `10.0.7.0 - 10.0.7.63` | `10.0.7.4 - 10.0.7.62` | 59 | Logic Apps Subnet | `/26` |
+| `10.0.7.64/27` | `10.0.7.64 - 10.0.7.95` | `10.0.7.68 - 10.0.7.94` | 27 | PGSQL Subnet | `/27` |
+| `10.0.7.96/27` | `10.0.7.96 - 10.0.7.127` | `10.0.7.100 - 10.0.7.126` | 27 | Reserved for Future Use | `/27` |
+| `10.0.7.128/25` | `10.0.7.128 - 10.0.7.255` | `10.0.7.132 - 10.0.7.254` | 123 | Reserved for Future Use | `/25` |
+
+
+
+| Resource | Resource provider | Private networking mode | Address chunk required | Minimum | Recommended for planning | Notes | Microsoft reference |
+|---|---|---|---|---|---|---|---|
+| App Service Environment | `Microsoft.Web` | VNet injection / delegated subnet | Dedicated delegated subnet | `/27` | `/23` | Subnet must be empty and delegated to `Microsoft.Web/hostingEnvironments`. Microsoft recommends `/24` for production and `/23` when planning near max scale or frequent scale operations. Additional containers increase IP pressure. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
+| Application Gateway | `Microsoft.Network` | Dedicated subnet | Dedicated subnet | Dedicated subnet required | `/24` | Requires a dedicated subnet. Microsoft strongly recommends `/24` for v2 deployments to support autoscaling, maintenance, and upgrade capacity. | https://learn.microsoft.com/en-us/azure/application-gateway/configuration-infrastructure |
+| API Management | `Microsoft.ApiManagement` | VNet injection | Dedicated subnet | `/27` | `/24` | Premium v2 injection requires a dedicated subnet. APIM consumes subnet IPs for the service and additional scale units. | https://learn.microsoft.com/en-us/azure/api-management/inject-vnet-v2 |
+| Private Endpoints (shared subnet) | `Microsoft.Network` | Shared PE subnet | Shared subnet | No dedicated minimum | `/24` | Shared subnet for Private Link endpoints across ACR, Storage, Key Vault, Service Bus, Event Grid, Monitor, and similar services. Each private endpoint uses one IP. | https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview |
+| Logic Apps (Standard, if privately networked) | `Microsoft.Logic` | VNet integration / private endpoint depending on design | Hosting-related subnet | `/27` | `/26` | Relevant only if using Logic Apps Standard with private networking. Microsoft notes `/26` is preferred to avoid capacity issues. | https://learn.microsoft.com/en-us/azure/logic-apps/secure-single-tenant-workflow-virtual-network-private-endpoint |
+| Azure Functions Premium / Function App | `Microsoft.Web` | Regional VNet integration, optional private endpoint | Separate integration subnet plus optional PE IPs | Subnet with at least 100 available addresses | Plan a dedicated integration subnet with at least 100 available IPs; current environment planning reserves `/24` | Best treated as separate from app services planning if it serves integration workloads. Private inbound, if used, consumes PE subnet IPs separately. | https://learn.microsoft.com/en-us/azure/azure-functions/functions-premium-plan |
+| Azure Database for PostgreSQL Flexible Server | `Microsoft.DBforPostgreSQL` | Private access / delegated subnet | Dedicated delegated subnet | `/28` | `/27` | Subnet must be delegated to `Microsoft.DBforPostgreSQL/flexibleServers`. A single HA-enabled server uses multiple IPs, so `/27` gives more headroom. | https://learn.microsoft.com/en-us/azure/postgresql/network/concepts-networking-private |
+| App Service Plan | `Microsoft.Web` | Hosted inside ASE | Uses ASE subnet capacity | N/A | Covered by ASE sizing | No separate subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
+| App Service / Web App / API App | `Microsoft.Web` | Hosted inside ASE; optional private endpoint | Uses ASE subnet capacity; PE adds 1 IP if used | N/A | Covered by ASE sizing | No dedicated subnet by itself inside ASE. | https://learn.microsoft.com/en-us/azure/app-service/environment/networking |
+| Azure Container Registry | `Microsoft.ContainerRegistry` | Private Link | Private endpoint IPs in shared PE subnet | 1+ PE | 2 PE IPs | Reasonable planning baseline for moderate workloads is 2 IPs to cover registry plus data endpoint behavior. Geo-replication adds more. | https://learn.microsoft.com/en-us/azure/container-registry/container-registry-private-link |
+| Storage Account | `Microsoft.Storage` | Private Link | Private endpoint IPs in shared PE subnet | 1 PE per storage subresource used privately | Up to 6 PE IPs per account | Conservative planning baseline if you want all storage services private: Blob, DFS, File, Queue, Table, and Web. Each subresource uses its own PE. | https://learn.microsoft.com/en-us/azure/storage/common/storage-private-endpoints |
+| Key Vault | `Microsoft.KeyVault` | Private Link | Private endpoint IPs in shared PE subnet | 1 PE | 1+ IP per vault connection | Private endpoint and VNet must be in the same region. | https://learn.microsoft.com/en-us/azure/key-vault/general/private-link-service |
+| Service Bus | `Microsoft.ServiceBus` | Private Link | Private endpoint IPs in shared PE subnet | 1 PE | 1+ IP per namespace | Private endpoint support is available on Premium tier. | https://learn.microsoft.com/en-us/azure/service-bus-messaging/network-security |
+| Event Grid | `Microsoft.EventGrid` | Private Link for supported resource types | Private endpoint IPs in shared PE subnet | 1 PE per supported resource | 1+ IP per private-endpoint-enabled resource | Applies to supported Event Grid resource types such as custom topics, domains, and namespaces, not every Event Grid construct. | https://learn.microsoft.com/en-us/azure/event-grid/configure-private-endpoints |
+| Azure Cache for Redis | `Microsoft.Cache` | Private Link | Private endpoint IPs in shared PE subnet | 1 PE | 1+ IP per cache | No dedicated subnet required. | https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-private-link |
+| Cosmos DB | `Microsoft.DocumentDB` | Private Link | Private endpoint IPs in shared PE subnet | 1 PE | 1+ IP per account connection | No dedicated subnet required. | https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-configure-private-endpoints |
+| Log Analytics Workspace | `Microsoft.OperationalInsights` | Azure Monitor Private Link Scope | Shared PE subnet IPs if privatized | 0 by default | Covered by AMPLS design | Keep as separate item, but plan private access through AMPLS rather than a bespoke subnet strategy per monitoring service. | https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/private-link-design |
+| Application Insights | `Microsoft.Insights` | Azure Monitor Private Link Scope | Shared PE subnet IPs if privatized | 0 by default | Covered by AMPLS design | Same AMPLS note as Log Analytics. | https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/private-link-design |
+| Azure Monitor alerting / monitor resources | `Microsoft.Insights` / `Microsoft.Monitor` / `Microsoft.AlertsManagement` | Azure Monitor Private Link Scope where applicable | Shared PE subnet IPs if privatized | 0 by default | Covered by AMPLS design | Same AMPLS note as Log Analytics and Application Insights. | https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/private-link-design |
+| Azure Automation / Runbooks | `Microsoft.Automation` | Optional Private Link | None by default; PE if privatized | 0 by default | 0 unless private-linked | Does not inherently require a subnet chunk. | https://learn.microsoft.com/en-us/azure/automation/how-to/private-link-security |
+| Load Balancer | `Microsoft.Network` | Private frontend in existing subnet | Uses private frontend IP(s) from chosen subnet | No dedicated subnet requirement | Plan 1 private IP per frontend config | No dedicated subnet requirement like Application Gateway. | https://learn.microsoft.com/en-us/azure/load-balancer/manage |
+| Private DNS zone / private DNS networking objects | `Microsoft.Network` | DNS control plane | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/dns/private-dns-overview |
+| Network Security Groups | `Microsoft.Network` | Control plane | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/hybrid-networking/network-level-segmentation |
+| Route Tables | `Microsoft.Network` | Control plane | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview |
+| WAF Policy for Application Gateway | `Microsoft.Network` | Policy object | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/policy-overview |
+| Managed Identity | `Microsoft.ManagedIdentity` | Identity plane | None | None | None | No subnet/IP reservation required. | https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity |
+| Azure Data Factory | `Microsoft.DataFactory` | Managed VNet | None in the platform VNet | None | 0 | Assuming managed VNet and no self-hosted/on-prem integration runtime, Data Factory does not require a subnet chunk in the platform VNet. | https://learn.microsoft.com/en-us/azure/data-factory/managed-virtual-network-private-endpoint |
+| Subnets | `Microsoft.Network` | Segmentation unit | Varies by attached service | `/29` is Azure’s smallest subnet size | Size by service requirement | Azure reserves 5 IPs in every subnet. | https://learn.microsoft.com/en-us/azure/virtual-network/manage-virtual-network |
+
+## Notes
+
+- Private endpoint growth, azure monitor private access through AMPLS, and integrations are the places most likely to take up more address space over time.
+- Trying to mantain as much contiguous network space as possible to accomodate future growth.
