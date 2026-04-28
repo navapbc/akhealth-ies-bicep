@@ -24,7 +24,7 @@ param location string = deployment().location
 @maxLength(8)
 param systemAbbreviation string
 param environmentAbbreviation string
-param instanceNumber string = '001'
+param instanceNumber string
 param workloadDescription string
 param deployAseV3 bool = false
 param tags object = {}

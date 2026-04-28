@@ -4,9 +4,7 @@ using '../main.bicep'
 // Deployment Info.         //
 // ======================== //
 
-param workloadName = '845FDA'
 param location = 'westus2'
-param environmentName = 'dev'
 param systemAbbreviation = 'iep'
 param environmentAbbreviation = 'dev'
 param instanceNumber = '005'
@@ -25,9 +23,9 @@ param deployPostgreSql = false
 // ======================== //
 
 param tags = {
-  environment: 'dev'
-  workload: '456TRF'
-  managedBy: 'bicepparam'
+  environment: environmentAbbreviation
+  system: systemAbbreviation
+  managedBy: 'Bicep'
 }
 
 // Resource groups created by this deployment.
